@@ -56,20 +56,20 @@ export default function ProductManagementPage() {
 
       <main className="max-w-7xl mx-auto px-4 py-12">
         {/* Filters */}
-        <div className="bg-white p-4 rounded-lg shadow mb-6 flex gap-4">
+        <div className="bg-white p-4 rounded-lg shadow mb-6 flex flex-col gap-4 sm:flex-row sm:items-center">
           <input
             type="text"
             placeholder="Search products..."
-            className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="flex-1 min-w-0 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
-          <select className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none">
+          <select className="w-full sm:w-auto px-4 py-2 border border-gray-300 rounded-lg focus:outline-none">
             <option>All Categories</option>
             <option>Clothing</option>
             <option>Accessories</option>
             <option>Jewelry</option>
             <option>Footwear</option>
           </select>
-          <select className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none">
+          <select className="w-full sm:w-auto px-4 py-2 border border-gray-300 rounded-lg focus:outline-none">
             <option>All Status</option>
             <option>Active</option>
             <option>Inactive</option>
@@ -79,7 +79,8 @@ export default function ProductManagementPage() {
 
         {/* Products Table */}
         <div className="bg-white rounded-lg shadow overflow-hidden">
-          <table className="w-full">
+          <div className="overflow-x-auto">
+            <table className="min-w-[720px] w-full">
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
                 <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700">
@@ -135,7 +136,8 @@ export default function ProductManagementPage() {
                 </tr>
               ))}
             </tbody>
-          </table>
+            </table>
+          </div>
         </div>
       </main>
     </div>

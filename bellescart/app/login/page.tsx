@@ -46,6 +46,9 @@ export default function LoginPage() {
       if (response.success) {
         saveAuthSession(response.user, response.token);
 
+        // Set flag for fresh login
+        localStorage.setItem('justLoggedIn', 'true');
+
         // Redirect all users to dashboard after login
         window.location.href = '/dashboard';
       }

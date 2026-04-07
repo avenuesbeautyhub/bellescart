@@ -11,13 +11,14 @@ import { mockProducts } from '@/utils/mockData';
 
 export default function DashboardPage() {
   const { isAuthenticated, loaded, user } = useRequireAuth();
-  const [showLoading, setShowLoading] = useState(true);
+  const [showLoading, setShowLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     if (loaded && isAuthenticated) {
-      // Show loading overlay when page first loads
-      setShowLoading(true);
+      // Show loading overlay only if user just logged in
+      const justLoggedIn = localStorage.getItem('justLoggedIn') === 'true';
+      setShowLoading(justLoggedIn);
     }
   }, [loaded, isAuthenticated]);
 
@@ -33,7 +34,7 @@ export default function DashboardPage() {
 
   return (
     <>
-      <LoadingOverlay isVisible={showLoading} onComplete={() => setShowLoading(false)} />
+      <LoadingOverlay isVisible={showLoading} onComplete={() => { setShowLoading(false); localStorage.removeItem('justLoggedIn'); }} />
       
       <div className={`min-h-screen flex flex-col transition-opacity duration-700 ${
         showLoading ? 'opacity-0' : 'opacity-100'
@@ -106,16 +107,16 @@ export default function DashboardPage() {
             <div className="bg-white rounded-lg shadow-md p-6">
               <h2 className="text-xl font-semibold text-gray-800 mb-4">Quick Search</h2>
               <div className="space-y-4">
-                <div className="flex gap-4">
+                <div className="flex flex-col sm:flex-row gap-4">
                   <input
                     type="text"
                     placeholder="Search for jewelry, necklaces, rings..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500"
+                    className="flex-1 min-w-0 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500"
                   />
                   <Link href={`/products${searchQuery ? `?search=${encodeURIComponent(searchQuery)}` : ''}`}>
-                    <Button>Search</Button>
+                    <Button className="w-full sm:w-auto">Search</Button>
                   </Link>
                 </div>
                 <div className="flex flex-wrap gap-2">
@@ -193,7 +194,7 @@ export default function DashboardPage() {
               <p className="text-gray-600 mt-2">Check out our latest collections</p>
             </div>
             <Link href="/products">
-              <Button>View All</Button>
+              <Button size="sm">View All</Button>
             </Link>
           </div>
 

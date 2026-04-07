@@ -1,7 +1,8 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import Navbar from '@/components/Navbar/Navbar';
 import Footer from '@/components/Footer/Footer';
 import ProductGrid from '@/components/ProductGrid/ProductGrid';
@@ -10,8 +11,15 @@ import { mockProducts } from '@/utils/mockData';
 import { useAuth } from '@/utils/auth';
 
 export default function Home() {
+  const router = useRouter();
   const featuredProducts = mockProducts.slice(0, 8);
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, loaded } = useAuth();
+
+  useEffect(() => {
+    if (loaded && isAuthenticated) {
+      router.push('/dashboard');
+    }
+  }, [loaded, isAuthenticated, router]);
 
   return (
     <div className="min-h-screen flex flex-col">
