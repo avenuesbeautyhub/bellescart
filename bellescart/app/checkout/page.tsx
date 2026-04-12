@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { useRequireAuth } from '@/utils/auth';
+import { useRequireUserAuth } from '@/auth/user';
 import Navbar from '@/components/Navbar/Navbar';
 import Footer from '@/components/Footer/Footer';
 import Button from '@/components/ui/Button';
@@ -10,7 +10,7 @@ import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
 
 export default function CheckoutPage() {
-  const { loaded, isAuthenticated } = useRequireAuth();
+  const { loaded, isAuthenticated } = useRequireUserAuth();
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',

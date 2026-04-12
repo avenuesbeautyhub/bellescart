@@ -8,7 +8,7 @@ import Footer from '@/components/Footer/Footer';
 import ProductGrid from '@/components/ProductGrid/ProductGrid';
 import Button from '@/components/ui/Button';
 import { mockProducts } from '@/utils/mockData';
-import { useAuth } from '@/utils/auth';
+import { useAuth } from '@/auth/user';
 
 export default function Home() {
   const router = useRouter();

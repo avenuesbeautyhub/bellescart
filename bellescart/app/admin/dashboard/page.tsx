@@ -4,9 +4,27 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
+import { useRequireAdminAuth } from '@/auth/admin';
 
 export default function AdminDashboard() {
+  const { loaded, isAuthenticated } = useRequireAdminAuth();
   const [timeframe, setTimeframe] = useState<'daily' | 'monthly' | 'yearly'>('monthly');
+
+  if (!loaded) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <p className="text-xl text-gray-600">Loading...</p>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <p className="text-xl text-gray-600">Redirecting...</p>
+      </div>
+    );
+  }
 
   const chartData = {
     daily: [
@@ -126,11 +144,10 @@ export default function AdminDashboard() {
                 <button
                   key={option}
                   onClick={() => setTimeframe(option as 'daily' | 'monthly' | 'yearly')}
-                  className={`px-3 py-2 rounded-full text-sm font-medium transition ${
-                    timeframe === option
-                      ? 'bg-pink-500 text-white'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
+                  className={`px-3 py-2 rounded-full text-sm font-medium transition ${timeframe === option
+                    ? 'bg-pink-500 text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
                 >
                   {option.charAt(0).toUpperCase() + option.slice(1)}
                 </button>
@@ -214,8 +231,8 @@ export default function AdminDashboard() {
                           order.status === 'delivered'
                             ? 'success'
                             : order.status === 'shipped'
-                            ? 'primary'
-                            : 'warning'
+                              ? 'primary'
+                              : 'warning'
                         }
                       >
                         {order.status.charAt(0).toUpperCase() + order.status.slice(1)}

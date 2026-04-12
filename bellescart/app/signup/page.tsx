@@ -1,23 +1,41 @@
 'use client';
 
-import React, { useState } from 'react';
-import Link from 'next/link';
+import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import Navbar from '@/components/Navbar/Navbar';
 import Footer from '@/components/Footer/Footer';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
+import { useToast } from '@/contexts/ToastContext';
+import { toastMessages } from '@/utils/toastHelpers';
+import { useAuth, useAuthActions } from '@/auth/user';
+import Link from 'next/link';
 
 export default function SignupPage() {
+  const { loaded, isAuthenticated } = useAuth();
+  const router = useRouter();
+  const toast = useToast();
+  const { signup } = useAuthActions();
+
   const [formData, setFormData] = useState({
-    firstName: '',
-    lastName: '',
+    name: '',
     email: '',
     password: '',
     confirmPassword: '',
+    phone: '',
     agreeToTerms: false,
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+  useEffect(() => {
+    if (loaded && isAuthenticated) {
+      router.replace('/dashboard');
+    }
+  }, [loaded, isAuthenticated, router]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type, checked } = e.target;
@@ -27,7 +45,7 @@ export default function SignupPage() {
     }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const newErrors: Record<string, string> = {};
 
@@ -40,14 +58,41 @@ export default function SignupPage() {
     }
 
     if (!formData.agreeToTerms) {
-      newErrors.agreeToTerms = 'You must agree to the terms and conditions';
+      newErrors.agreeToTerms = 'You must agree to terms and conditions';
     }
 
     setErrors(newErrors);
 
     if (Object.keys(newErrors).length === 0) {
-      console.log('Signup:', formData);
-      // Handle signup
+      setIsLoading(true);
+
+      try {
+        const response = await signup({
+          firstName: formData.name.split(' ')[0],
+          lastName: formData.name.split(' ')[1],
+          email: formData.email,
+          password: formData.password,
+          phone: formData.phone,
+        });
+
+        if (response.success) {
+          // Show success toast
+          toast.showToast(toastMessages.auth.signupSuccess());
+
+          // Redirect to OTP verification after a short delay
+          setTimeout(() => {
+            router.push(`/verify-otp?email=${encodeURIComponent(formData.email)}`);
+          }, 1500);
+        } else {
+          // Show error toast
+          toast.showToast(toastMessages.auth.signupError(response.error));
+        }
+      } catch (err) {
+        // Show network error toast
+        toast.showToast(toastMessages.general.networkError());
+      } finally {
+        setIsLoading(false);
+      }
     }
   };
 
@@ -64,24 +109,14 @@ export default function SignupPage() {
             </p>
 
             <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <Input
-                  label="First Name"
-                  name="firstName"
-                  value={formData.firstName}
-                  onChange={handleChange}
-                  required
-                  placeholder="John"
-                />
-                <Input
-                  label="Last Name"
-                  name="lastName"
-                  value={formData.lastName}
-                  onChange={handleChange}
-                  required
-                  placeholder="Doe"
-                />
-              </div>
+              <Input
+                label="Username"
+                name="name"
+                value={formData.name}
+                onChange={handleChange}
+                required
+                placeholder="johndoe"
+              />
 
               <Input
                 label="Email Address"
@@ -94,26 +129,53 @@ export default function SignupPage() {
               />
 
               <Input
-                label="Password"
-                type="password"
-                name="password"
-                value={formData.password}
+                label="Phone Number"
+                name="phone"
+                value={formData.phone}
                 onChange={handleChange}
                 required
-                placeholder="••••••••"
-                error={errors.password}
+                placeholder="+1234567890"
               />
 
-              <Input
-                label="Confirm Password"
-                type="password"
-                name="confirmPassword"
-                value={formData.confirmPassword}
-                onChange={handleChange}
-                required
-                placeholder="••••••••"
-                error={errors.confirmPassword}
-              />
+              <div className="relative">
+                <Input
+                  label="Password"
+                  type={showPassword ? 'text' : 'password'}
+                  name="password"
+                  value={formData.password}
+                  onChange={handleChange}
+                  required
+                  placeholder="Password"
+                  error={errors.password}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-9 text-gray-500 hover:text-gray-700"
+                >
+                  {showPassword ? '�' : '�'}
+                </button>
+              </div>
+
+              <div className="relative">
+                <Input
+                  label="Confirm Password"
+                  type={showConfirmPassword ? 'text' : 'password'}
+                  name="confirmPassword"
+                  value={formData.confirmPassword}
+                  onChange={handleChange}
+                  required
+                  placeholder="Confirm Password"
+                  error={errors.confirmPassword}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  className="absolute right-3 top-9 text-gray-500 hover:text-gray-700"
+                >
+                  {showConfirmPassword ? '🙈' : '👀'}
+                </button>
+              </div>
 
               <div className="flex items-start">
                 <input
@@ -138,8 +200,8 @@ export default function SignupPage() {
                 <p className="text-red-500 text-sm">{errors.agreeToTerms}</p>
               )}
 
-              <Button type="submit" className="w-full">
-                Create Account
+              <Button type="submit" className="w-full" disabled={isLoading}>
+                {isLoading ? 'Creating Account...' : 'Create Account'}
               </Button>
             </form>
 

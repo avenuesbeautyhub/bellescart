@@ -7,19 +7,21 @@ import Navbar from '@/components/Navbar/Navbar';
 import Footer from '@/components/Footer/Footer';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
-import { login } from '@/services/api';
-import { saveAuthSession, useAuth } from '@/utils/auth';
+import { useToast } from '@/contexts/ToastContext';
+import { toastMessages } from '@/utils/toastHelpers';
+import { useAuth, useAuthActions } from '@/auth/user';
 
 export default function LoginPage() {
   const router = useRouter();
   const { loaded, isAuthenticated } = useAuth();
+  const toast = useToast();
+  const { login } = useAuthActions();
   const [formData, setFormData] = useState({
     email: '',
     password: '',
   });
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState('');
 
   useEffect(() => {
     if (loaded && isAuthenticated) {
@@ -38,22 +40,28 @@ export default function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    setError('');
 
     try {
-      const response = await login(formData.email, formData.password);
-      
+      const response = await login({
+        email: formData.email,
+        password: formData.password
+      });
+
       if (response.success) {
-        saveAuthSession(response.user, response.token);
+        // Show success toast
+        toast.showToast(toastMessages.auth.loginSuccess(response.data?.user?.name));
 
-        // Set flag for fresh login
-        localStorage.setItem('justLoggedIn', 'true');
-
-        // Redirect all users to dashboard after login
-        window.location.href = '/dashboard';
+        // Redirect to dashboard after a short delay
+        setTimeout(() => {
+          router.push('/dashboard');
+        }, 1500);
+      } else {
+        // Show error toast
+        toast.showToast(toastMessages.auth.loginError(response.error));
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Login failed');
+      // Show error toast for network errors
+      toast.showToast(toastMessages.general.networkError());
     } finally {
       setIsLoading(false);
     }
@@ -72,12 +80,6 @@ export default function LoginPage() {
             </p>
 
             <form onSubmit={handleSubmit} className="space-y-4">
-              {error && (
-                <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
-                  {error}
-                </div>
-              )}
-
               <Input
                 label="Email Address"
                 type="email"

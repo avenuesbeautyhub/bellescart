@@ -1,0 +1,13 @@
+{
+  "watch": ["src"],
+  "ext": "ts,json",
+  "ignore": [
+    "src/**/*.spec.ts",
+    "node_modules",
+    ".git",
+    ".vscode",
+    "*.log",
+    ".env*"
+  ],
+  "delay": "1000"
+}

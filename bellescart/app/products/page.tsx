@@ -5,7 +5,7 @@ import Navbar from '@/components/Navbar/Navbar';
 import Footer from '@/components/Footer/Footer';
 import ProductGrid from '@/components/ProductGrid/ProductGrid';
 import { mockProducts, mockCategories, getProductsByCategory } from '@/utils/mockData';
-import { useAuth } from '@/utils/auth';
+import { useAuth } from '@/auth/user';
 
 export default function ProductsPage() {
   const [selectedCategory, setSelectedCategory] = useState('All Products');

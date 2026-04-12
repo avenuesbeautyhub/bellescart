@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { useRequireAuth, clearAuthSession } from '@/utils/auth';
+import { useRequireUserAuth, clearUserSession } from '@/auth/user';
 import { useRouter } from 'next/navigation';
 import Navbar from '@/components/Navbar/Navbar';
 import Footer from '@/components/Footer/Footer';
@@ -12,11 +12,11 @@ import Badge from '@/components/ui/Badge';
 
 export default function ProfilePage() {
   const router = useRouter();
-  const { user, loaded, isAuthenticated } = useRequireAuth();
+  const { user, loaded, isAuthenticated } = useRequireUserAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [profilePic, setProfilePic] = useState('');
   const [showAddAddress, setShowAddAddress] = useState(false);
-  
+
   const [profile, setProfile] = useState({
     firstName: user?.name?.split(' ')[0] || 'User',
     lastName: user?.name?.split(' ')[1] || '',
@@ -119,7 +119,7 @@ export default function ProfilePage() {
   };
 
   const handleLogout = () => {
-    clearAuthSession();
+    clearUserSession();
     router.push('/login');
   };
 
@@ -145,7 +145,7 @@ export default function ProfilePage() {
                       {profile.lastName.charAt(0)}
                     </div>
                   )}
-                  
+
                   <label className="cursor-pointer">
                     <input
                       type="file"
@@ -370,8 +370,8 @@ export default function ProfilePage() {
                 )}
               </div>
 
-             
-            
+
+
             </div>
           </div>
         </div>
