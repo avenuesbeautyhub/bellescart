@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Navbar from '@/components/Navbar/Navbar';
 import Footer from '@/components/Footer/Footer';
@@ -10,7 +10,7 @@ import { useToast } from '@/contexts/ToastContext';
 import { toastMessages } from '@/utils/toastHelpers';
 import { useAuth, useAuthActions } from '@/auth/user';
 
-export default function VerifyOtpPage() {
+function VerifyOtpContent() {
   const { loaded, isAuthenticated } = useAuth();
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -220,5 +220,17 @@ export default function VerifyOtpPage() {
 
       <Footer />
     </div>
+  );
+}
+
+export default function VerifyOtpPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <p className="text-gray-600">Loading...</p>
+      </div>
+    }>
+      <VerifyOtpContent />
+    </Suspense>
   );
 }
