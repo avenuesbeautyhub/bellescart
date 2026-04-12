@@ -2,7 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { useRequireAuth } from '@/utils/auth';
+import { useRequireUserAuth } from '@/auth/user';
 import Navbar from '@/components/Navbar/Navbar';
 import Footer from '@/components/Footer/Footer';
 import OrderCard from '@/components/OrderCard/OrderCard';
@@ -10,7 +10,7 @@ import Button from '@/components/ui/Button';
 import { Order } from '@/utils/types';
 
 export default function OrdersPage() {
-  const { loaded, isAuthenticated } = useRequireAuth();
+  const { loaded, isAuthenticated } = useRequireUserAuth();
   const mockOrders: Order[] = [
     {
       id: 'ORD-001',

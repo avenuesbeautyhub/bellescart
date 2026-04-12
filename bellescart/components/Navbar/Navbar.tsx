@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import Button from '@/components/ui/Button';
-import { clearAuthSession, getAuthUser } from '@/utils/auth';
+import { clearUserSession, getUserAuth } from '@/auth/user';
 
 export default function Navbar() {
   const router = useRouter();
@@ -13,14 +13,14 @@ export default function Navbar() {
 
   useEffect(() => {
     // Check if user is logged in on component mount
-    const storedUser = getAuthUser();
+    const storedUser = getUserAuth();
     if (storedUser) {
       setUser(storedUser);
     }
   }, []);
 
   const handleLogout = () => {
-    clearAuthSession();
+    clearUserSession();
     setUser(null);
     router.push('/');
   };

@@ -11,7 +11,7 @@ import Select from '@/components/ui/Select';
 import Rating from '@/components/ui/Rating';
 import Badge from '@/components/ui/Badge';
 import { getProductById, getRelatedProducts } from '@/utils/mockData';
-import { useAuth } from '@/utils/auth';
+import { useAuth } from '@/auth/user';
 
 function ProductDetails() {
   const searchParams = useSearchParams();

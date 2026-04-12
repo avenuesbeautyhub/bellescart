@@ -7,7 +7,7 @@ import { Product } from '@/utils/types';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 import Rating from '@/components/ui/Rating';
-import { useAuth } from '@/utils/auth';
+import { useAuth } from '@/auth/user';
 
 interface ProductCardProps {
   product: Product;

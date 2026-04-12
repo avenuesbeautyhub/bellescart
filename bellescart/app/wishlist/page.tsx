@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { useRequireAuth } from '@/utils/auth';
+import { useRequireUserAuth } from '@/auth/user';
 import Navbar from '@/components/Navbar/Navbar';
 import Footer from '@/components/Footer/Footer';
 import ProductGrid from '@/components/ProductGrid/ProductGrid';
@@ -10,7 +10,7 @@ import Button from '@/components/ui/Button';
 import { mockProducts } from '@/utils/mockData';
 
 export default function WishlistPage() {
-  const { loaded, isAuthenticated } = useRequireAuth();
+  const { loaded, isAuthenticated } = useRequireUserAuth();
   const [wishlistItems] = useState(mockProducts.slice(0, 4));
 
   if (!loaded) {

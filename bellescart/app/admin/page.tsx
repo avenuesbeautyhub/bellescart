@@ -1,25 +1,44 @@
 'use client';
 
 import React, { useState } from 'react';
-import Link from 'next/link';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
+import { useAdminAuth } from '@/auth/admin';
+import { useAdminAuthActions } from '@/auth/admin/actions';
 
 export default function AdminLoginPage() {
+  const { loaded, isAuthenticated } = useAdminAuth();
+  const { adminLogin } = useAdminAuthActions();
   const [formData, setFormData] = useState({
     email: '',
     password: '',
   });
+
+  // Redirect authenticated admin users to dashboard
+  if (loaded && isAuthenticated) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <p className="text-gray-600">Redirecting to admin dashboard...</p>
+      </div>
+    );
+  }
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('Admin login:', formData);
-    // Handle admin login
+    try {
+      await adminLogin({
+        email: formData.email,
+        password: formData.password
+      });
+      // Redirect will be handled by useRequireAdminAuth
+    } catch (error) {
+      console.error('Admin login error:', error);
+    }
   };
 
   return (
@@ -51,14 +70,12 @@ export default function AdminLoginPage() {
               value={formData.password}
               onChange={handleChange}
               required
-              placeholder="••••••••"
+              placeholder="•••••••"
             />
 
-            <Link href="/admin/dashboard">
-              <Button type="submit" className="w-full">
-                Login to Admin Dashboard
-              </Button>
-            </Link>
+            <Button type="submit" className="w-full">
+              Login to Admin Dashboard
+            </Button>
           </form>
 
           <p className="text-center text-gray-600 mt-6 text-sm">
@@ -68,4 +85,4 @@ export default function AdminLoginPage() {
       </div>
     </div>
   );
-}
+};

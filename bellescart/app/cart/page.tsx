@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { useRequireAuth } from '@/utils/auth';
+import { useRequireUserAuth } from '@/auth/user';
 import Navbar from '@/components/Navbar/Navbar';
 import Footer from '@/components/Footer/Footer';
 import Button from '@/components/ui/Button';
@@ -10,7 +10,7 @@ import CartItem from '@/components/CartItem/CartItem';
 import { CartItem as CartItemType } from '@/utils/types';
 
 export default function CartPage() {
-  const { loaded, isAuthenticated } = useRequireAuth();
+  const { loaded, isAuthenticated } = useRequireUserAuth();
   const [cartItems, setCartItems] = useState<CartItemType[]>([
     {
       id: '1',

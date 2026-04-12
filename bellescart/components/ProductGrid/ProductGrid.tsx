@@ -1,7 +1,7 @@
 import React from 'react';
 import { Product } from '@/utils/types';
 import ProductCard from '@/components/ProductCard/ProductCard';
-import { useAuth } from '@/utils/auth';
+import { useAuth } from '@/auth/user';
 
 interface ProductGridProps {
   products: Product[];
