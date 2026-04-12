@@ -1,0 +1,80 @@
+{
+  "compilerOptions": {
+    /* Language and Environment */
+    "target": "es2016",
+    /* Modules */
+    "module": "commonjs",
+    /* Emit */
+    "outDir": "./dist",
+    /* Interop Constraints */
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    /* Type Checking */
+    "strict": true,
+    /* Completeness */
+    "skipLibCheck": true,
+    /* Additional options for better development experience */
+    "resolveJsonModule": true,
+    "declaration": true,
+    "sourceMap": true,
+    "removeComments": true,
+    "noImplicitAny": true,
+    "strictNullChecks": true,
+    "strictFunctionTypes": true,
+    "noImplicitThis": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "moduleResolution": "node",
+    "baseUrl": "./",
+    "paths": {
+      "@/*": [
+        "src/*"
+      ],
+      "@/config/*": [
+        "src/config/*"
+      ],
+      "@/controllers/*": [
+        "src/controllers/*"
+      ],
+      "@/models/*": [
+        "src/models/*"
+      ],
+      "@/routes/*": [
+        "src/routes/*"
+      ],
+      "@/middleware/*": [
+        "src/middleware/*"
+      ],
+      "@/utils/*": [
+        "src/utils/*"
+      ],
+      "@/services/*": [
+        "src/services/*"
+      ],
+      "@/repositories/*": [
+        "src/repositories/*"
+      ],
+      "@/entities/*": [
+        "src/entities/*"
+      ],
+      "@/interactors/*": [
+        "src/interactors/*"
+      ],
+      "@/providers/*": [
+        "src/providers/*"
+      ],
+      "@/auth/*": [
+        "src/auth/*"
+      ]
+    }
+  },
+  "include": [
+    "src/**/*"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "**/*.test.ts",
+    "**/*.spec.ts"
+  ]
+}
