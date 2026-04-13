@@ -5,30 +5,55 @@ import Link from 'next/link';
 import Navbar from '@/components/Navbar/Navbar';
 import Footer from '@/components/Footer/Footer';
 import Button from '@/components/ui/Button';
+import Loader from '@/components/ui/Loader';
 import LoadingOverlay from '@/components/LoadingOverlay/LoadingOverlay';
-import { useRequireUserAuth } from '@/auth/user'; 
+import WelcomeOverlay from '@/components/WelcomeOverlay/WelcomeOverlay';
+import { useRequireUserAuth } from '@/auth/user';
 import { mockProducts } from '@/utils/mockData';
 
 export default function DashboardPage() {
-  const { isAuthenticated, loaded, user } = useRequireUserAuth();
+  const { isAuthenticated, loaded } = useRequireUserAuth();
   const [showLoading, setShowLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [showWelcome, setShowWelcome] = useState(false);
+
+  // Load current user data
+  useEffect(() => {
+    const loadCurrentUser = async () => {
+      if (isAuthenticated) {
+        try {
+          const { authService } = await import('@/services/authService');
+          const response = await authService.getCurrentUser();
+          if (response.success && response.data) {
+            setCurrentUser(response.data);
+          }
+        } catch (error) {
+          console.error('Failed to load current user:', error);
+        }
+      }
+    };
+
+    loadCurrentUser();
+  }, [isAuthenticated]);
 
   useEffect(() => {
     if (loaded && isAuthenticated) {
       // Show loading overlay only if user just logged in
       const justLoggedIn = localStorage.getItem('justLoggedIn') === 'true';
       setShowLoading(justLoggedIn);
+
+      // Show welcome overlay if not shown before
+      const welcomeShown = localStorage.getItem('welcomeShown');
+      if (welcomeShown === 'false') {
+        setShowWelcome(true);
+      }
     }
   }, [loaded, isAuthenticated]);
 
-  // Show loading state while checking authentication
-  if (!loaded) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <p className="text-xl text-gray-600">Loading...</p>
-      </div>
-    );
+  // Show loader only if not loaded AND not already authenticated
+  if (!loaded && !isAuthenticated) {
+    return <Loader size="lg" text="Loading..." fullScreen />;
   }
 
   // Don't render dashboard if not authenticated (useRequireAuth will handle redirect)
@@ -46,6 +71,12 @@ export default function DashboardPage() {
     <>
       <LoadingOverlay isVisible={showLoading} onComplete={() => { setShowLoading(false); localStorage.removeItem('justLoggedIn'); }} />
 
+      <WelcomeOverlay
+        isVisible={showWelcome}
+        onComplete={() => setShowWelcome(false)}
+        userName={currentUser?.name}
+      />
+
       <div className={`min-h-screen flex flex-col transition-opacity duration-700 ${showLoading ? 'opacity-0' : 'opacity-100'
         }`}>
         <Navbar />
@@ -54,7 +85,7 @@ export default function DashboardPage() {
           {/* Welcome Section */}
           <section className="bg-gradient-to-r from-pink-500 to-pink-600 text-white py-12">
             <div className="container mx-auto px-4">
-              <h1 className="text-4xl font-bold mb-4">Welcome back, {user?.name || 'Valued Customer'}!</h1>
+              <h1 className="text-4xl font-bold mb-4">Welcome back, {currentUser?.name || 'Valued Customer'}!</h1>
               <p className="text-lg text-pink-100">Ready to discover your next favorite piece of jewelry?</p>
             </div>
           </section>

@@ -1,14 +1,18 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRequireUserAuth, clearUserSession } from '@/auth/user';
+import { UserProfile } from '@/types/auth';
 import { useRouter } from 'next/navigation';
 import Navbar from '@/components/Navbar/Navbar';
 import Footer from '@/components/Footer/Footer';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Badge from '@/components/ui/Badge';
+import Loader from '@/components/ui/Loader';
+import { profileService } from '@/services/profileService';
+import { authService } from '@/services/authService';
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -16,14 +20,48 @@ export default function ProfilePage() {
   const [isEditing, setIsEditing] = useState(false);
   const [profilePic, setProfilePic] = useState('');
   const [showAddAddress, setShowAddAddress] = useState(false);
+  console.log('user', user);
 
-  const [profile, setProfile] = useState({
-    firstName: user?.name?.split(' ')[0] || 'User',
-    lastName: user?.name?.split(' ')[1] || '',
-    email: user?.email || 'user@example.com',
-    phone: '+91 (555) 000-0000',
-    profilePic: '👤',
+  const [profile, setProfile] = useState<UserProfile>({
+    id: '',
+    name: '',
+    email: '',
+    role: '',
+    avatar: '',
+    phone: '',
   });
+
+  const [isLoadingProfile, setIsLoadingProfile] = useState(false);
+  const [isUpdatingProfile, setIsUpdatingProfile] = useState(false);
+
+  // Load current user data from authService
+  useEffect(() => {
+    const loadCurrentUser = async () => {
+      setIsLoadingProfile(true);
+      try {
+        const response = await authService.getCurrentUser();
+
+        if (response.success && response.data) {
+          setProfile({
+            id: response.data.id,
+            name: response.data.name,
+            email: response.data.email,
+            role: response.data.role,
+            avatar: response.data.avatar || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=face',
+            phone: response.data.phone || '+91 (555) 000-0000',
+          });
+        }
+      } catch (error) {
+        console.error('Failed to load current user:', error);
+      } finally {
+        setIsLoadingProfile(false);
+      }
+    };
+
+    if (isAuthenticated) {
+      loadCurrentUser();
+    }
+  }, [isAuthenticated]);
 
   const [addresses, setAddresses] = useState([
     {
@@ -57,7 +95,7 @@ export default function ProfilePage() {
     );
   }
 
-  if (!isAuthenticated || !user) {
+  if (!isAuthenticated) {
     return null;
   }
 
@@ -66,9 +104,22 @@ export default function ProfilePage() {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleProfileSave = () => {
-    setProfile(formData);
-    setIsEditing(false);
+  const handleProfileSave = async () => {
+    setIsUpdatingProfile(true);
+    try {
+      const response = await profileService.updateProfile(formData);
+
+      if (response.success && response.data) {
+        setProfile(response.data);
+        setIsEditing(false);
+      } else {
+        console.error('Profile update failed:', response);
+      }
+    } catch (error) {
+      console.error('Profile update error:', error);
+    } finally {
+      setIsUpdatingProfile(false);
+    }
   };
 
   const handleProfileCancel = () => {
@@ -128,6 +179,13 @@ export default function ProfilePage() {
       <Navbar />
 
       <main className="flex-1 py-12">
+        {/* Loading Overlay */}
+        {(isLoadingProfile || isUpdatingProfile) && (
+          <div className="fixed inset-0 bg-white bg-opacity-90 flex items-center justify-center z-50">
+            <Loader size="lg" text={isUpdatingProfile ? "Updating profile..." : "Loading profile..."} />
+          </div>
+        )}
+
         <div className="max-w-6xl mx-auto px-4">
           <h1 className="text-4xl font-bold text-gray-800 mb-12">My Profile</h1>
 
@@ -139,10 +197,11 @@ export default function ProfilePage() {
                 <div className="text-center mb-6">
                   {profilePic ? (
                     <img src={profilePic} alt="Profile" className="w-32 h-32 mx-auto rounded-full object-cover mb-4 shadow-lg" />
+                  ) : profile.avatar ? (
+                    <img src={profile.avatar} alt="Profile" className="w-32 h-32 mx-auto rounded-full object-cover mb-4 shadow-lg" />
                   ) : (
                     <div className="w-32 h-32 mx-auto bg-gradient-to-br from-pink-500 to-pink-700 rounded-full flex items-center justify-center text-white text-5xl font-bold mb-4 shadow-lg">
-                      {profile.firstName.charAt(0)}
-                      {profile.lastName.charAt(0)}
+                      {profile.name?.charAt(0) || 'U'}
                     </div>
                   )}
 
@@ -161,7 +220,7 @@ export default function ProfilePage() {
 
                 <div className="border-t border-gray-200 pt-4">
                   <h2 className="text-xl font-semibold text-gray-800 text-center">
-                    {profile.firstName} {profile.lastName}
+                    {profile.name}
                   </h2>
                   <p className="text-gray-600 text-center text-sm mt-1">{profile.email}</p>
                 </div>
@@ -200,20 +259,13 @@ export default function ProfilePage() {
 
                 {isEditing ? (
                   <>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                      <Input
-                        label="First Name"
-                        name="firstName"
-                        value={formData.firstName}
-                        onChange={handleProfileChange}
-                      />
-                      <Input
-                        label="Last Name"
-                        name="lastName"
-                        value={formData.lastName}
-                        onChange={handleProfileChange}
-                      />
-                    </div>
+                    <Input
+                      label="Full Name"
+                      name="name"
+                      value={formData.name}
+                      onChange={handleProfileChange}
+                      className="mb-4"
+                    />
 
                     <Input
                       label="Email"
@@ -242,12 +294,8 @@ export default function ProfilePage() {
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                     <div>
-                      <p className="text-sm text-gray-600 mb-1">First Name</p>
-                      <p className="font-semibold text-gray-800 text-lg">{profile.firstName}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-600 mb-1">Last Name</p>
-                      <p className="font-semibold text-gray-800 text-lg">{profile.lastName}</p>
+                      <p className="text-sm text-gray-600 mb-1">Name</p>
+                      <p className="font-semibold text-gray-800 text-lg">{profile.name}</p>
                     </div>
                     <div>
                       <p className="text-sm text-gray-600 mb-1">Email</p>
@@ -256,6 +304,10 @@ export default function ProfilePage() {
                     <div>
                       <p className="text-sm text-gray-600 mb-1">Phone</p>
                       <p className="font-semibold text-gray-800 text-lg">{profile.phone}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-600 mb-1">Role</p>
+                      <p className="font-semibold text-gray-800 text-lg">{profile.role}</p>
                     </div>
                   </div>
                 )}

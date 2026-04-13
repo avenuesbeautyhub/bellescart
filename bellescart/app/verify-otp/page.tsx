@@ -6,6 +6,7 @@ import Navbar from '@/components/Navbar/Navbar';
 import Footer from '@/components/Footer/Footer';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
+import Loader from '@/components/ui/Loader';
 import { useToast } from '@/contexts/ToastContext';
 import { toastMessages } from '@/utils/toastHelpers';
 import { useAuth, useAuthActions } from '@/auth/user';
@@ -49,6 +50,11 @@ function VerifyOtpContent() {
 
     return () => clearInterval(timer);
   }, [loaded, isAuthenticated, email, router]);
+
+  // Show loader only if not loaded AND not already authenticated
+  if (!loaded && !isAuthenticated) {
+    return <Loader size="lg" text="Loading..." fullScreen />;
+  }
 
   const handleOtpChange = (index: number, value: string) => {
     if (value.length > 1) return;

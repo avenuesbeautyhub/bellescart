@@ -1,16 +1,32 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Navbar from '@/components/Navbar/Navbar';
 import Footer from '@/components/Footer/Footer';
 import ProductGrid from '@/components/ProductGrid/ProductGrid';
+import Loader from '@/components/ui/Loader';
 import { mockProducts, mockCategories, getProductsByCategory } from '@/utils/mockData';
 import { useAuth } from '@/auth/user';
 
 export default function ProductsPage() {
   const [selectedCategory, setSelectedCategory] = useState('All Products');
   const [sortBy, setSortBy] = useState('featured');
-  const { isAuthenticated } = useAuth();
+  const [isLoading, setIsLoading] = useState(false);
+  const { isAuthenticated, loaded } = useAuth();
+
+  // Simulate loading products
+  useEffect(() => {
+    setIsLoading(true);
+    const timer = setTimeout(() => {
+      setIsLoading(false);
+    }, 800); // Simulate API delay
+    return () => clearTimeout(timer);
+  }, [selectedCategory, sortBy]);
+
+  // Show loader while checking authentication
+  if (!loaded) {
+    return <Loader size="lg" text="Loading..." fullScreen />;
+  }
 
   const filteredProducts = getProductsByCategory(selectedCategory);
 
@@ -32,6 +48,13 @@ export default function ProductsPage() {
       <Navbar />
 
       <main className="flex-1">
+        {/* Loading Overlay */}
+        {isLoading && (
+          <div className="fixed inset-0 bg-white bg-opacity-90 flex items-center justify-center z-50">
+            <Loader size="lg" text="Loading products..." />
+          </div>
+        )}
+
         <div className="max-w-7xl mx-auto px-4 py-12">
           <h1 className="text-4xl font-bold text-gray-800 mb-8">Products</h1>
 
@@ -45,11 +68,10 @@ export default function ProductsPage() {
                     <button
                       key={category}
                       onClick={() => setSelectedCategory(category)}
-                      className={`block w-full text-left px-4 py-2 rounded transition ${
-                        selectedCategory === category
-                          ? 'bg-pink-500 text-white'
-                          : 'text-gray-700 hover:bg-gray-100'
-                      }`}
+                      className={`block w-full text-left px-4 py-2 rounded transition ${selectedCategory === category
+                        ? 'bg-pink-500 text-white'
+                        : 'text-gray-700 hover:bg-gray-100'
+                        }`}
                     >
                       {category}
                     </button>

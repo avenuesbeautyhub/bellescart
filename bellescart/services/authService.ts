@@ -1,35 +1,37 @@
-import { SignupData, LoginData, OtpData, ResendOtpData, ApiResponse, LoginResponse } from '@/types/auth';
+import { SignupData, LoginData, OtpData, ResendOtpData, ApiResponse, LoginResponse, UserProfile } from '@/types/auth';
 import { appConfig, isMockMode } from '@/config/appConfig';
-import { mockService } from '@/utils/mockData';
+import { apiFetch } from './apiInterceptor';
+
 
 
 const API_BASE_URL = appConfig.apiBaseUrl;
+const MOCK_MODE = process.env.NEXT_PUBLIC_ENABLE_MOCK_DATA;
 
 class AuthService {
-  // Token storage methods
+  // Token storage methods - using same keys as auth context
   private setTokens(token: string, refreshToken: string): void {
-    localStorage.setItem('accessToken', token);
-    localStorage.setItem('refreshToken', refreshToken);
+    localStorage.setItem('bellescart_token', token);
+    localStorage.setItem('bellescart_refresh_token', refreshToken);
   }
 
   private clearTokens(): void {
-    localStorage.removeItem('accessToken');
-    localStorage.removeItem('refreshToken');
+    localStorage.removeItem('bellescart_token');
+    localStorage.removeItem('bellescart_refresh_token');
   }
 
   getAccessToken(): string | null {
-    return localStorage.getItem('accessToken');
+    return localStorage.getItem('bellescart_token');
   }
 
   getRefreshToken(): string | null {
-    return localStorage.getItem('refreshToken');
+    return localStorage.getItem('bellescart_refresh_token');
   }
 
   isAuthenticated(): boolean {
     return !!this.getAccessToken();
   }
   async signup(data: SignupData): Promise<ApiResponse> {
-   
+
 
     const response = await fetch(`${API_BASE_URL}/auth/register`, {
       method: 'POST',
@@ -70,7 +72,7 @@ class AuthService {
   }
 
   async resendOtp(data: ResendOtpData): Promise<ApiResponse> {
-    const response = await fetch(`${API_BASE_URL}/api/auth/resend-otp`, {
+    const response = await fetch(`${API_BASE_URL}/auth/resend-otp`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -82,7 +84,7 @@ class AuthService {
   }
 
   async login(data: LoginData): Promise<LoginResponse> {
-   
+
 
     const response = await fetch(`${API_BASE_URL}/auth/login`, {
       method: 'POST',
@@ -105,7 +107,7 @@ class AuthService {
   }
 
   async refreshToken(): Promise<LoginResponse> {
-    
+
 
     const refreshToken = this.getRefreshToken();
     if (!refreshToken) {
@@ -132,6 +134,43 @@ class AuthService {
 
   logout(): void {
     this.clearTokens();
+  }
+
+  async getCurrentUser(): Promise<ApiResponse<UserProfile>> {
+    // Check if mock mode is enabled
+    if (MOCK_MODE === 'true' || appConfig.useMockData) {
+      return this.mockGetCurrentUser();
+    }
+
+    const response = await apiFetch(`${API_BASE_URL}/auth/findme`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    const result = await response.json();
+    return result;
+  }
+
+  private mockGetCurrentUser(): Promise<ApiResponse<UserProfile>> {
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        const mockUser = {
+          id: '69da04bfbab0408035d0987c',
+          name: 'sample',
+          email: 'string@gmail.com',
+          phone: '2834793279',
+          role: 'user'
+        };
+
+        resolve({
+          success: true,
+          message: 'Current user retrieved successfully',
+          data: mockUser
+        });
+      }, 500); // Simulate network delay
+    });
   }
 }
 

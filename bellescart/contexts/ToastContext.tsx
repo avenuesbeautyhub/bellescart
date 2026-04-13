@@ -1,7 +1,8 @@
 'use client';
 
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import Toast, { ToastMessage } from '@/components/ui/Toast';
+import { registerToastCallback } from '@/utils/globalToast';
 
 interface ToastContextType {
   showToast: (toast: Omit<ToastMessage, 'id'>) => void;
@@ -33,6 +34,11 @@ export const ToastProvider: React.FC<ToastProviderProps> = ({ children }) => {
     };
     setToasts(prev => [...prev, newToast]);
   };
+
+  // Register global toast callback on mount
+  useEffect(() => {
+    registerToastCallback(showToast);
+  }, [showToast]);
 
   const removeToast = (id: string) => {
     setToasts(prev => prev.filter(toast => toast.id !== id));

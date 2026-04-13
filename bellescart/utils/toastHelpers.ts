@@ -50,9 +50,33 @@ export const toastMessages = {
       title: 'Logged Out',
       message: 'You have been successfully logged out.',
       duration: 3000
+    }),
+    tokenExpired: (): Omit<ToastMessage, 'id'> => ({
+      type: 'info',
+      title: 'Session Expired',
+      message: 'Your session has expired. Refreshing automatically...',
+      duration: 3000
+    }),
+    tokenRefreshFailed: (): Omit<ToastMessage, 'id'> => ({
+      type: 'error',
+      title: 'Session Expired',
+      message: 'Please login again to continue.',
+      duration: 5000
+    }),
+    tokenInvalid: (): Omit<ToastMessage, 'id'> => ({
+      type: 'error',
+      title: 'Authentication Failed',
+      message: 'Invalid session. Please login again.',
+      duration: 5000
+    }),
+    tokenRefreshed: (): Omit<ToastMessage, 'id'> => ({
+      type: 'success',
+      title: 'Session Refreshed',
+      message: 'Your session has been automatically refreshed.',
+      duration: 2000
     })
   },
-  
+
   // Profile messages
   profile: {
     updateSuccess: (): Omit<ToastMessage, 'id'> => ({
@@ -74,7 +98,7 @@ export const toastMessages = {
       duration: 5000
     })
   },
-  
+
   // General messages
   general: {
     networkError: (): Omit<ToastMessage, 'id'> => ({
