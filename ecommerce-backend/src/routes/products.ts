@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { ProductRepository } from '../repositories/ProductRepository';
 import { ProductInteractor } from '../interactors/ProductInteractor';
 import { ProductController } from '../controllers/productController';
-import { authenticate, authorize, optionalAuth } from '../middleware/auth';
+import { authenticate, authorize } from '../middleware/auth';
 
 const router = Router();
 
@@ -34,7 +34,7 @@ const controller = new ProductController(interactor);
  *       200:
  *         description: Products retrieved successfully
  */
-router.get('/', optionalAuth, controller.getProducts.bind(controller));
+router.get('/', authenticate, controller.getProducts.bind(controller));
 
 /**
  * @swagger
@@ -46,7 +46,7 @@ router.get('/', optionalAuth, controller.getProducts.bind(controller));
  *       200:
  *         description: Featured products retrieved successfully
  */
-router.get('/featured', controller.getFeaturedProducts.bind(controller));
+router.get('/featured', authenticate, controller.getFeaturedProducts.bind(controller));
 
 /**
  * @swagger
@@ -64,7 +64,7 @@ router.get('/featured', controller.getFeaturedProducts.bind(controller));
  *       200:
  *         description: Products retrieved successfully
  */
-router.get('/category/:category', controller.getProductsByCategory.bind(controller));
+router.get('/category/:category', authenticate, controller.getProductsByCategory.bind(controller));
 
 /**
  * @swagger
@@ -84,7 +84,7 @@ router.get('/category/:category', controller.getProductsByCategory.bind(controll
  *       404:
  *         description: Product not found
  */
-router.get('/:id', optionalAuth, controller.getProductById.bind(controller));
+router.get('/:id', authenticate, controller.getProductById.bind(controller));
 
 /**
  * @swagger

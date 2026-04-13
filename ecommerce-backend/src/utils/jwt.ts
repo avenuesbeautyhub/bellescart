@@ -23,7 +23,7 @@ export const generateToken = (user: UserForToken): string => {
   }
 
   return jwt.sign(payload, jwtSecret, {
-    expiresIn: '50s'
+    expiresIn: '1h'
   });
 };
 
@@ -41,6 +41,8 @@ export const generateRefreshToken = (user: UserForToken): string => {
     email: user.email,
     role: user.role
   };
+
+  
 
   const jwtSecret = process.env.JWT_SECRET as Secret;
   if (!jwtSecret) {

@@ -35,7 +35,7 @@ router.use(authenticate);
  *       401:
  *         description: Unauthorized
  */
-router.get('/', controller.getCart.bind(controller));
+router.get('/',authenticate, controller.getCart.bind(controller));
 
 /**
  * @swagger
@@ -65,7 +65,7 @@ router.get('/', controller.getCart.bind(controller));
  *       401:
  *         description: Unauthorized
  */
-router.post('/add', controller.addToCart.bind(controller));
+router.post('/add',authenticate, controller.addToCart.bind(controller));
 
 /**
  * @swagger
@@ -100,7 +100,7 @@ router.post('/add', controller.addToCart.bind(controller));
  *       404:
  *         description: Cart item not found
  */
-router.put('/item/:itemId', controller.updateCartItem.bind(controller));
+router.put('/item/:itemId', authenticate, controller.updateCartItem.bind(controller));
 
 /**
  * @swagger
@@ -124,7 +124,7 @@ router.put('/item/:itemId', controller.updateCartItem.bind(controller));
  *       404:
  *         description: Cart item not found
  */
-router.delete('/item/:itemId', controller.removeFromCart.bind(controller));
+router.delete('/item/:itemId', authenticate, controller.removeFromCart.bind(controller));
 
 /**
  * @swagger
@@ -140,6 +140,6 @@ router.delete('/item/:itemId', controller.removeFromCart.bind(controller));
  *       401:
  *         description: Unauthorized
  */
-router.delete('/clear', controller.clearCart.bind(controller));
+router.delete('/clear', authenticate, controller.clearCart.bind(controller));
 
 export default router;

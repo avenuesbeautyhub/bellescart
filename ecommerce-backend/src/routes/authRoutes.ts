@@ -308,5 +308,44 @@ router.put('/profile', authenticate, controller.updateProfile.bind(controller));
  */
 router.put('/change-password', authenticate, controller.changePassword.bind(controller));
 
+/**
+ * @swagger
+ * /auth/findme:
+ *   get:
+ *     summary: Get current logged-in user
+ *     tags: [Authentication]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Current user retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: string
+ *                     name:
+ *                       type: string
+ *                     email:
+ *                       type: string
+ *                     phone:
+ *                       type: string
+ *                     role:
+ *                       type: string
+ *       401:
+ *         description: Unauthorized
+ *       404:
+ *         description: User not found
+ */
+router.get('/findme', authenticate, controller.getCurrentUser.bind(controller));
 
 export default router;

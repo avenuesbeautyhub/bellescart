@@ -369,11 +369,45 @@ export class AuthController {
       }
 
       const result = await this._userInteractor.refreshToken(refreshToken);
-
+      console.log('token refreshed!!!!')
       res.status(200).json({
         success: true,
         message: 'Tokens refreshed successfully',
         data: result
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  getCurrentUser = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      // User ID is extracted from token by authenticate middleware
+      const userId = (req as AuthRequest).user?.id;
+
+      if (!userId) {
+        res.status(401).json({
+          success: false,
+          error: 'User not found in token'
+        });
+        return;
+      }
+
+      // Get user details from interactor
+      const user = await this._userInteractor.getProfile(userId);
+
+      if (!user) {
+        res.status(404).json({
+          success: false,
+          error: 'User not found'
+        });
+        return;
+      }
+
+      res.status(200).json({
+        success: true,
+        message: 'Current user retrieved successfully',
+        data: user
       });
     } catch (error) {
       next(error);

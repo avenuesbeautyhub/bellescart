@@ -51,7 +51,7 @@ router.use(authenticate);
  *       401:
  *         description: Unauthorized
  */
-router.post('/', controller.createOrder.bind(controller));
+router.post('/', authenticate, controller.createOrder.bind(controller));
 
 /**
  * @swagger
@@ -76,7 +76,7 @@ router.post('/', controller.createOrder.bind(controller));
  *       401:
  *         description: Unauthorized
  */
-router.get('/', controller.getOrders.bind(controller));
+router.get('/', authenticate, controller.getOrders.bind(controller));
 
 /**
  * @swagger
@@ -100,7 +100,7 @@ router.get('/', controller.getOrders.bind(controller));
  *       404:
  *         description: Order not found
  */
-router.get('/:id', controller.getOrderById.bind(controller));
+router.get('/:id', authenticate, controller.getOrderById.bind(controller));
 
 /**
  * @swagger
@@ -124,7 +124,7 @@ router.get('/:id', controller.getOrderById.bind(controller));
  *       404:
  *         description: Order not found
  */
-router.put('/:id/cancel', controller.cancelOrder.bind(controller));
+router.put('/:id/cancel', authenticate,controller.cancelOrder.bind(controller));
 
 /**
  * @swagger
@@ -162,6 +162,6 @@ router.put('/:id/cancel', controller.cancelOrder.bind(controller));
  *       404:
  *         description: Order not found
  */
-router.put('/:id/status', authorize('admin'), controller.updateOrderStatus.bind(controller));
+router.put('/:id/status', controller.updateOrderStatus.bind(controller));
 
 export default router;
