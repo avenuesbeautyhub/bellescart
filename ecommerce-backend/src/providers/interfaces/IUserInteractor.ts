@@ -11,6 +11,7 @@ export interface IUserInteractor {
     email: string;
     password: string;
   }): Promise<{ user: Partial<IUser>; token: string; refreshToken: string }>;
+  refreshToken(refreshToken: string): Promise<{ user: Partial<IUser>; token: string; refreshToken: string }>;
   getProfile(userId: string): Promise<Partial<IUser> | null>;
   updateProfile(userId: string, updateData: {
     name?: string;

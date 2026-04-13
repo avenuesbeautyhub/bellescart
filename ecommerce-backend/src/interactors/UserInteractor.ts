@@ -1,7 +1,7 @@
 import { IUserInteractor } from '../providers/interfaces/IUserInteractor';
 import { IUserRepository } from '../providers/interfaces/IUserRepository';
 import { IOtpRepository } from '../providers/interfaces/IOtpRepository';
-import { generateToken, generateRefreshToken } from '../utils/jwt';
+import { generateToken, generateRefreshToken, verifyToken } from '../utils/jwt';
 import { IUser } from '../models/User';
 import { sendOtpEmail } from '../utils/emailService';
 
@@ -54,7 +54,7 @@ export class UserInteractor implements IUserInteractor {
     const user = await this._userRepository.findByEmailWithPassword(credentials.email);
     if (!user) {
       throw new Error(`Invalid User ${credentials.email}`);
-    } 
+    }
 
     // Verify password
     const isPasswordValid = await user.comparePassword(credentials.password);
@@ -77,6 +77,37 @@ export class UserInteractor implements IUserInteractor {
     };
 
     return { user: userResponse, token, refreshToken };
+  }
+
+  async refreshToken(refreshToken: string): Promise<{ user: Partial<IUser>; token: string; refreshToken: string }> {
+    try {
+      // Verify the refresh token
+      const decoded = verifyToken(refreshToken);
+
+      // Find the user from the token
+      const user = await this._userRepository.findById(decoded.id);
+      if (!user) {
+        throw new Error('User not found');
+      }
+
+      // Generate new tokens
+      const newToken = generateToken(user);
+      const newRefreshToken = generateRefreshToken(user);
+
+      // Return user data without sensitive information
+      const userResponse = {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        avatar: user.avatar,
+        phone: user.phone
+      };
+
+      return { user: userResponse, token: newToken, refreshToken: newRefreshToken };
+    } catch (error) {
+      throw new Error('Invalid or expired refresh token');
+    }
   }
 
   async getProfile(userId: string): Promise<Partial<IUser> | null> {

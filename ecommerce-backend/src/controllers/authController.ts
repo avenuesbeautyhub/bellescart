@@ -275,7 +275,7 @@ export class AuthController {
     try {
       const { email, otp } = req.body;
 
-      console.log('req otp contrller',req.body)
+      console.log('req otp contrller', req.body)
 
       // Validate email format
       if (!isValidEmail(email)) {
@@ -284,7 +284,7 @@ export class AuthController {
           error: 'Invalid email format'
         });
         return;
-      } 
+      }
 
       const otpValidation = validateRequiredString(otp, 'OTP');
       if (!otpValidation.isValid) {
@@ -348,6 +348,32 @@ export class AuthController {
           email: email,
           step: 'otp_resent'
         }
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  refreshToken = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { refreshToken } = req.body;
+
+      // Validate refresh token
+      const refreshTokenValidation = validateRequiredString(refreshToken, 'Refresh token');
+      if (!refreshTokenValidation.isValid) {
+        res.status(400).json({
+          success: false,
+          error: refreshTokenValidation.message
+        });
+        return;
+      }
+
+      const result = await this._userInteractor.refreshToken(refreshToken);
+
+      res.status(200).json({
+        success: true,
+        message: 'Tokens refreshed successfully',
+        data: result
       });
     } catch (error) {
       next(error);

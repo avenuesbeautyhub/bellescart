@@ -20,6 +20,20 @@ export interface IUser extends Document {
   comparePassword(candidatePassword: string): Promise<boolean>;
 }
 
+export interface IAdmin extends Document {
+  name: string;
+  email: string;
+  password: string;
+  role: 'admin';
+  avatar?: string;
+  phone?: string;
+  permissions?: string[];
+  lastLogin?: Date;
+  
+  isActive: boolean;
+  comparePassword(candidatePassword: string): Promise<boolean>;
+}
+
 const userSchema = new Schema<IUser>({
   name: {
     type: String,

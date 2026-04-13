@@ -1,4 +1,5 @@
-export { User, IUser } from './User';
+export { User, IUser, IAdmin } from './User';
+export { Admin } from './Admin';
 export { Product, IProduct } from './Product';
 export { Order, IOrder, IOrderItem } from './Order';
 export { Cart, ICart, ICartItem } from './Cart';
