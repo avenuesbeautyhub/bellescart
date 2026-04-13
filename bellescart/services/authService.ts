@@ -1,9 +1,9 @@
 import { SignupData, LoginData, OtpData, ResendOtpData, ApiResponse, LoginResponse } from '@/types/auth';
 import { appConfig, isMockMode } from '@/config/appConfig';
-import { AuthMockService } from './mock/authMockService';
+import { mockService } from '@/utils/mockData';
+
 
 const API_BASE_URL = appConfig.apiBaseUrl;
-const mockService = new AuthMockService();
 
 class AuthService {
   // Token storage methods
@@ -29,9 +29,7 @@ class AuthService {
     return !!this.getAccessToken();
   }
   async signup(data: SignupData): Promise<ApiResponse> {
-    if (isMockMode()) {
-      return mockService.mockSignup(data);
-    }
+   
 
     const response = await fetch(`${API_BASE_URL}/auth/register`, {
       method: 'POST',
@@ -50,14 +48,6 @@ class AuthService {
   }
 
   async verifyOtp(data: OtpData): Promise<ApiResponse> {
-    if (isMockMode()) {
-      const response = await mockService.mockVerifyOtp(data);
-      if (response.success && response.data?.token && response.data?.refreshToken) {
-        this.setTokens(response.data.token, response.data.refreshToken);
-      }
-      return response;
-    }
-
     const response = await fetch(`${API_BASE_URL}/auth/verify-otp`, {
       method: 'POST',
       headers: {
@@ -80,10 +70,6 @@ class AuthService {
   }
 
   async resendOtp(data: ResendOtpData): Promise<ApiResponse> {
-    if (isMockMode()) {
-      return mockService.mockResendOtp(data);
-    }
-
     const response = await fetch(`${API_BASE_URL}/api/auth/resend-otp`, {
       method: 'POST',
       headers: {
@@ -96,13 +82,7 @@ class AuthService {
   }
 
   async login(data: LoginData): Promise<LoginResponse> {
-    if (isMockMode()) {
-      const response = await mockService.mockLogin(data);
-      if (response.success && response.data?.token && response.data?.refreshToken) {
-        this.setTokens(response.data.token, response.data.refreshToken);
-      }
-      return response as LoginResponse;
-    }
+   
 
     const response = await fetch(`${API_BASE_URL}/auth/login`, {
       method: 'POST',
@@ -117,6 +97,32 @@ class AuthService {
     const result = await response.json();
 
     // Store tokens if login is successful
+    if (result.success && result.data?.token && result.data?.refreshToken) {
+      this.setTokens(result.data.token, result.data.refreshToken);
+    }
+
+    return result;
+  }
+
+  async refreshToken(): Promise<LoginResponse> {
+    
+
+    const refreshToken = this.getRefreshToken();
+    if (!refreshToken) {
+      throw new Error('No refresh token available');
+    }
+
+    const response = await fetch(`${API_BASE_URL}/auth/refresh-token`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ refreshToken }),
+    });
+
+    const result = await response.json();
+
+    // Store new tokens if refresh is successful
     if (result.success && result.data?.token && result.data?.refreshToken) {
       this.setTokens(result.data.token, result.data.refreshToken);
     }

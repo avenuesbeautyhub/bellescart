@@ -1,41 +1,27 @@
 import { ApiResponse, UserProfile } from '@/types/auth';
 import { appConfig, isMockMode } from '@/config/appConfig';
 import { ProfileMockService } from './mock/profileMockService';
+import { apiGet, apiPut } from './apiInterceptor';
 
 const API_BASE_URL = appConfig.apiBaseUrl;
 const mockService = new ProfileMockService();
 
 class ProfileService {
-  async getProfile(token: string): Promise<ApiResponse<UserProfile>> {
+  async getProfile(): Promise<ApiResponse<UserProfile>> {
     if (isMockMode()) {
-      return mockService.mockGetProfile(token);
+      return mockService.mockGetProfile();
     }
 
-    const response = await fetch(`${API_BASE_URL}/api/auth/profile`, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-    });
-
+    const response = await apiGet(`${API_BASE_URL}/api/auth/profile`);
     return response.json();
   }
 
-  async updateProfile(token: string, data: Partial<UserProfile>): Promise<ApiResponse<UserProfile>> {
+  async updateProfile(data: Partial<UserProfile>): Promise<ApiResponse<UserProfile>> {
     if (isMockMode()) {
-      return mockService.mockUpdateProfile(token, data);
+      return mockService.mockUpdateProfile(data);
     }
 
-    const response = await fetch(`${API_BASE_URL}/api/auth/profile`, {
-      method: 'PUT',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(data),
-    });
-
+    const response = await apiPut(`${API_BASE_URL}/api/auth/profile`, data);
     return response.json();
   }
 }
