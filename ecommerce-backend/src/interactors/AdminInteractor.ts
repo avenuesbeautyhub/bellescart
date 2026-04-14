@@ -1,13 +1,23 @@
 import { IAdminInteractor } from '../providers/interfaces/IAdminInteractor';
 import { IAdminRepository } from '../providers/interfaces/IAdminRepository';
+import { IProductInteractor } from '../providers/interfaces/IProductInteractor';
+import { ICategoryInteractor } from '../providers/interfaces/ICategoryInteractor';
 import { generateToken, generateRefreshToken } from '../utils/jwt';
 import { IAdmin, IUser } from '../models/User';
+import { IProduct } from '../models/Product';
+import { Request } from 'express';
+import { uploadMultipleImages, uploadProductImage } from '../services/cloudinaryService';
+import mongoose from 'mongoose';
 
 export class AdminInteractor implements IAdminInteractor {
   private _adminRepository: IAdminRepository;
+  private _productInteractor: IProductInteractor;
+  private _categoryInteractor: ICategoryInteractor;
 
-  constructor(adminRepository: IAdminRepository) {
+  constructor(adminRepository: IAdminRepository, productInteractor: IProductInteractor, categoryInteractor: ICategoryInteractor) {
     this._adminRepository = adminRepository;
+    this._productInteractor = productInteractor;
+    this._categoryInteractor = categoryInteractor;
   }
 
   async adminLogin(credentials: {
@@ -184,5 +194,178 @@ export class AdminInteractor implements IAdminInteractor {
     totalRevenue: number;
   }> {
     return await this._adminRepository.getAdminStats();
+  }
+
+  // Image Upload Methods
+  async uploadProductImage(req: Request): Promise<any> {
+    try {
+      return await uploadProductImage(req);
+    } catch (error: any) {
+      throw new Error(error.message || 'Image upload failed');
+    }
+  }
+
+  async uploadMultipleImages(req: Request): Promise<any[]> {
+    try {
+      return await uploadMultipleImages(req);
+    } catch (error: any) {
+      throw new Error(error.message || 'Images upload failed');
+    }
+  }
+
+  // Product Management Methods
+  async createProduct(productData: any, files?: Express.Multer.File[]): Promise<{ product: IProduct; uploadedImages?: any[] }> {
+    try {
+      // Validate required fields
+      if (!productData.name || !productData.price || !productData.category) {
+        throw new Error('Missing required fields: name, price, category are required');
+      }
+
+      // Validate price is greater than 0
+      const price = parseFloat(productData.price);
+      if (isNaN(price) || price <= 0) {
+        throw new Error('Price must be greater than 0');
+      }
+
+      // Validate quantity/stock is greater than 0
+      const quantity = parseInt(productData.quantity) || 1;
+      if (quantity <= 0) {
+        throw new Error('Quantity/stock must be greater than 0');
+      }
+
+      // Validate category ID format
+      if (!mongoose.Types.ObjectId.isValid(productData.category)) {
+        throw new Error('Invalid category ID format');
+      }
+
+      // Validate category exists
+      const category = await this._categoryInteractor.getCategoryById(productData.category.toString());
+      if (!category) {
+        throw new Error('Invalid category: Category not found');
+      }
+
+      // Check for duplicate product name (case-insensitive)
+      const existingProduct = await this._productInteractor.findByName(productData.name.trim());
+      if (existingProduct) {
+        throw new Error(`Product with name '${productData.name}' already exists`);
+      }
+
+      // Process images if provided
+      let uploadedImages: any[] = [];
+      if (files && files.length > 0) {
+        // Create mock request object for multer processing
+        const mockReq = { files } as any;
+        Object.assign(mockReq, productData);
+
+        uploadedImages = await uploadMultipleImages(mockReq);
+      }
+
+      // Process uploaded images to match product schema
+      const productImages = uploadedImages.map((img: any, index: number) => ({
+        url: img.url,
+        alt: productData.imageAlts?.[index] || `${productData.name} - Image ${index + 1}`,
+        isMain: index === 0 // First image is main by default
+      }));
+
+      // Create complete product data
+      const finalProductData = {
+        ...productData,
+        images: uploadedImages.length > 0 ? productImages : [],
+        // Convert and validate fields
+        category: new mongoose.Types.ObjectId(productData.category),
+        price: parseFloat(productData.price) || 0,
+        quantity: parseInt(productData.quantity) || 1,
+        status: productData.status || 'active'
+      };
+
+      // Create product directly using repository
+      const product = await this._productInteractor.createProduct(finalProductData);
+
+      return {
+        product,
+        uploadedImages: uploadedImages.length > 0 ? productImages : undefined
+      };
+    } catch (error: any) {
+      throw new Error(error.message || 'Product creation failed');
+    }
+  }
+
+  async updateProduct(id: string, productData: any, files?: Express.Multer.File[]): Promise<{ product: IProduct; newImages?: any[] }> {
+    try {
+      // Process new images if provided
+      let newImages: any[] = [];
+      if (files && files.length > 0) {
+        // Create mock request object for multer processing
+        const mockReq = { files } as any;
+        Object.assign(mockReq, productData);
+
+        const uploadedImages = await uploadMultipleImages(mockReq);
+        newImages = uploadedImages.map((img: any, index: number) => ({
+          url: img.url,
+          alt: productData.imageAlts?.[index] || `${productData.name} - Image ${index + 1}`,
+          isMain: productData.mainImageIndex === index.toString()
+        }));
+      }
+
+      // Get existing product
+      const existingProduct = await this._productInteractor.getProductById(id);
+      if (!existingProduct) {
+        throw new Error('Product not found');
+      }
+
+      // Validate category if it's being updated
+      if (productData.category && productData.category !== existingProduct.category.toString()) {
+        // Validate category ID format
+        if (!mongoose.Types.ObjectId.isValid(productData.category)) {
+          throw new Error('Invalid category ID format');
+        }
+
+        const category = await this._categoryInteractor.getCategoryById(productData.category.toString());
+        if (!category) {
+          throw new Error('Invalid category: Category not found');
+        }
+        // Convert to ObjectId
+        productData.category = new mongoose.Types.ObjectId(productData.category);
+      }
+
+      // Combine existing images with new ones (if any)
+      const updatedImages = productData.keepExistingImages === 'true'
+        ? [...existingProduct.images, ...newImages]
+        : newImages;
+
+      // Update product data
+      const finalProductData = {
+        ...productData,
+        images: updatedImages,
+        price: parseFloat(productData.price),
+        quantity: parseInt(productData.quantity) || existingProduct.quantity,
+        status: productData.status || existingProduct.status
+      };
+
+      // Update product using product interactor
+      const updatedProduct = await this._productInteractor.updateProduct(id, finalProductData);
+
+      if (!updatedProduct) {
+        throw new Error('Failed to update product');
+      }
+
+      return {
+        product: updatedProduct,
+        newImages
+      };
+    } catch (error: any) {
+      throw new Error(error.message || 'Product update failed');
+    }
+  }
+
+  async deleteProduct(id: string): Promise<void> {
+    try {
+      const product = await this._productInteractor.deleteProduct(id);
+      if (!product) {
+        throw new Error('Product not found');
+      }
+    } catch (error: any) {
+      throw new Error(error.message || 'Product deletion failed');
+    }
   }
 }

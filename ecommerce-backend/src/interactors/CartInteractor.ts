@@ -25,7 +25,6 @@ export class CartInteractor implements ICartInteractor {
 
   async addToCart(userId: string, itemData: {
     productId: string;
-    variant?: { name: string; option: string };
     quantity: number;
   }): Promise<ICart> {
     // Check if product exists and is active
@@ -35,25 +34,15 @@ export class CartInteractor implements ICartInteractor {
     }
 
     // Check stock
-    if (product.inventory.trackQuantity && product.inventory.quantity < itemData.quantity) {
+    if (product.quantity < itemData.quantity) {
       throw new Error('Insufficient stock');
     }
 
-    // Calculate price with variant logic
+    // Use base price (no variants in simplified model)
     let price = product.price;
-    if (itemData.variant) {
-      const variant = product.variants.find(v =>
-        v.name === itemData.variant!.name &&
-        v.options.includes(itemData.variant!.option)
-      );
-      if (variant && variant.price) {
-        price = variant.price;
-      }
-    }
 
     const cartItem: Omit<ICartItem, 'addedAt'> = {
       product: product._id,
-      variant: itemData.variant,
       quantity: itemData.quantity,
       price,
       total: price * itemData.quantity
@@ -84,7 +73,7 @@ export class CartInteractor implements ICartInteractor {
 
     // Check stock
     const product = await this._productRepository.findById(item.product.toString());
-    if (product && product.inventory.trackQuantity && product.inventory.quantity < quantity) {
+    if (product && product.quantity < quantity) {
       throw new Error('Insufficient stock');
     }
 
@@ -208,7 +197,7 @@ export class CartInteractor implements ICartInteractor {
       }
 
       // Check stock
-      if (product.inventory.trackQuantity && product.inventory.quantity < item.quantity) {
+      if (product.quantity < item.quantity) {
         invalidItems.push({
           itemId: item._id!.toString(),
           reason: 'Insufficient stock'
@@ -248,14 +237,13 @@ export class CartInteractor implements ICartInteractor {
       if (!product) continue;
 
       // Check stock
-      if (product.inventory.trackQuantity && product.inventory.quantity < guestItem.quantity) {
+      if (product.quantity < guestItem.quantity) {
         continue;
       }
 
       // Add item to user cart
       await this.addToCart(userId, {
         productId: guestItem.product.toString(),
-        variant: guestItem.variant,
         quantity: guestItem.quantity
       });
     }

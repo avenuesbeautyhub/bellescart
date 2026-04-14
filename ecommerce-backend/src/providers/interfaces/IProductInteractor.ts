@@ -15,6 +15,7 @@ export interface IProductInteractor {
     featured?: boolean;
   }): Promise<{ products: IProduct[]; pagination: any }>;
   getProductById(id: string): Promise<IProduct | null>;
+  findByName(name: string): Promise<IProduct | null>;
   createProduct(productData: Partial<IProduct>): Promise<IProduct>;
   updateProduct(id: string, updateData: Partial<IProduct>): Promise<IProduct | null>;
   deleteProduct(id: string): Promise<IProduct | null>;

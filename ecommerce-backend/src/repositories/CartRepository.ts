@@ -31,8 +31,7 @@ export class CartRepository extends BaseRepository<ICart> implements ICartReposi
 
     // Check if item already exists
     const existingItemIndex = cart.items.findIndex(cartItem =>
-      cartItem.product.toString() === item.product.toString() &&
-      JSON.stringify(cartItem.variant) === JSON.stringify(item.variant)
+      cartItem.product.toString() === item.product.toString()
     );
 
     if (existingItemIndex > -1) {

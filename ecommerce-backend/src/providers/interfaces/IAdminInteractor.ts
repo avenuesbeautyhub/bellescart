@@ -1,4 +1,7 @@
 import { IAdmin, IUser } from '../../models/User';
+import { IProduct } from '../../models/Product';
+import { UploadedImage } from '../../services/cloudinaryService';
+import { Request } from 'express';
 
 export interface IAdminInteractor {
   adminLogin(credentials: {
@@ -33,4 +36,13 @@ export interface IAdminInteractor {
     totalOrders: number;
     totalRevenue: number;
   }>;
+
+  // Image Upload Methods
+  uploadProductImage(req: Request): Promise<UploadedImage>;
+  uploadMultipleImages(req: Request): Promise<UploadedImage[]>;
+
+  // Product Management Methods
+  createProduct(productData: any, files?: Express.Multer.File[]): Promise<{ product: IProduct; uploadedImages?: UploadedImage[] }>;
+  updateProduct(id: string, productData: any, files?: Express.Multer.File[]): Promise<{ product: IProduct; newImages?: UploadedImage[] }>;
+  deleteProduct(id: string): Promise<void>;
 }

@@ -1,6 +1,5 @@
 import express from "express";
 import cors from "cors";
-import session from "express-session";
 import dotenv from "dotenv";
 import path from "path";
 import helmet from "helmet";
@@ -14,9 +13,6 @@ dotenv.config();
 
 const app = express();
 
-// Security middleware
-app.use(helmet());
-
 // CORS configuration
 app.use(cors(corsOptions));
 
@@ -24,16 +20,12 @@ app.use(cors(corsOptions));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Session middleware
-app.use(session({
-  secret: process.env.SESSION_SECRET || 'your-secret-key-session',
-  resave: false,
-  saveUninitialized: false,
-  cookie: {
-    secure: process.env.NODE_ENV === 'production',
-    maxAge: 24 * 60 * 60 * 1000 // 24 hours
-  }
+// Security middleware with minimal configuration for multipart compatibility
+app.use(helmet({
+  contentSecurityPolicy: false,
+  crossOriginEmbedderPolicy: false,
 }));
+
 
 // Static files
 app.use(express.static(path.join(__dirname, 'public')));

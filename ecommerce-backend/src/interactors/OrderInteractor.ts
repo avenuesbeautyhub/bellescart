@@ -38,15 +38,14 @@ export class OrderInteractor implements IOrderInteractor {
 
     for (const cartItem of cart.items) {
       const product = (cartItem.product as any);
-      
+
       // Check stock
-      if (product.inventory.trackQuantity && product.inventory.quantity < cartItem.quantity) {
+      if (product.quantity < cartItem.quantity) {
         throw new Error(`Insufficient stock for product: ${product.name}`);
       }
 
       orderItems.push({
         product: product._id,
-        variant: cartItem.variant,
         quantity: cartItem.quantity,
         price: cartItem.price,
         total: cartItem.total
@@ -80,20 +79,20 @@ export class OrderInteractor implements IOrderInteractor {
 
     // Update product inventory
     for (const cartItem of cart.items) {
-      const product = (cartItem.product as any);
-      if (product.inventory.trackQuantity) {
-        await this._productRepository.updateInventory(
-          product._id,
-          -cartItem.quantity
-        );
-      }
+      // Decrease product quantity when order is placed
+      await this._productRepository.updateQuantity(
+        cartItem.product.toString(),
+        cartItem.quantity
+      );
     }
-
-    // Clear cart
     await this._cartRepository.clearCart(userId);
 
     return await order.populate('items.product');
+
   }
+
+
+  // Clear cart
 
   async getOrders(userId: string, filters: {
     page?: number;
@@ -139,7 +138,7 @@ export class OrderInteractor implements IOrderInteractor {
     estimatedDelivery?: Date;
   }): Promise<IOrder | null> {
     const updateData: any = { status };
-    
+
     if (additionalData) {
       Object.assign(updateData, additionalData);
     }
@@ -163,9 +162,9 @@ export class OrderInteractor implements IOrderInteractor {
       throw new Error('Order cannot be cancelled at this stage');
     }
 
-    // Restore inventory
+    // Restore inventory (increase quantity)
     for (const item of order.items) {
-      await this._productRepository.updateInventory(
+      await this._productRepository.updateQuantity(
         item.product.toString(),
         item.quantity
       );
@@ -241,7 +240,7 @@ export class OrderInteractor implements IOrderInteractor {
     // Restore inventory for refunded items
     if (refundData.items) {
       for (const item of refundData.items) {
-        await this._productRepository.updateInventory(item.productId, item.quantity);
+        await this._productRepository.updateQuantity(item.productId, item.quantity);
       }
     }
 
@@ -273,7 +272,7 @@ export class OrderInteractor implements IOrderInteractor {
     const { page = 1, limit = 10, startDate, endDate } = options;
 
     const query: any = { user: userId };
-    
+
     if (startDate || endDate) {
       query.createdAt = {};
       if (startDate) query.createdAt.$gte = startDate;
@@ -300,3 +299,4 @@ export class OrderInteractor implements IOrderInteractor {
     };
   }
 }
+

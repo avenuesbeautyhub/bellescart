@@ -436,4 +436,137 @@ export class AdminController {
       next(error);
     }
   };
+
+  uploadProductImage = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const authReq = req as AdminRequest;
+      if (!authReq.admin) {
+        res.status(401).json({
+          success: false,
+          error: 'Admin not authenticated'
+        });
+        return;
+      }
+
+      const uploadedImage = await this._adminInteractor.uploadProductImage(req);
+
+      res.status(200).json({
+        success: true,
+        message: 'Image uploaded successfully',
+        data: uploadedImage
+      });
+    } catch (error: any) {
+      res.status(400).json({
+        success: false,
+        error: error.message || 'Image upload failed'
+      });
+    }
+  };
+
+  uploadMultipleProductImages = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const authReq = req as AdminRequest;
+      if (!authReq.admin) {
+        res.status(401).json({
+          success: false,
+          error: 'Admin not authenticated'
+        });
+        return;
+      }
+
+      const uploadedImages = await this._adminInteractor.uploadMultipleImages(req);
+
+      res.status(200).json({
+        success: true,
+        message: 'Images uploaded successfully',
+        data: uploadedImages
+      });
+    } catch (error: any) {
+      res.status(400).json({
+        success: false,
+        error: error.message || 'Images upload failed'
+      });
+    }
+  };
+
+  // Product Management Methods for Admin
+  createProduct = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const authReq = req as AdminRequest;
+      if (!authReq.admin) {
+        res.status(401).json({
+          success: false,
+          error: 'Admin not authenticated'
+        });
+        return;
+      }
+
+      const files = req.files ? (req.files as Express.Multer.File[]) : undefined;
+      const result = await this._adminInteractor.createProduct(req.body, files);
+
+      res.status(201).json({
+        success: true,
+        message: result.uploadedImages ? 'Product created successfully with images' : 'Product created successfully',
+        data: result
+      });
+    } catch (error: any) {
+      res.status(400).json({
+        success: false,
+        error: error.message || 'Product creation failed'
+      });
+    }
+  };
+
+  updateProduct = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const authReq = req as AdminRequest;
+      if (!authReq.admin) {
+        res.status(401).json({
+          success: false,
+          error: 'Admin not authenticated'
+        });
+        return;
+      }
+
+      const { id } = req.params;
+      const files = req.files ? (req.files as Express.Multer.File[]) : undefined;
+      const result = await this._adminInteractor.updateProduct(id, req.body, files);
+
+      res.status(200).json({
+        success: true,
+        message: 'Product updated successfully',
+        data: result
+      });
+    } catch (error: any) {
+      res.status(400).json({
+        success: false,
+        error: error.message || 'Product update failed'
+      });
+    }
+  };
+
+  deleteProduct = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const authReq = req as AdminRequest;
+      if (!authReq.admin) {
+        res.status(401).json({
+          success: false,
+          error: 'Admin not authenticated'
+        });
+        return;
+      }
+
+      await this._adminInteractor.deleteProduct(req.params.id);
+
+      res.status(200).json({
+        success: true,
+        message: 'Product deleted successfully'
+      });
+    } catch (error: any) {
+      res.status(400).json({
+        success: false,
+        error: error.message || 'Product deletion failed'
+      });
+    }
+  };
 }

@@ -3,10 +3,6 @@ import mongoose, { Document, Schema } from 'mongoose';
 export interface ICartItem {
   _id?: mongoose.Types.ObjectId;
   product: mongoose.Types.ObjectId;
-  variant?: {
-    name: string;
-    option: string;
-  };
   quantity: number;
   price: number;
   total: number;
