@@ -2,6 +2,8 @@
 
 import Link from 'next/link';
 import { useSelectedLayoutSegments } from 'next/navigation';
+import Button from '@/components/ui/Button';
+import { useAdminAuthActions } from '@/auth/admin/actions';
 
 const navLinks = [
   { label: 'Dashboard', href: '/admin/dashboard' },
@@ -21,6 +23,7 @@ function formatSegment(segment: string) {
 export default function AdminHeader() {
   const segments = useSelectedLayoutSegments();
   const activeSegment = segments[segments.length - 1] || '';
+  const { adminLogout } = useAdminAuthActions();
 
   if (segments.length === 0) {
     return null;
@@ -44,23 +47,30 @@ export default function AdminHeader() {
           </div>
         </div>
 
-        <nav className="flex flex-wrap gap-2">
+        <nav className="flex flex-wrap items-center gap-2">
           {navLinks.map(link => {
             const isActive = link.href.includes(activeSegment);
             return (
               <Link
                 key={link.href}
                 href={link.href}
-                className={`rounded-full px-4 py-2 text-sm font-medium transition ${
-                  isActive
+                className={`rounded-full px-4 py-2 text-sm font-medium transition ${isActive
                     ? 'bg-pink-500 text-white'
                     : 'bg-gray-800 text-gray-200 hover:bg-gray-700 hover:text-white'
-                }`}
+                  }`}
               >
                 {link.label}
               </Link>
             );
           })}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={adminLogout}
+            className="border-gray-600 text-gray-200 hover:border-red-500 hover:text-red-400 hover:bg-red-950 transition-all duration-200"
+          >
+            Logout
+          </Button>
         </nav>
       </div>
     </header>

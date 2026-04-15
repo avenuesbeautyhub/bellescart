@@ -4,27 +4,9 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
-import { useRequireAdminAuth } from '@/auth/admin';
 
 export default function AdminDashboard() {
-  const { loaded, isAuthenticated } = useRequireAdminAuth();
   const [timeframe, setTimeframe] = useState<'daily' | 'monthly' | 'yearly'>('monthly');
-
-  if (!loaded) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <p className="text-xl text-gray-600">Loading...</p>
-      </div>
-    );
-  }
-
-  if (!isAuthenticated) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <p className="text-xl text-gray-600">Redirecting...</p>
-      </div>
-    );
-  }
 
   const chartData = {
     daily: [
@@ -78,11 +60,8 @@ export default function AdminDashboard() {
     <div className="min-h-screen bg-gray-100">
       {/* Header */}
       <header className="bg-white shadow">
-        <div className="max-w-7xl mx-auto px-4 py-6 flex justify-between items-center">
+        <div className="max-w-7xl mx-auto px-4 py-6">
           <h1 className="text-3xl font-bold text-gray-800">Admin Dashboard</h1>
-          <Link href="/admin">
-            <Button variant="outline">Logout</Button>
-          </Link>
         </div>
       </header>
 

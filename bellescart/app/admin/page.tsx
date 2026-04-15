@@ -1,12 +1,14 @@
 'use client';
 
 import React, { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import { useAdminAuth } from '@/auth/admin';
 import { useAdminAuthActions } from '@/auth/admin/actions';
 
 export default function AdminLoginPage() {
+  const router = useRouter();
   const { loaded, isAuthenticated } = useAdminAuth();
   const { adminLogin } = useAdminAuthActions();
   const [formData, setFormData] = useState({
@@ -14,7 +16,7 @@ export default function AdminLoginPage() {
     password: '',
   });
 
-  // Redirect authenticated admin users to dashboard
+  // Redirect authenticated admin users to dashboard (handled by AdminAuthWrapper)
   if (loaded && isAuthenticated) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -35,7 +37,7 @@ export default function AdminLoginPage() {
         email: formData.email,
         password: formData.password
       });
-      // Redirect will be handled by useRequireAdminAuth
+      // Custom event system will trigger auth state update and redirect automatically
     } catch (error) {
       console.error('Admin login error:', error);
     }

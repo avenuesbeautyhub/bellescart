@@ -2,10 +2,12 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 
 export default function ProductManagementPage() {
+  const router = useRouter();
   const [products] = useState([
     {
       id: '1',
@@ -48,8 +50,7 @@ export default function ProductManagementPage() {
         <div className="max-w-7xl mx-auto px-4 py-6 flex justify-between items-center">
           <h1 className="text-3xl font-bold text-gray-800">Product Management</h1>
           <div className="flex gap-4">
-            <Button variant="secondary">Export</Button>
-            <Button>Add New Product</Button>
+            <Button onClick={() => router.push('/admin/products/add')}>Add New Product</Button>
           </div>
         </div>
       </header>
@@ -81,61 +82,61 @@ export default function ProductManagementPage() {
         <div className="bg-white rounded-lg shadow overflow-hidden">
           <div className="overflow-x-auto">
             <table className="min-w-[720px] w-full">
-            <thead className="bg-gray-50 border-b border-gray-200">
-              <tr>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700">
-                  Product Name
-                </th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700">
-                  Category
-                </th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700">
-                  Price
-                </th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700">
-                  Stock
-                </th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700">
-                  Status
-                </th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {products.map(product => (
-                <tr key={product.id} className="border-b border-gray-200 hover:bg-gray-50">
-                  <td className="px-6 py-4 text-sm font-semibold text-gray-800">
-                    {product.name}
-                  </td>
-                  <td className="px-6 py-4 text-sm text-gray-600">{product.category}</td>
-                  <td className="px-6 py-4 text-sm font-semibold text-gray-800">
-                    {product.price}
-                  </td>
-                  <td className="px-6 py-4 text-sm text-gray-600">{product.stock}</td>
-                  <td className="px-6 py-4 text-sm">
-                    <Badge variant={product.status === 'active' ? 'success' : 'danger'}>
-                      {product.status === 'active'
-                        ? 'Active'
-                        : product.status === 'out-of-stock'
-                        ? 'Out of Stock'
-                        : 'Inactive'}
-                    </Badge>
-                  </td>
-                  <td className="px-6 py-4 text-sm">
-                    <div className="flex gap-2">
-                      <Button size="sm" variant="primary">
-                        Edit
-                      </Button>
-                      <Button size="sm" variant="danger">
-                        Delete
-                      </Button>
-                    </div>
-                  </td>
+              <thead className="bg-gray-50 border-b border-gray-200">
+                <tr>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700">
+                    Product Name
+                  </th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700">
+                    Category
+                  </th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700">
+                    Price
+                  </th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700">
+                    Stock
+                  </th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700">
+                    Status
+                  </th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700">
+                    Actions
+                  </th>
                 </tr>
-              ))}
-            </tbody>
+              </thead>
+              <tbody>
+                {products.map(product => (
+                  <tr key={product.id} className="border-b border-gray-200 hover:bg-gray-50">
+                    <td className="px-6 py-4 text-sm font-semibold text-gray-800">
+                      {product.name}
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-600">{product.category}</td>
+                    <td className="px-6 py-4 text-sm font-semibold text-gray-800">
+                      {product.price}
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-600">{product.stock}</td>
+                    <td className="px-6 py-4 text-sm">
+                      <Badge variant={product.status === 'active' ? 'success' : 'danger'}>
+                        {product.status === 'active'
+                          ? 'Active'
+                          : product.status === 'out-of-stock'
+                            ? 'Out of Stock'
+                            : 'Inactive'}
+                      </Badge>
+                    </td>
+                    <td className="px-6 py-4 text-sm">
+                      <div className="flex gap-2">
+                        <Button size="sm" variant="primary">
+                          Edit
+                        </Button>
+                        <Button size="sm" variant="danger">
+                          Delete
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
             </table>
           </div>
         </div>

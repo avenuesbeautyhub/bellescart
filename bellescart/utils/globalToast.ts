@@ -20,7 +20,7 @@ export const globalToast = {
       console.log(`[${toast.type.toUpperCase()}] ${toast.title}: ${toast.message || ''}`);
     }
   },
-  
+
   // Auth-specific toast functions
   auth: {
     tokenExpired: () => globalToast.show(toastMessages.auth.tokenExpired()),
@@ -29,14 +29,26 @@ export const globalToast = {
     tokenRefreshed: () => globalToast.show(toastMessages.auth.tokenRefreshed()),
     logoutSuccess: () => globalToast.show(toastMessages.auth.logoutSuccess()),
   },
-  
+
   // Profile toast functions
   profile: {
     updateSuccess: () => globalToast.show(toastMessages.profile.updateSuccess()),
     updateError: (error?: string) => globalToast.show(toastMessages.profile.updateError(error)),
     loadError: () => globalToast.show(toastMessages.profile.loadError()),
   },
-  
+
+  // Admin toast functions - flexible functions that accept custom messages
+  admin: {
+    success: (title: string, message?: string) => globalToast.show(toastMessages.admin.success(title, message)),
+    error: (title: string, message?: string) => globalToast.show(toastMessages.admin.error(title, message)),
+    info: (title: string, message?: string) => globalToast.show(toastMessages.admin.info(title, message)),
+    warning: (title: string, message?: string) => globalToast.show(toastMessages.admin.warning(title, message)),
+    // Predefined common admin messages for convenience
+    loginSuccess: (adminName?: string) => globalToast.show(toastMessages.admin.loginSuccess(adminName)),
+    loginError: (error?: string) => globalToast.show(toastMessages.admin.loginError(error)),
+    logoutSuccess: () => globalToast.show(toastMessages.admin.logoutSuccess()),
+  },
+
   // General toast functions
   general: {
     networkError: () => globalToast.show(toastMessages.general.networkError()),
