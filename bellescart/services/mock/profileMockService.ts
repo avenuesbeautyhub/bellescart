@@ -2,14 +2,14 @@ import { ApiResponse, UserProfile } from '@/types/auth';
 import { appConfig } from '@/config/appConfig';
 
 export class ProfileMockService {
-  async mockGetProfile(token: string): Promise<ApiResponse<UserProfile>> {
+  async mockGetProfile(): Promise<ApiResponse<UserProfile>> {
     if (appConfig.enableLogging) {
-      console.log('Mock get profile with token:', token);
+      console.log('Mock get profile');
     }
-    
+
     // Simulate API delay
     await new Promise(resolve => setTimeout(resolve, 1000));
-    
+
     return {
       success: true,
       message: 'Profile retrieved successfully',
@@ -24,13 +24,13 @@ export class ProfileMockService {
     };
   }
 
-  async mockUpdateProfile(token: string, data: Partial<UserProfile>): Promise<ApiResponse<UserProfile>> {
+  async mockUpdateProfile(data: Partial<UserProfile>): Promise<ApiResponse<UserProfile>> {
     if (appConfig.enableLogging) {
-      console.log('Mock update profile:', { token, data });
+      console.log('Mock update profile:', data);
     }
-    
+
     await new Promise(resolve => setTimeout(resolve, 1000));
-    
+
     return {
       success: true,
       message: 'Profile updated successfully',

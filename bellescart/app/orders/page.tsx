@@ -1,16 +1,18 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRequireUserAuth } from '@/auth/user';
 import Navbar from '@/components/Navbar/Navbar';
 import Footer from '@/components/Footer/Footer';
 import OrderCard from '@/components/OrderCard/OrderCard';
 import Button from '@/components/ui/Button';
+import Loader from '@/components/ui/Loader';
 import { Order } from '@/utils/types';
 
 export default function OrdersPage() {
   const { loaded, isAuthenticated } = useRequireUserAuth();
+  const [isLoading, setIsLoading] = useState(false);
   const mockOrders: Order[] = [
     {
       id: 'ORD-001',
@@ -41,12 +43,18 @@ export default function OrdersPage() {
     },
   ];
 
+  // Simulate loading orders
+  useEffect(() => {
+    setIsLoading(true);
+    const timer = setTimeout(() => {
+      setIsLoading(false);
+    }, 700); // Simulate API delay
+    return () => clearTimeout(timer);
+  }, []);
+
+  // Show loader while checking authentication
   if (!loaded) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <p className="text-gray-600">Loading...</p>
-      </div>
-    );
+    return <Loader size="lg" text="Loading..." fullScreen />;
   }
 
   if (!isAuthenticated) return null;
@@ -56,6 +64,13 @@ export default function OrdersPage() {
       <Navbar />
 
       <main className="flex-1">
+        {/* Loading Overlay */}
+        {isLoading && (
+          <div className="fixed inset-0 bg-white bg-opacity-90 flex items-center justify-center z-50">
+            <Loader size="lg" text="Loading orders..." />
+          </div>
+        )}
+
         <div className="max-w-7xl mx-auto px-4 py-12">
           <h1 className="text-3xl font-bold text-gray-800 mb-8">My Orders</h1>
 

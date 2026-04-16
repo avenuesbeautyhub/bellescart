@@ -34,10 +34,10 @@ export const errorHandler = (
     const message = Object.values((err as any).errors).map((val: any) => val.message).join(', ');
     error = { name: 'ValidationError', message, statusCode: 400 };
   }
-
+  console.log('errors',err);
+  
   res.status(error.statusCode || 500).json({
     success: false,
-    error: error.message || 'Server Error',
-    ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
+    message: error.message || 'Server Error'
   });
 };

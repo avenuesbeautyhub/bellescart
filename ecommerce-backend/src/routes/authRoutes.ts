@@ -184,6 +184,55 @@ router.post('/login', controller.login.bind(controller));
 
 /**
  * @swagger
+ * /auth/refresh-token:
+ *   post:
+ *     summary: Refresh access token using refresh token
+ *     tags: [Authentication]
+ *     description: |
+ *       Generates new access and refresh tokens using a valid refresh token.
+ *       Frontend should call this automatically when access token expires.
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - refreshToken
+ *             properties:
+ *               refreshToken:
+ *                 type: string
+ *                 description: Valid refresh token (expires in 30 days)
+ *     responses:
+ *       200:
+ *         description: Tokens refreshed successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     user:
+ *                       type: object
+ *                     token:
+ *                       type: string
+ *                     refreshToken:
+ *                       type: string
+ *       400:
+ *         description: Bad request - Invalid refresh token
+ *       401:
+ *         description: Invalid or expired refresh token
+ */
+router.post('/refresh-token', controller.refreshToken.bind(controller));
+
+/**
+ * @swagger
  * /auth/profile:
  *   get:
  *     summary: Get user profile
@@ -259,5 +308,44 @@ router.put('/profile', authenticate, controller.updateProfile.bind(controller));
  */
 router.put('/change-password', authenticate, controller.changePassword.bind(controller));
 
+/**
+ * @swagger
+ * /auth/findme:
+ *   get:
+ *     summary: Get current logged-in user
+ *     tags: [Authentication]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Current user retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: string
+ *                     name:
+ *                       type: string
+ *                     email:
+ *                       type: string
+ *                     phone:
+ *                       type: string
+ *                     role:
+ *                       type: string
+ *       401:
+ *         description: Unauthorized
+ *       404:
+ *         description: User not found
+ */
+router.get('/findme', authenticate, controller.getCurrentUser.bind(controller));
 
 export default router;

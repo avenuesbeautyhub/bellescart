@@ -4,21 +4,9 @@ import { useEffect, useState } from 'react';
 import { User } from '@/utils/types';
 import { UserProfile } from '@/types/auth';
 
-// User authentication keys
-const AUTH_USER_KEY = 'bellescart_user';
+// User authentication keys - only tokens needed
 const AUTH_TOKEN_KEY = 'bellescart_token';
 const AUTH_REFRESH_TOKEN_KEY = 'bellescart_refresh_token';
-
-export const getUserAuth = (): User | null => {
-  if (typeof window === 'undefined') return null;
-  const storedUser = window.localStorage.getItem(AUTH_USER_KEY);
-  if (!storedUser) return null;
-  try {
-    return JSON.parse(storedUser) as User;
-  } catch {
-    return null;
-  }
-};
 
 export const getUserToken = (): string | null => {
   if (typeof window === 'undefined') return null;
@@ -31,21 +19,18 @@ export const getUserRefreshToken = (): string | null => {
 };
 
 export const isUserAuthenticated = (): boolean => {
-  return !!getUserAuth() && !!getUserToken();
+  const token = getUserToken();
+  const refreshToken = getUserRefreshToken();
+
+  // Consider authenticated if at least one valid token exists
+  // (API interceptor will handle token refresh when needed)
+  return !!token || !!refreshToken;
 };
 
 export const saveUserSession = (user: UserProfile, token: string, refreshToken?: string) => {
   if (typeof window === 'undefined') return;
 
-  const userToStore: User = {
-    id: user.id,
-    name: user.name,
-    email: user.email,
-    phone: user.phone,
-    role: user.role as 'user' | 'admin' || 'user',
-  };
-
-  window.localStorage.setItem(AUTH_USER_KEY, JSON.stringify(userToStore));
+  // Only store tokens - user data will be fetched from API when needed
   window.localStorage.setItem(AUTH_TOKEN_KEY, token);
   if (refreshToken) {
     window.localStorage.setItem(AUTH_REFRESH_TOKEN_KEY, refreshToken);
@@ -54,7 +39,6 @@ export const saveUserSession = (user: UserProfile, token: string, refreshToken?:
 
 export const clearUserSession = () => {
   if (typeof window === 'undefined') return;
-  window.localStorage.removeItem(AUTH_USER_KEY);
   window.localStorage.removeItem(AUTH_TOKEN_KEY);
   window.localStorage.removeItem(AUTH_REFRESH_TOKEN_KEY);
 };
@@ -64,26 +48,30 @@ export const useUserAuth = () => {
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
-    setUser(getUserAuth());
+    // User data will be fetched from API when needed
+    // For now, just set loaded to true
     setLoaded(true);
   }, []);
 
-  return {
-    user,
-    loaded,
-    isAuthenticated: !!user,
-    isAdmin: !!user && user.role === 'admin',
-  };
+  // Get authentication status from tokens only
+  const isAuthenticated = isUserAuthenticated();
+
+  return { user, isAuthenticated, loaded };
 };
 
 export const useRequireUserAuth = () => {
   const { user, isAuthenticated, loaded } = useUserAuth();
 
   useEffect(() => {
+    // Only redirect if loaded and not authenticated
+    // This prevents redirect loops during initial load
     if (loaded && !isAuthenticated) {
-      window.location.replace('/login');
+      // Check if we're already on login page to prevent loops
+      if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
+        window.location.replace('/login');
+      }
     }
-  }, [isAuthenticated, loaded]);
+  }, [loaded, isAuthenticated]);
 
   return { user, isAuthenticated, loaded };
 };
@@ -93,14 +81,44 @@ export const useAuth = () => {
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
-    setUser(getUserAuth());
-    setLoaded(true);
+    const updateAuthState = () => {
+      const token = getUserToken();
+      const refreshToken = getUserRefreshToken();
+
+      // User data will be fetched from API when needed
+      // For now, we don't have user data without an API call
+
+      // Only set loaded to true after checking tokens
+      setLoaded(true);
+    };
+
+    updateAuthState();
+
+    // Listen for storage changes to update auth state
+    const handleStorageChange = () => {
+      updateAuthState();
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    window.addEventListener('auth-state-changed', handleStorageChange);
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('auth-state-changed', handleStorageChange);
+    };
   }, []);
+
+  // Get current tokens for validation
+  const token = getUserToken();
+  const refreshToken = getUserRefreshToken();
+
+  // Consider authenticated if at least one valid token exists
+  const isAuthenticated = !!token || !!refreshToken;
 
   return {
     user,
     loaded,
-    isAuthenticated: !!user,
+    isAuthenticated,
     isAdmin: !!user && user.role === 'admin',
   };
 };
@@ -115,6 +133,12 @@ export const useAuthActions = () => {
 
       if (response.success && response.data?.user && response.data?.token) {
         saveUserSession(response.data.user, response.data.token, response.data.refreshToken);
+
+        // Set welcome flag to show welcome overlay
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('welcomeShown', 'false');
+          window.dispatchEvent(new Event('auth-state-changed'));
+        }
       }
 
       return response;
@@ -148,6 +172,11 @@ export const useAuthActions = () => {
 
       if (response.success && response.data?.user && response.data?.token) {
         saveUserSession(response.data.user, response.data.token, response.data.refreshToken);
+
+        // Trigger auth state change event to update UI
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new Event('auth-state-changed'));
+        }
       }
 
       return response;
@@ -170,6 +199,12 @@ export const useAuthActions = () => {
 
   const logout = () => {
     clearUserSession();
+
+    // Trigger auth state change event to update UI
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new Event('auth-state-changed'));
+    }
+
     window.location.href = '/login';
   };
 

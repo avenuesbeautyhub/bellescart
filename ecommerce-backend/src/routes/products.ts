@@ -1,16 +1,22 @@
 import { Router } from 'express';
 import { ProductRepository } from '../repositories/ProductRepository';
+import { CategoryRepository } from '../repositories/CategoryRepository';
 import { ProductInteractor } from '../interactors/ProductInteractor';
+import { CategoryInteractor } from '../interactors/CategoryInteractor';
 import { ProductController } from '../controllers/productController';
-import { authenticate, authorize, optionalAuth } from '../middleware/auth';
+import { authenticate, authorize } from '../middleware/auth';
 
 const router = Router();
 
 // Creating a new instance of ProductRepository to handle data access operations for the Product entity.
 const repository = new ProductRepository();
+// Creating a new instance of CategoryRepository to handle category operations
+const categoryRepository = new CategoryRepository();
+// Creating a new instance of CategoryInteractor to handle category business logic
+const categoryInteractor = new CategoryInteractor(categoryRepository);
 // Creating a new instance of ProductInteractor to contain application-specific business logic and orchestrate data flow.
-// ProductRepository instance is injected into ProductInteractor for database interaction.
-const interactor = new ProductInteractor(repository);
+// ProductRepository and CategoryInteractor instances are injected into ProductInteractor for database interaction.
+const interactor = new ProductInteractor(repository, categoryInteractor);
 // Creating a new instance of ProductController to handle incoming HTTP requests related to product operations.
 // ProductInteractor instance is injected into ProductController to delegate business logic execution.
 const controller = new ProductController(interactor);
@@ -34,7 +40,7 @@ const controller = new ProductController(interactor);
  *       200:
  *         description: Products retrieved successfully
  */
-router.get('/', optionalAuth, controller.getProducts.bind(controller));
+router.get('/', authenticate, controller.getProducts.bind(controller));
 
 /**
  * @swagger
@@ -46,7 +52,7 @@ router.get('/', optionalAuth, controller.getProducts.bind(controller));
  *       200:
  *         description: Featured products retrieved successfully
  */
-router.get('/featured', controller.getFeaturedProducts.bind(controller));
+router.get('/featured', authenticate, controller.getFeaturedProducts.bind(controller));
 
 /**
  * @swagger
@@ -64,7 +70,7 @@ router.get('/featured', controller.getFeaturedProducts.bind(controller));
  *       200:
  *         description: Products retrieved successfully
  */
-router.get('/category/:category', controller.getProductsByCategory.bind(controller));
+router.get('/category/:category', authenticate, controller.getProductsByCategory.bind(controller));
 
 /**
  * @swagger
@@ -84,106 +90,51 @@ router.get('/category/:category', controller.getProductsByCategory.bind(controll
  *       404:
  *         description: Product not found
  */
-router.get('/:id', optionalAuth, controller.getProductById.bind(controller));
+router.get('/:id', authenticate, controller.getProductById.bind(controller));
 
 /**
  * @swagger
- * /products:
- *   post:
- *     summary: Create a new product
+ * /products/search:
+ *   get:
+ *     summary: Search products
  *     tags: [Products]
- *     security:
- *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - name
- *               - price
- *               - category
- *             properties:
- *               name:
- *                 type: string
- *               price:
- *                 type: number
- *               category:
- *                 type: string
- *     responses:
- *       201:
- *         description: Product created successfully
- *       401:
- *         description: Unauthorized
- *       403:
- *         description: Forbidden
- */
-router.post('/', authenticate, authorize('admin'), controller.createProduct.bind(controller));
-
-/**
- * @swagger
- * /products/{id}:
- *   put:
- *     summary: Update a product
- *     tags: [Products]
- *     security:
- *       - bearerAuth: []
  *     parameters:
- *       - in: path
- *         name: id
+ *       - in: query
+ *         name: q
  *         required: true
  *         schema:
  *           type: string
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               name:
- *                 type: string
- *               price:
- *                 type: number
- *               category:
- *                 type: string
- *     responses:
- *       200:
- *         description: Product updated successfully
- *       401:
- *         description: Unauthorized
- *       403:
- *         description: Forbidden
- *       404:
- *         description: Product not found
- */
-router.put('/:id', authenticate, authorize('admin'), controller.updateProduct.bind(controller));
-
-/**
- * @swagger
- * /products/{id}:
- *   delete:
- *     summary: Delete a product
- *     tags: [Products]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
+ *         description: Search query
+ *       - in: query
+ *         name: page
  *         schema:
- *           type: string
+ *           type: integer
+ *           default: 1
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 20
  *     responses:
  *       200:
- *         description: Product deleted successfully
- *       401:
- *         description: Unauthorized
- *       403:
- *         description: Forbidden
- *       404:
- *         description: Product not found
+ *         description: Search results
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     products:
+ *                       type: array
+ *                       items:
+ *                         $ref: '#/components/schemas/Product'
+ *                     pagination:
+ *                       type: object
  */
-router.delete('/:id', authenticate, authorize('admin'), controller.deleteProduct.bind(controller));
+router.get('/search', controller.searchProducts.bind(controller));
 
 export default router;

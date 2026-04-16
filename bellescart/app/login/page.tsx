@@ -7,6 +7,7 @@ import Navbar from '@/components/Navbar/Navbar';
 import Footer from '@/components/Footer/Footer';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
+import Loader from '@/components/ui/Loader';
 import { useToast } from '@/contexts/ToastContext';
 import { toastMessages } from '@/utils/toastHelpers';
 import { useAuth, useAuthActions } from '@/auth/user';
@@ -25,9 +26,14 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (loaded && isAuthenticated) {
-      router.replace('/');
+      router.replace('/dashboard');
     }
   }, [loaded, isAuthenticated, router]);
+
+  // Show loader only if not loaded AND not already authenticated
+  if (!loaded && !isAuthenticated) {
+    return <Loader size="lg" text="Loading..." fullScreen />;
+  }
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;

@@ -7,6 +7,7 @@ import Navbar from '@/components/Navbar/Navbar';
 import Footer from '@/components/Footer/Footer';
 import ProductGrid from '@/components/ProductGrid/ProductGrid';
 import Button from '@/components/ui/Button';
+import Loader from '@/components/ui/Loader';
 import { mockProducts } from '@/utils/mockData';
 import { useAuth } from '@/auth/user';
 
@@ -15,11 +16,17 @@ export default function Home() {
   const featuredProducts = mockProducts.slice(0, 8);
   const { isAuthenticated, loaded } = useAuth();
 
+  // Redirect authenticated users to dashboard
   useEffect(() => {
     if (loaded && isAuthenticated) {
-      router.push('/dashboard');
+      router.replace('/dashboard');
     }
   }, [loaded, isAuthenticated, router]);
+
+  // Show loader only if not loaded AND not already authenticated
+  if (!loaded && !isAuthenticated) {
+    return <Loader size="lg" text="Loading..." fullScreen />;
+  }
 
   return (
     <div className="min-h-screen flex flex-col">

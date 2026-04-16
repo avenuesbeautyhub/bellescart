@@ -1,12 +1,16 @@
 import { IProductInteractor } from '../providers/interfaces/IProductInteractor';
 import { IProductRepository } from '../providers/interfaces/IProductRepository';
+import { ICategoryInteractor } from '../providers/interfaces/ICategoryInteractor';
 import { IProduct } from '../models/Product';
+import mongoose from 'mongoose';
 
 export class ProductInteractor implements IProductInteractor {
   private _productRepository: IProductRepository;
+  private _categoryInteractor: ICategoryInteractor;
 
-  constructor(productRepository: IProductRepository) {
+  constructor(productRepository: IProductRepository, categoryInteractor: ICategoryInteractor) {
     this._productRepository = productRepository;
+    this._categoryInteractor = categoryInteractor;
   }
 
   async getProducts(filters: {
@@ -54,7 +58,7 @@ export class ProductInteractor implements IProductInteractor {
     // Sort options
     const sortOptions: any = {};
     const sortOrder = order === 'asc' ? 1 : -1;
-    
+
     if (['name', 'price', 'createdAt', 'rating.average'].includes(sort)) {
       sortOptions[sort] = sortOrder;
     } else {
@@ -75,13 +79,21 @@ export class ProductInteractor implements IProductInteractor {
       });
       total = await this._productRepository.count({ ...query, $text: { $search: search } });
     } else {
-      // Regular query
-      products = await this._productRepository.findActive(query, {
+      // Regular query - include both active and draft products for admin view
+      const finalQuery = { ...query, status: { $in: ['active', 'draft','inactive'] } };
+      console.log('Final query:', JSON.stringify(finalQuery, null, 2));
+      console.log('Query options:', { limit, skip, sort: sortOptions });
+
+      products = await this._productRepository.find(finalQuery, {
         limit,
         skip,
-        sort: sortOptions
+        sort: sortOptions,
+        populate: { path: 'category', select: 'name description' }
       });
-      total = await this._productRepository.count(query);
+      console.log('Products found:', products.length);
+
+      total = await this._productRepository.count(finalQuery);
+      console.log('Total count:', total);
     }
 
     return {
@@ -96,33 +108,66 @@ export class ProductInteractor implements IProductInteractor {
   }
 
   async getProductById(id: string): Promise<IProduct | null> {
-    return this._productRepository.findByIdActive(id);
+    try {
+      return await this._productRepository.findById(id);
+    } catch (error: any) {
+      throw new Error(error.message || 'Failed to get product');
+    }
+  }
+
+  async findByName(name: string): Promise<IProduct | null> {
+    try {
+      return await this._productRepository.findByName(name);
+    } catch (error: any) {
+      throw new Error(error.message || 'Failed to get product by name');
+    }
   }
 
   async createProduct(productData: Partial<IProduct>): Promise<IProduct> {
     // Validate required fields
-    if (!productData.name || !productData.description || !productData.price || !productData.category || !productData.brand) {
-      throw new Error('Missing required product fields');
+    if (!productData.name || !productData.description || !productData.price || !productData.category) {
+      throw new Error('Missing required product fields: name, description, price, category are required');
     }
 
-    // Generate SKU if not provided
-    if (!productData.inventory?.sku) {
-      const brand = productData.brand.replace(/\s+/g, '').toUpperCase();
-      const name = productData.name.replace(/\s+/g, '').toUpperCase().substring(0, 8);
-      const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
-      productData.inventory = {
-        ...productData.inventory,
-        sku: `${brand}-${name}-${random}`,
-        quantity: productData.inventory?.quantity || 0,
-        trackQuantity: productData.inventory?.trackQuantity ?? true,
-        allowBackorder: productData.inventory?.allowBackorder ?? false
-      };
+    // Validate category ID format
+    if (!mongoose.Types.ObjectId.isValid(productData.category.toString())) {
+      throw new Error('Invalid category ID format');
     }
 
-    return this._productRepository.create(productData);
+    // Validate category exists
+    const category = await this._categoryInteractor.getCategoryById(productData.category.toString());
+    if (!category) {
+      throw new Error('Invalid category: Category not found');
+    }
+
+    // Set default values
+    const finalProductData = {
+      ...productData,
+      category: new mongoose.Types.ObjectId(productData.category.toString()),
+      quantity: productData.quantity || 1,
+      status: productData.status || 'active',
+      featured: productData.featured || false
+    };
+
+    return this._productRepository.create(finalProductData);
   }
 
   async updateProduct(id: string, updateData: Partial<IProduct>): Promise<IProduct | null> {
+    // Validate category if it's being updated
+    if (updateData.category) {
+      // Validate category ID format
+      if (!mongoose.Types.ObjectId.isValid(updateData.category.toString())) {
+        throw new Error('Invalid category ID format');
+      }
+
+      const category = await this._categoryInteractor.getCategoryById(updateData.category.toString());
+      if (!category) {
+        throw new Error('Invalid category: Category not found');
+      }
+      // Convert to ObjectId
+      updateData.category = new mongoose.Types.ObjectId(updateData.category.toString());
+    }
+
     return this._productRepository.update(id, updateData);
   }
 
@@ -144,7 +189,7 @@ export class ProductInteractor implements IProductInteractor {
 
     const sortOptions: any = {};
     const sortOrder = order === 'asc' ? 1 : -1;
-    
+
     if (['name', 'price', 'createdAt', 'rating.average'].includes(sort)) {
       sortOptions[sort] = sortOrder;
     } else {
@@ -173,7 +218,7 @@ export class ProductInteractor implements IProductInteractor {
   }
 
   async updateInventory(productId: string, quantity: number): Promise<IProduct | null> {
-    return this._productRepository.updateInventory(productId, quantity);
+    return this._productRepository.updateQuantity(productId, quantity);
   }
 
   async checkStock(productId: string, quantity: number): Promise<boolean> {
@@ -197,7 +242,7 @@ export class ProductInteractor implements IProductInteractor {
     const { page = 1, limit = 20, sort = 'relevance', order = 'desc' } = options;
 
     let sortOptions: any = {};
-    
+
     if (sort === 'relevance') {
       // Text search relevance is handled by MongoDB
       sortOptions = { score: { $meta: 'textScore' } };
@@ -216,9 +261,9 @@ export class ProductInteractor implements IProductInteractor {
       sort: sortOptions
     });
 
-    const total = await this._productRepository.count({ 
+    const total = await this._productRepository.count({
       status: 'active',
-      $text: { $search: query } 
+      $text: { $search: query }
     });
 
     return {

@@ -1,16 +1,18 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRequireUserAuth } from '@/auth/user';
 import Navbar from '@/components/Navbar/Navbar';
 import Footer from '@/components/Footer/Footer';
 import Button from '@/components/ui/Button';
+import Loader from '@/components/ui/Loader';
 import CartItem from '@/components/CartItem/CartItem';
 import { CartItem as CartItemType } from '@/utils/types';
 
 export default function CartPage() {
   const { loaded, isAuthenticated } = useRequireUserAuth();
+  const [isLoading, setIsLoading] = useState(false);
   const [cartItems, setCartItems] = useState<CartItemType[]>([
     {
       id: '1',
@@ -26,12 +28,9 @@ export default function CartPage() {
     },
   ]);
 
+  // Show loader while checking authentication
   if (!loaded) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <p className="text-gray-600">Loading...</p>
-      </div>
-    );
+    return <Loader size="lg" text="Loading..." fullScreen />;
   }
 
   if (!isAuthenticated) return null;

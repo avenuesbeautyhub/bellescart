@@ -11,11 +11,12 @@ export interface IUserInteractor {
     email: string;
     password: string;
   }): Promise<{ user: Partial<IUser>; token: string; refreshToken: string }>;
+  refreshToken(refreshToken: string): Promise<{ user: Partial<IUser>; token: string; refreshToken: string }>;
   getProfile(userId: string): Promise<Partial<IUser> | null>;
   updateProfile(userId: string, updateData: {
     name?: string;
     phone?: string;
-    addresses?: IUser['addresses'];
+    addresses?: string[];
   }): Promise<Partial<IUser> | null>;
   changePassword(userId: string, passwordData: {
     currentPassword: string;
@@ -28,8 +29,8 @@ export interface IUserInteractor {
   completeRegistration(email: string): Promise<{ user: Partial<IUser>; token: string; refreshToken: string }>;
   addToWishlist(userId: string, productId: string): Promise<void>;
   removeFromWishlist(userId: string, productId: string): Promise<void>;
-  addAddress(userId: string, address: IUser['addresses'][0]): Promise<void>;
-  updateAddress(userId: string, addressIndex: number, address: Partial<IUser['addresses'][0]>): Promise<void>;
+  addAddress(userId: string, address: string[]): Promise<void>;
+  updateAddress(userId: string, addressIndex: number, address: string[]): Promise<void>;
   removeAddress(userId: string, addressIndex: number): Promise<void>;
   setDefaultAddress(userId: string, addressIndex: number): Promise<void>;
 }

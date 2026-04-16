@@ -10,8 +10,5 @@ export interface IUserRepository {
   addToWishlist(userId: string, productId: string): Promise<IUser | null>;
   removeFromWishlist(userId: string, productId: string): Promise<IUser | null>;
   getWishlist(userId: string): Promise<IUser | null>;
-  addAddress(userId: string, address: IUser['addresses'][0]): Promise<IUser | null>;
-  updateAddress(userId: string, addressIndex: number, address: Partial<IUser['addresses'][0]>): Promise<IUser | null>;
-  removeAddress(userId: string, addressIndex: number): Promise<IUser | null>;
-  setDefaultAddress(userId: string, addressIndex: number): Promise<IUser | null>;
+
 }

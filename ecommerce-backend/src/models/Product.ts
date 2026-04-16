@@ -4,54 +4,17 @@ export interface IProduct extends Document {
   name: string;
   description: string;
   price: number;
-  category: string;
-  subcategory?: string;
-  brand: string;
+  category: mongoose.Types.ObjectId;
+  brand?: string;
+  quantity: number;
   images: {
     url: string;
     alt: string;
     isMain: boolean;
   }[];
-  variants: {
-    name: string;
-    options: string[];
-    price?: number;
-    image?: string;
-  }[];
-  inventory: {
-    sku: string;
-    quantity: number;
-    trackQuantity: boolean;
-    allowBackorder: boolean;
-  };
-  attributes: {
-    name: string;
-    value: string;
-  }[];
-  tags: string[];
-  rating: {
-    average: number;
-    count: number;
-  };
+  tags?: string[];
   status: 'active' | 'inactive' | 'draft';
-  featured: boolean;
-  seo: {
-    title?: string;
-    description?: string;
-    keywords?: string[];
-  };
-  dimensions?: {
-    length: number;
-    width: number;
-    height: number;
-    weight: number;
-    unit: string;
-  };
-  shipping: {
-    freeShipping: boolean;
-    shippingCost?: number;
-    estimatedDays?: number;
-  };
+  featured?: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -74,18 +37,19 @@ const productSchema = new Schema<IProduct>({
     min: [0, 'Price cannot be negative']
   },
   category: {
-    type: String,
-    required: [true, 'Product category is required'],
-    enum: ['clothing', 'electronics', 'home', 'beauty', 'sports', 'books', 'toys', 'other']
-  },
-  subcategory: {
-    type: String,
-    trim: true
+    type: Schema.Types.ObjectId,
+    ref: 'Category',
+    required: [true, 'Product category is required']
   },
   brand: {
     type: String,
-    required: [true, 'Product brand is required'],
     trim: true
+  },
+  quantity: {
+    type: Number,
+    required: [true, 'Product quantity is required'],
+    min: [1, 'Quantity cannot be negative'],
+    default: 0
   },
   images: [{
     url: {
@@ -101,60 +65,10 @@ const productSchema = new Schema<IProduct>({
       default: false
     }
   }],
-  variants: [{
-    name: {
-      type: String,
-      required: true
-    },
-    options: [{
-      type: String,
-      required: true
-    }],
-    price: Number,
-    image: String
-  }],
-  inventory: {
-    sku: {
-      type: String,
-      required: true,
-      unique: true
-    },
-    quantity: {
-      type: Number,
-      required: true,
-      min: [0, 'Quantity cannot be negative'],
-      default: 0
-    },
-    trackQuantity: {
-      type: Boolean,
-      default: true
-    },
-    allowBackorder: {
-      type: Boolean,
-      default: false
-    }
-  },
-  attributes: [{
-    name: String,
-    value: String
-  }],
   tags: [{
     type: String,
     trim: true
   }],
-  rating: {
-    average: {
-      type: Number,
-      default: 0,
-      min: 0,
-      max: 5
-    },
-    count: {
-      type: Number,
-      default: 0,
-      min: 0
-    }
-  },
   status: {
     type: String,
     enum: ['active', 'inactive', 'draft'],
@@ -163,30 +77,6 @@ const productSchema = new Schema<IProduct>({
   featured: {
     type: Boolean,
     default: false
-  },
-  seo: {
-    title: String,
-    description: String,
-    keywords: [String]
-  },
-  dimensions: {
-    length: Number,
-    width: Number,
-    height: Number,
-    weight: Number,
-    unit: {
-      type: String,
-      enum: ['cm', 'in'],
-      default: 'cm'
-    }
-  },
-  shipping: {
-    freeShipping: {
-      type: Boolean,
-      default: false
-    },
-    shippingCost: Number,
-    estimatedDays: Number
   }
 }, {
   timestamps: true
@@ -194,10 +84,9 @@ const productSchema = new Schema<IProduct>({
 
 // Index for search functionality
 productSchema.index({ name: 'text', description: 'text', tags: 'text' });
-productSchema.index({ category: 1, subcategory: 1 });
+productSchema.index({ category: 1 });
 productSchema.index({ brand: 1 });
 productSchema.index({ price: 1 });
-productSchema.index({ 'rating.average': -1 });
 productSchema.index({ featured: 1, status: 1 });
 
 export const Product = mongoose.model<IProduct>('Product', productSchema);

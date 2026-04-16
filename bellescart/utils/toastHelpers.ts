@@ -50,9 +50,33 @@ export const toastMessages = {
       title: 'Logged Out',
       message: 'You have been successfully logged out.',
       duration: 3000
+    }),
+    tokenExpired: (): Omit<ToastMessage, 'id'> => ({
+      type: 'info',
+      title: 'Session Expired',
+      message: 'Your session has expired. Refreshing automatically...',
+      duration: 3000
+    }),
+    tokenRefreshFailed: (): Omit<ToastMessage, 'id'> => ({
+      type: 'error',
+      title: 'Session Expired',
+      message: 'Please login again to continue.',
+      duration: 5000
+    }),
+    tokenInvalid: (): Omit<ToastMessage, 'id'> => ({
+      type: 'error',
+      title: 'Authentication Failed',
+      message: 'Invalid session. Please login again.',
+      duration: 5000
+    }),
+    tokenRefreshed: (): Omit<ToastMessage, 'id'> => ({
+      type: 'success',
+      title: 'Session Refreshed',
+      message: 'Your session has been automatically refreshed.',
+      duration: 2000
     })
   },
-  
+
   // Profile messages
   profile: {
     updateSuccess: (): Omit<ToastMessage, 'id'> => ({
@@ -74,7 +98,54 @@ export const toastMessages = {
       duration: 5000
     })
   },
-  
+
+  // Admin messages - flexible functions that accept custom messages
+  admin: {
+    success: (title: string, message?: string): Omit<ToastMessage, 'id'> => ({
+      type: 'success',
+      title,
+      message: message || 'Operation completed successfully',
+      duration: 3000
+    }),
+    error: (title: string, message?: string): Omit<ToastMessage, 'id'> => ({
+      type: 'error',
+      title,
+      message: message || 'Operation failed',
+      duration: 5000
+    }),
+    info: (title: string, message?: string): Omit<ToastMessage, 'id'> => ({
+      type: 'info',
+      title,
+      message: message || 'Information',
+      duration: 4000
+    }),
+    warning: (title: string, message?: string): Omit<ToastMessage, 'id'> => ({
+      type: 'warning',
+      title,
+      message: message || 'Warning',
+      duration: 4000
+    }),
+    // Predefined common admin messages for convenience
+    loginSuccess: (adminName?: string): Omit<ToastMessage, 'id'> => ({
+      type: 'success',
+      title: 'Admin Login Successful!',
+      message: `Welcome to admin panel${adminName ? `, ${adminName}` : ''}!`,
+      duration: 3000
+    }),
+    loginError: (error?: string): Omit<ToastMessage, 'id'> => ({
+      type: 'error',
+      title: 'Admin Login Failed',
+      message: error || 'Invalid admin credentials',
+      duration: 5000
+    }),
+    logoutSuccess: (): Omit<ToastMessage, 'id'> => ({
+      type: 'info',
+      title: 'Admin Logged Out',
+      message: 'You have been successfully logged out from admin panel.',
+      duration: 3000
+    })
+  },
+
   // General messages
   general: {
     networkError: (): Omit<ToastMessage, 'id'> => ({

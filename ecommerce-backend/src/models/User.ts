@@ -8,15 +8,22 @@ export interface IUser extends Document {
   role: 'user' | 'admin';
   avatar?: string;
   phone?: string;
-  addresses: {
-    street: string;
-    city: string;
-    state: string;
-    zipCode: string;
-    country: string;
-    isDefault: boolean;
-  }[];
-  wishlist: mongoose.Types.ObjectId[];
+  isActive: boolean;
+  createdAt: Date;
+  comparePassword(candidatePassword: string): Promise<boolean>;
+}
+
+export interface IAdmin extends Document {
+  name: string;
+  email: string;
+  password: string;
+  role: 'admin';
+  avatar?: string;
+  phone?: string;
+  permissions?: string[];
+  lastLogin?: Date;
+
+  isActive: boolean;
   comparePassword(candidatePassword: string): Promise<boolean>;
 }
 
@@ -56,36 +63,14 @@ const userSchema = new Schema<IUser>({
     type: String,
     match: [/^\+?[\d\s-()]+$/, 'Please provide a valid phone number']
   },
-  addresses: [{
-    street: {
-      type: String,
-      required: true
-    },
-    city: {
-      type: String,
-      required: true
-    },
-    state: {
-      type: String,
-      required: true
-    },
-    zipCode: {
-      type: String,
-      required: true
-    },
-    country: {
-      type: String,
-      required: true
-    },
-    isDefault: {
-      type: Boolean,
-      default: false
-    }
-  }],
-  wishlist: [{
-    type: Schema.Types.ObjectId,
-    ref: 'Product'
-  }]
+  isActive: {
+    type: Boolean,
+    default: true
+  },
+  createdAt: {
+    type: Date,
+    default: Date.now
+  }
 }, {
   timestamps: true
 });

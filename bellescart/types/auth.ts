@@ -33,9 +33,21 @@ export interface LoginResponseData {
   user: UserProfile;
 }
 
+export interface AdminLoginResponseData {
+  token: string;
+  refreshToken: string;
+  admin: UserProfile;
+}
+export interface AdminLoginResponse extends AdminLoginResponseData {
+  data: AdminLoginResponseData;
+  success: boolean;
+  message: string;
+}
+
 export interface LoginResponse extends ApiResponse {
   data: LoginResponseData;
   success: boolean;
+  message: string;
 }
 
 export interface UserProfile {

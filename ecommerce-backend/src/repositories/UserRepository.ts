@@ -39,56 +39,5 @@ export class UserRepository extends BaseRepository<IUser> implements IUserReposi
     return this.model.findById(userId).populate('wishlist');
   }
 
-  async addAddress(userId: string, address: IUser['addresses'][0]): Promise<IUser | null> {
-    // If this is the default address, remove default from other addresses
-    if (address.isDefault) {
-      await this.model.updateMany(
-        { _id: userId, 'addresses.isDefault': true },
-        { $set: { 'addresses.$.isDefault': false } }
-      );
-    }
-
-    return this.model.findByIdAndUpdate(
-      userId,
-      { $push: { addresses: address } },
-      { new: true }
-    );
-  }
-
-  async updateAddress(userId: string, addressIndex: number, address: Partial<IUser['addresses'][0]>): Promise<IUser | null> {
-    const updateObj: any = {};
-
-    Object.keys(address).forEach(key => {
-      updateObj[`addresses.${addressIndex}.${key}`] = address[key as keyof typeof address];
-    });
-
-    return this.model.findByIdAndUpdate(
-      userId,
-      { $set: updateObj },
-      { new: true }
-    );
-  }
-
-  async removeAddress(userId: string, addressIndex: number): Promise<IUser | null> {
-    return this.model.findByIdAndUpdate(
-      userId,
-      { $unset: { [`addresses.${addressIndex}`]: 1 } },
-      { new: true }
-    );
-  }
-
-  async setDefaultAddress(userId: string, addressIndex: number): Promise<IUser | null> {
-    // Remove default from all addresses
-    await this.model.updateMany(
-      { _id: userId },
-      { $set: { 'addresses.$[].isDefault': false } }
-    );
-
-    // Set new default
-    return this.model.findByIdAndUpdate(
-      userId,
-      { $set: { [`addresses.${addressIndex}.isDefault`]: true } },
-      { new: true }
-    );
-  }
+ 
 }

@@ -1,7 +1,7 @@
 import { IUserInteractor } from '../providers/interfaces/IUserInteractor';
 import { IUserRepository } from '../providers/interfaces/IUserRepository';
 import { IOtpRepository } from '../providers/interfaces/IOtpRepository';
-import { generateToken, generateRefreshToken } from '../utils/jwt';
+import { generateToken, generateRefreshToken, verifyToken } from '../utils/jwt';
 import { IUser } from '../models/User';
 import { sendOtpEmail } from '../utils/emailService';
 
@@ -54,7 +54,7 @@ export class UserInteractor implements IUserInteractor {
     const user = await this._userRepository.findByEmailWithPassword(credentials.email);
     if (!user) {
       throw new Error(`Invalid User ${credentials.email}`);
-    } 
+    }
 
     // Verify password
     const isPasswordValid = await user.comparePassword(credentials.password);
@@ -79,6 +79,37 @@ export class UserInteractor implements IUserInteractor {
     return { user: userResponse, token, refreshToken };
   }
 
+  async refreshToken(refreshToken: string): Promise<{ user: Partial<IUser>; token: string; refreshToken: string }> {
+    try {
+      // Verify the refresh token
+      const decoded = verifyToken(refreshToken);
+
+      // Find the user from the token
+      const user = await this._userRepository.findById(decoded.id);
+      if (!user) {
+        throw new Error('User not found');
+      }
+
+      // Generate new tokens
+      const newToken = generateToken(user);
+      const newRefreshToken = generateRefreshToken(user);
+
+      // Return user data without sensitive information
+      const userResponse = {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        avatar: user.avatar,
+        phone: user.phone
+      };
+
+      return { user: userResponse, token: newToken, refreshToken: newRefreshToken };
+    } catch (error) {
+      throw new Error('Invalid or expired refresh token');
+    }
+  }
+
   async getProfile(userId: string): Promise<Partial<IUser> | null> {
     const user = await this._userRepository.getWishlist(userId);
     if (!user) return null;
@@ -90,15 +121,12 @@ export class UserInteractor implements IUserInteractor {
       role: user.role,
       avatar: user.avatar,
       phone: user.phone,
-      addresses: user.addresses,
-      wishlist: user.wishlist
     };
   }
 
   async updateProfile(userId: string, updateData: {
     name?: string;
     phone?: string;
-    addresses?: IUser['addresses'];
   }): Promise<Partial<IUser> | null> {
     const user = await this._userRepository.updateProfile(userId, updateData);
     if (!user) return null;
@@ -110,7 +138,6 @@ export class UserInteractor implements IUserInteractor {
       role: user.role,
       avatar: user.avatar,
       phone: user.phone,
-      addresses: user.addresses
     };
   }
 
@@ -147,20 +174,28 @@ export class UserInteractor implements IUserInteractor {
     await this._userRepository.removeFromWishlist(userId, productId);
   }
 
-  async addAddress(userId: string, address: IUser['addresses'][0]): Promise<void> {
-    await this._userRepository.addAddress(userId, address);
+  async addAddress(userId: string, address: string[]): Promise<void> {
+    // TODO: Implement address addition logic
+    // For now, we'll just log the action
+    console.log(`Adding address for user ${userId}:`, address);
   }
 
-  async updateAddress(userId: string, addressIndex: number, address: Partial<IUser['addresses'][0]>): Promise<void> {
-    await this._userRepository.updateAddress(userId, addressIndex, address);
+  async updateAddress(userId: string, addressIndex: number, address: string[]): Promise<void> {
+    // TODO: Implement address update logic
+    // For now, we'll just log the action
+    console.log(`Updating address at index ${addressIndex} for user ${userId}:`, address);
   }
 
   async removeAddress(userId: string, addressIndex: number): Promise<void> {
-    await this._userRepository.removeAddress(userId, addressIndex);
+    // TODO: Implement address removal logic
+    // For now, we'll just log the action
+    console.log(`Removing address at index ${addressIndex} for user ${userId}`);
   }
 
   async setDefaultAddress(userId: string, addressIndex: number): Promise<void> {
-    await this._userRepository.setDefaultAddress(userId, addressIndex);
+    // TODO: Implement default address setting logic
+    // For now, we'll just log the action
+    console.log(`Setting address at index ${addressIndex} as default for user ${userId}`);
   }
 
   async findByEmail(email: string): Promise<Partial<IUser> | null> {
