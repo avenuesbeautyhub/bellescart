@@ -35,7 +35,7 @@ export class ProductController {
         search: search as string,
         sort: sort as string,
         order: order as 'asc' | 'desc',
-        featured: featured === 'true'
+        featured: featured ? featured === 'true' : undefined
       });
 
       res.status(200).json({

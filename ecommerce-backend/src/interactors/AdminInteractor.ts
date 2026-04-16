@@ -3,21 +3,26 @@ import { IAdminRepository } from '../providers/interfaces/IAdminRepository';
 import { IProductInteractor } from '../providers/interfaces/IProductInteractor';
 import { ICategoryInteractor } from '../providers/interfaces/ICategoryInteractor';
 import { generateToken, generateRefreshToken } from '../utils/jwt';
-import { IAdmin, IUser } from '../models/User';
+import { IAdmin, IUser, User } from '../models/User';
 import { IProduct } from '../models/Product';
+import { Order } from '../models/Order';
 import { Request } from 'express';
 import { uploadMultipleImages, uploadProductImage } from '../services/cloudinaryService';
 import mongoose from 'mongoose';
+import { BadRequestError, UnauthorizedError, NotFoundError } from '../utils/customError';
+import { ICategory } from '@/models';
 
 export class AdminInteractor implements IAdminInteractor {
   private _adminRepository: IAdminRepository;
   private _productInteractor: IProductInteractor;
   private _categoryInteractor: ICategoryInteractor;
+  private _userModel: typeof User;
 
   constructor(adminRepository: IAdminRepository, productInteractor: IProductInteractor, categoryInteractor: ICategoryInteractor) {
     this._adminRepository = adminRepository;
     this._productInteractor = productInteractor;
     this._categoryInteractor = categoryInteractor;
+    this._userModel = User;
   }
 
   async adminLogin(credentials: {
@@ -27,13 +32,13 @@ export class AdminInteractor implements IAdminInteractor {
     // Find admin with password
     const admin = await this._adminRepository.findByEmail(credentials.email);
     if (!admin) {
-      throw new Error(`Invalid admin credentials for ${credentials.email}`);
+      throw new BadRequestError('Invalid admin credentials');
     }
 
     // Verify password
     const isPasswordValid = await admin.comparePassword(credentials.password);
     if (!isPasswordValid) {
-      throw new Error(`Invalid password for admin ${credentials.email}`);
+      throw new BadRequestError('Invalid password');
     }
 
     // Update last login
@@ -73,7 +78,7 @@ export class AdminInteractor implements IAdminInteractor {
     console.log('admin reg key', ADMIN_REGISTRATION_KEY);
 
     if (adminData.registrationKey !== ADMIN_REGISTRATION_KEY) {
-      throw new Error('Invalid registration key');
+      throw new BadRequestError('Invalid registration key');
     }
 
     // Delegate admin creation (including duplicate check) to repository
@@ -143,13 +148,13 @@ export class AdminInteractor implements IAdminInteractor {
   }): Promise<void> {
     const admin = await this._adminRepository.findById(adminId);
     if (!admin) {
-      throw new Error('Admin not found');
+      throw new NotFoundError('Admin not found');
     }
 
     // Verify current password
     const isCurrentPasswordValid = await admin.comparePassword(passwordData.currentPassword);
     if (!isCurrentPasswordValid) {
-      throw new Error('Current password is incorrect');
+      throw new BadRequestError('Current password is incorrect');
     }
 
     // Update password - this would require updating the Admin model directly
@@ -165,7 +170,8 @@ export class AdminInteractor implements IAdminInteractor {
       email: user.email,
       role: user.role,
       avatar: user.avatar,
-      phone: user.phone
+      phone: user.phone,
+      status: user.isActive
     }));
   }
 
@@ -175,10 +181,54 @@ export class AdminInteractor implements IAdminInteractor {
     return null;
   }
 
+  async updateUser(userId: string, updateData: {
+    name?: string;
+    email?: string;
+    phone?: string;
+    role?: string;
+  }): Promise<Partial<IUser> | null> {
+    try {
+      const user = await this._userModel.findById(userId);
+      if (!user) {
+        return null;
+      }
+
+      // Update user fields
+      if (updateData.name !== undefined) user.name = updateData.name;
+      if (updateData.email !== undefined) user.email = updateData.email;
+      if (updateData.phone !== undefined) user.phone = updateData.phone;
+      if (updateData.role !== undefined && ['user', 'admin'].includes(updateData.role)) {
+        user.role = updateData.role as 'user' | 'admin';
+      }
+
+      await user.save();
+
+      return {
+        id: user._id.toString(),
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        isActive: user.isActive,
+        phone: user.phone,
+        avatar: user.avatar
+      };
+    } catch (error: any) {
+      throw new BadRequestError(error.message || 'Failed to update user');
+    }
+  }
+
   async updateUserStatus(userId: string, status: 'active' | 'inactive' | 'suspended'): Promise<void> {
-    // This would update the User collection, not Admin collection
-    // For now, this is a placeholder implementation
-    console.log(`Updating user ${userId} status to ${status}`);
+    try {
+      const user = await this._userModel.findById(userId);
+      if (!user) {
+        throw new NotFoundError('User not found');
+      }
+
+      user.isActive = status === 'active';
+      await user.save();
+    } catch (error: any) {
+      throw new BadRequestError(error.message || 'Failed to update user status');
+    }
   }
 
   async deleteUser(userId: string): Promise<void> {
@@ -201,7 +251,7 @@ export class AdminInteractor implements IAdminInteractor {
     try {
       return await uploadProductImage(req);
     } catch (error: any) {
-      throw new Error(error.message || 'Image upload failed');
+      throw new BadRequestError(error.message || 'Image upload failed');
     }
   }
 
@@ -209,45 +259,82 @@ export class AdminInteractor implements IAdminInteractor {
     try {
       return await uploadMultipleImages(req);
     } catch (error: any) {
-      throw new Error(error.message || 'Images upload failed');
+      throw new BadRequestError(error.message || 'Images upload failed');
     }
   }
 
   // Product Management Methods
+  async getProducts(params?: {
+    page?: number;
+    limit?: number;
+    category?: string;
+    search?: string;
+    status?: string;
+    sort?: string;
+    order?: string;
+  }): Promise<IProduct[]> {
+    try {
+      // Use existing product interactor to get products with filters
+      const searchParams = {
+        page: params?.page || 1,
+        limit: params?.limit || 10,
+        category: params?.category,
+        search: params?.search,
+        status: params?.status,
+        sort: params?.sort || 'createdAt',
+        order: (params?.order || 'desc') as 'asc' | 'desc'
+      };
+
+      const result = await this._productInteractor.getProducts(searchParams);
+      return result.products || [];
+    } catch (error: any) {
+      throw new BadRequestError(error.message || 'Failed to get products');
+    }
+  }
+
+  async getProductById(id: string): Promise<IProduct | null> {
+    try {
+      const product = await this._productInteractor.getProductById(id);
+      return product;
+    } catch (error: any) {
+      throw new BadRequestError(error.message || 'Failed to get product');
+    }
+  }
+
   async createProduct(productData: any, files?: Express.Multer.File[]): Promise<{ product: IProduct; uploadedImages?: any[] }> {
     try {
       // Validate required fields
       if (!productData.name || !productData.price || !productData.category) {
-        throw new Error('Missing required fields: name, price, category are required');
+        throw new BadRequestError('Missing required fields: name, price, category are required');
       }
 
       // Validate price is greater than 0
       const price = parseFloat(productData.price);
       if (isNaN(price) || price <= 0) {
-        throw new Error('Price must be greater than 0');
+        throw new BadRequestError('Price must be greater than 0');
       }
 
       // Validate quantity/stock is greater than 0
       const quantity = parseInt(productData.quantity) || 1;
       if (quantity <= 0) {
-        throw new Error('Quantity/stock must be greater than 0');
+        throw new BadRequestError('Quantity/stock must be greater than 0');
       }
 
       // Validate category ID format
       if (!mongoose.Types.ObjectId.isValid(productData.category)) {
-        throw new Error('Invalid category ID format');
+        throw new BadRequestError('Invalid category ID format');
       }
 
       // Validate category exists
       const category = await this._categoryInteractor.getCategoryById(productData.category.toString());
       if (!category) {
-        throw new Error('Invalid category: Category not found');
+        throw new NotFoundError('Invalid category: Category not found');
       }
 
       // Check for duplicate product name (case-insensitive)
       const existingProduct = await this._productInteractor.findByName(productData.name.trim());
       if (existingProduct) {
-        throw new Error(`Product with name '${productData.name}' already exists`);
+        throw new BadRequestError(`Product with name '${productData.name}' already exists`);
       }
 
       // Process images if provided
@@ -310,27 +397,38 @@ export class AdminInteractor implements IAdminInteractor {
       // Get existing product
       const existingProduct = await this._productInteractor.getProductById(id);
       if (!existingProduct) {
-        throw new Error('Product not found');
+        throw new NotFoundError('Product not found');
       }
 
       // Validate category if it's being updated
       if (productData.category && productData.category !== existingProduct.category.toString()) {
         // Validate category ID format
         if (!mongoose.Types.ObjectId.isValid(productData.category)) {
-          throw new Error('Invalid category ID format');
+          throw new BadRequestError('Invalid category ID format');
         }
 
         const category = await this._categoryInteractor.getCategoryById(productData.category.toString());
         if (!category) {
-          throw new Error('Invalid category: Category not found');
+          throw new NotFoundError('Invalid category: Category not found');
         }
         // Convert to ObjectId
         productData.category = new mongoose.Types.ObjectId(productData.category);
       }
 
+      // Handle existing images from frontend
+      let existingImagesFromFrontend = [];
+      if (productData.existingImages) {
+        try {
+          existingImagesFromFrontend = JSON.parse(productData.existingImages);
+        } catch (error) {
+          console.warn('Failed to parse existingImages:', error);
+          existingImagesFromFrontend = [];
+        }
+      }
+
       // Combine existing images with new ones (if any)
-      const updatedImages = productData.keepExistingImages === 'true'
-        ? [...existingProduct.images, ...newImages]
+      const updatedImages = existingImagesFromFrontend.length > 0 || newImages.length === 0
+        ? [...existingImagesFromFrontend, ...newImages]
         : newImages;
 
       // Update product data
@@ -346,7 +444,7 @@ export class AdminInteractor implements IAdminInteractor {
       const updatedProduct = await this._productInteractor.updateProduct(id, finalProductData);
 
       if (!updatedProduct) {
-        throw new Error('Failed to update product');
+        throw new BadRequestError('Failed to update product');
       }
 
       return {
@@ -354,7 +452,7 @@ export class AdminInteractor implements IAdminInteractor {
         newImages
       };
     } catch (error: any) {
-      throw new Error(error.message || 'Product update failed');
+      throw new BadRequestError(error.message || 'Product update failed');
     }
   }
 
@@ -362,10 +460,203 @@ export class AdminInteractor implements IAdminInteractor {
     try {
       const product = await this._productInteractor.deleteProduct(id);
       if (!product) {
-        throw new Error('Product not found');
+        throw new NotFoundError('Product not found');
       }
     } catch (error: any) {
-      throw new Error(error.message || 'Product deletion failed');
+      throw new BadRequestError(error.message || 'Product deletion failed');
+    }
+  }
+
+  // User Management Methods
+  async getUsers(params?: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    role?: string;
+    status?: string;
+  }): Promise<Partial<IUser>[]> {
+    try {
+      console.log('params in getUsers', params);
+
+      const query: any = {};
+
+      if (params?.role) {
+        query.role = params.role;
+      }
+
+      if (params?.status) {
+        query.isActive = params.status === 'true' || params.status === 'active';
+      }
+
+      if (params?.search) {
+        query.$or = [
+          { name: { $regex: params.search, $options: 'i' } },
+          { email: { $regex: params.search, $options: 'i' } }
+        ];
+      }
+
+      const users = await this._adminRepository.findAllUsers(query, {
+        limit: params?.limit || 10,
+        skip: ((params?.page || 1) - 1) * (params?.limit || 10),
+        sort: { createdAt: -1 }
+      });
+
+      // Fetch order counts for each user
+      const userIds = users.map(user => user._id);
+      const orderCounts = await Order.aggregate([
+        { $match: { user: { $in: userIds } } },
+        { $group: { _id: '$user', count: { $sum: 1 } } }
+      ]);
+
+      // Create a map of user ID to order count
+      const orderCountMap = new Map(
+        orderCounts.map(item => [item._id.toString(), item.count])
+      );
+
+      // Map database fields to frontend interface
+      return users.map(user => ({
+        id: user._id.toString(),
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        isActive: user.isActive,
+        phone_number: user.phone,
+        joinDate: (user as any).createdAt?.toISOString() || (user as any)._id.getTimestamp().toISOString(),
+        orders: orderCountMap.get(user._id.toString()) || 0
+      }));
+    } catch (error: any) {
+      throw new BadRequestError(error.message || 'Failed to get users');
+    }
+  }
+
+  // ... (rest of the code remains the same)
+  // Category Management Methods
+  async getAllCategories(): Promise<ICategory[]> {
+    try {
+      const categories = await this._categoryInteractor.getAllCategories();
+
+      // Get product count for each category
+      const categoriesWithCount = await Promise.all(
+        categories.map(async (category) => {
+          const productsWithCategory = await this._productInteractor.getProducts({
+            category: category._id.toString(),
+            limit: 1 // We only need to count
+          });
+
+          return {
+            name: category.name,
+            description: category.description,
+            isActive: category.isActive,
+            _id: category._id,
+            productCount: productsWithCategory.pagination?.total || 0
+          } as any; // Cast to any to avoid type issues
+        })
+      );
+
+      return categoriesWithCount;
+    } catch (error: any) {
+      throw new BadRequestError(error.message || 'Failed to get categories');
+    }
+  }
+
+  async createCategory(categoryData: { name: string; description?: string; isActive?: boolean }): Promise<ICategory> {
+    try {
+      // Validate required fields
+      if (!categoryData.name || categoryData.name.trim() === '') {
+        throw new BadRequestError('Category name is required');
+      }
+
+      // Check for duplicate category name
+      const existingCategory = await this._categoryInteractor.getCategoryByName(categoryData.name.trim());
+      if (existingCategory) {
+        throw new BadRequestError(`Category with name '${categoryData.name}' already exists`);
+      }
+
+      return await this._categoryInteractor.createCategory({
+        name: categoryData.name.trim(),
+        description: categoryData.description?.trim()
+      });
+    } catch (error: any) {
+      throw new BadRequestError(error.message || 'Failed to create category');
+    }
+  }
+
+  async updateCategory(id: string, categoryData: { name?: string; description?: string; isActive?: boolean }): Promise<ICategory | null> {
+    try {
+      // Validate category exists
+      const existingCategory = await this._categoryInteractor.getCategoryById(id);
+      if (!existingCategory) {
+        throw new NotFoundError('Category not found');
+      }
+
+      // Validate name if provided
+      if (categoryData.name) {
+        if (categoryData.name.trim() === '') {
+          throw new BadRequestError('Category name cannot be empty');
+        }
+
+        // Check for duplicate name (excluding current category)
+        const duplicateCategory = await this._categoryInteractor.getCategoryByName(categoryData.name.trim());
+        if (duplicateCategory && duplicateCategory._id.toString() !== id) {
+          throw new BadRequestError(`Category with name '${categoryData.name}' already exists`);
+        }
+      }
+
+      return await this._categoryInteractor.updateCategory(id, {
+        name: categoryData.name?.trim(),
+        description: categoryData.description?.trim(),
+        isActive: categoryData.isActive
+      });
+    } catch (error: any) {
+      throw new BadRequestError(error.message || 'Failed to update category');
+    }
+  }
+
+  async deleteCategory(id: string): Promise<ICategory | null> {
+    try {
+      // Validate category exists
+      const existingCategory = await this._categoryInteractor.getCategoryById(id);
+      if (!existingCategory) {
+        throw new NotFoundError('Category not found');
+      }
+
+      // Check if any products are using this category
+      const productsWithCategory = await this._productInteractor.getProducts({
+        category: id,
+        limit: 1 // We only need to know if at least one product exists
+      });
+
+      if (productsWithCategory.products.length > 0) {
+        throw new BadRequestError('Cannot delete category: it is being used by one or more products');
+      }
+
+      return await this._categoryInteractor.deleteCategory(id);
+    } catch (error: any) {
+      throw new BadRequestError(error.message || 'Failed to delete category');
+    }
+  }
+
+  async getCategoryById(id: string): Promise<ICategory | null> {
+    try {
+      return await this._categoryInteractor.getCategoryById(id);
+    } catch (error: any) {
+      throw new BadRequestError(error.message || 'Failed to get category');
+    }
+  }
+
+  async getCategoryByName(name: string): Promise<ICategory | null> {
+    try {
+      return await this._categoryInteractor.getCategoryByName(name);
+    } catch (error: any) {
+      throw new BadRequestError(error.message || 'Failed to get category');
+    }
+  }
+
+  async getActiveCategories(): Promise<ICategory[]> {
+    try {
+      return await this._categoryInteractor.getActiveCategories();
+    } catch (error: any) {
+      throw new BadRequestError(error.message || 'Failed to get active categories');
     }
   }
 }

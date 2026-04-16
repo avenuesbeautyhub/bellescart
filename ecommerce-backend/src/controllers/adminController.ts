@@ -19,7 +19,7 @@ export class AdminController {
       if (!emailValidation.isValid) {
         res.status(400).json({
           success: false,
-          error: emailValidation.message
+          message: emailValidation.message
         });
         return;
       }
@@ -28,16 +28,18 @@ export class AdminController {
       if (!isValidEmail(email)) {
         res.status(400).json({
           success: false,
-          error: 'Invalid email format'
+          message: 'Invalid email format'
         });
         return;
       }
 
       const passwordValidation = validatePassword(password);
+      console.log('password validation admin lgin', passwordValidation);
+
       if (!passwordValidation.isValid) {
         res.status(400).json({
           success: false,
-          error: passwordValidation.message
+          message: passwordValidation.message
         });
         return;
       }
@@ -66,7 +68,7 @@ export class AdminController {
       if (!nameValidation.isValid) {
         res.status(400).json({
           success: false,
-          error: nameValidation.message
+          message: nameValidation.message
         });
         return;
       }
@@ -75,7 +77,7 @@ export class AdminController {
       if (!emailValidation.isValid) {
         res.status(400).json({
           success: false,
-          error: emailValidation.message
+          message: emailValidation.message
         });
         return;
       }
@@ -84,7 +86,7 @@ export class AdminController {
       if (!isValidEmail(email)) {
         res.status(400).json({
           success: false,
-          error: 'Invalid email format'
+          message: 'Invalid email format'
         });
         return;
       }
@@ -93,7 +95,7 @@ export class AdminController {
       if (!passwordValidation.isValid) {
         res.status(400).json({
           success: false,
-          error: passwordValidation.message
+          message: passwordValidation.message
         });
         return;
       }
@@ -102,7 +104,7 @@ export class AdminController {
       if (!registrationKeyValidation.isValid) {
         res.status(400).json({
           success: false,
-          error: registrationKeyValidation.message
+          message: registrationKeyValidation.message
         });
         return;
       }
@@ -113,7 +115,7 @@ export class AdminController {
         if (!phoneValidation.isValid) {
           res.status(400).json({
             success: false,
-            error: phoneValidation.message
+            message: phoneValidation.message
           });
           return;
         }
@@ -143,7 +145,7 @@ export class AdminController {
       if (!authReq.admin) {
         res.status(401).json({
           success: false,
-          error: 'Admin not authenticated'
+          message: 'Admin not authenticated'
         });
         return;
       }
@@ -153,7 +155,7 @@ export class AdminController {
       if (!admin) {
         res.status(404).json({
           success: false,
-          error: 'Admin not found'
+          message: 'Admin not found'
         });
         return;
       }
@@ -173,7 +175,7 @@ export class AdminController {
       if (!authReq.admin) {
         res.status(401).json({
           success: false,
-          error: 'Admin not authenticated'
+          message: 'Admin not authenticated'
         });
         return;
       }
@@ -186,7 +188,7 @@ export class AdminController {
         if (!nameValidation.isValid) {
           res.status(400).json({
             success: false,
-            error: nameValidation.message
+            message: nameValidation.message
           });
           return;
         }
@@ -198,7 +200,7 @@ export class AdminController {
         if (!emailValidation.isValid) {
           res.status(400).json({
             success: false,
-            error: emailValidation.message
+            message: emailValidation.message
           });
           return;
         }
@@ -207,7 +209,7 @@ export class AdminController {
         if (!isValidEmail(email)) {
           res.status(400).json({
             success: false,
-            error: 'Invalid email format'
+            message: 'Invalid email format'
           });
           return;
         }
@@ -219,7 +221,7 @@ export class AdminController {
         if (!phoneValidation.isValid) {
           res.status(400).json({
             success: false,
-            error: phoneValidation.message
+            message: phoneValidation.message
           });
           return;
         }
@@ -235,7 +237,7 @@ export class AdminController {
       if (!admin) {
         res.status(404).json({
           success: false,
-          error: 'Admin not found'
+          message: 'Admin not found'
         });
         return;
       }
@@ -256,7 +258,7 @@ export class AdminController {
       if (!authReq.admin) {
         res.status(401).json({
           success: false,
-          error: 'Admin not authenticated'
+          message: 'Admin not authenticated'
         });
         return;
       }
@@ -268,7 +270,7 @@ export class AdminController {
       if (!currentPasswordValidation.isValid) {
         res.status(400).json({
           success: false,
-          error: currentPasswordValidation.message
+          message: currentPasswordValidation.message
         });
         return;
       }
@@ -277,7 +279,7 @@ export class AdminController {
       if (!newPasswordValidation.isValid) {
         res.status(400).json({
           success: false,
-          error: newPasswordValidation.message
+          message: newPasswordValidation.message
         });
         return;
       }
@@ -287,7 +289,7 @@ export class AdminController {
       if (!passwordStrengthValidation.isValid) {
         res.status(400).json({
           success: false,
-          error: passwordStrengthValidation.message
+          message: passwordStrengthValidation.message
         });
         return;
       }
@@ -312,7 +314,7 @@ export class AdminController {
       if (!authReq.admin) {
         res.status(401).json({
           success: false,
-          error: 'Admin not authenticated'
+          message: 'Admin not authenticated'
         });
         return;
       }
@@ -334,7 +336,7 @@ export class AdminController {
       if (!authReq.admin) {
         res.status(401).json({
           success: false,
-          error: 'Admin not authenticated'
+          message: 'Admin not authenticated'
         });
         return;
       }
@@ -345,7 +347,7 @@ export class AdminController {
       if (!user) {
         res.status(404).json({
           success: false,
-          error: 'User not found'
+          message: 'User not found'
         });
         return;
       }
@@ -359,13 +361,52 @@ export class AdminController {
     }
   };
 
+  updateUser = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const authReq = req as AdminRequest;
+      if (!authReq.admin) {
+        res.status(401).json({
+          success: false,
+          message: 'Admin not authenticated'
+        });
+        return;
+      }
+
+      const { userId } = req.params;
+      const { name, email, phone_number, role } = req.body;
+
+      const updatedUser = await this._adminInteractor.updateUser(userId, {
+        name,
+        email,
+        phone: phone_number,
+        role
+      });
+
+      if (!updatedUser) {
+        res.status(404).json({
+          success: false,
+          message: 'User not found'
+        });
+        return;
+      }
+
+      res.status(200).json({
+        success: true,
+        message: 'User updated successfully',
+        data: { user: updatedUser }
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
   updateUserStatus = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const authReq = req as AdminRequest;
       if (!authReq.admin) {
         res.status(401).json({
           success: false,
-          error: 'Admin not authenticated'
+          message: 'Admin not authenticated'
         });
         return;
       }
@@ -398,7 +439,7 @@ export class AdminController {
       if (!authReq.admin) {
         res.status(401).json({
           success: false,
-          error: 'Admin not authenticated'
+          message: 'Admin not authenticated'
         });
         return;
       }
@@ -421,7 +462,7 @@ export class AdminController {
       if (!authReq.admin) {
         res.status(401).json({
           success: false,
-          error: 'Admin not authenticated'
+          message: 'Admin not authenticated'
         });
         return;
       }
@@ -443,7 +484,7 @@ export class AdminController {
       if (!authReq.admin) {
         res.status(401).json({
           success: false,
-          error: 'Admin not authenticated'
+          message: 'Admin not authenticated'
         });
         return;
       }
@@ -455,11 +496,8 @@ export class AdminController {
         message: 'Image uploaded successfully',
         data: uploadedImage
       });
-    } catch (error: any) {
-      res.status(400).json({
-        success: false,
-        error: error.message || 'Image upload failed'
-      });
+    } catch (error) {
+      next(error);
     }
   };
 
@@ -469,7 +507,7 @@ export class AdminController {
       if (!authReq.admin) {
         res.status(401).json({
           success: false,
-          error: 'Admin not authenticated'
+          message: 'Admin not authenticated'
         });
         return;
       }
@@ -484,19 +522,126 @@ export class AdminController {
     } catch (error: any) {
       res.status(400).json({
         success: false,
-        error: error.message || 'Images upload failed'
+        message: error.message || 'Images upload failed'
       });
     }
   };
 
   // Product Management Methods for Admin
+  getProducts = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+
+      console.log('get product controled entered');
+
+
+      const authReq = req as AdminRequest;
+      if (!authReq.admin) {
+        res.status(401).json({
+          success: false,
+          message: 'Admin not authenticated'
+        });
+        return;
+      }
+
+      const {
+        page = 1,
+        limit = 10,
+        category,
+        search,
+        status,
+        sort = 'createdAt',
+        order = 'desc'
+      } = req.query;
+
+      const products = await this._adminInteractor.getProducts({
+        page: parseInt(page as string),
+        limit: parseInt(limit as string),
+        category: category as string,
+        search: search as string,
+        status: status as string,
+        sort: sort as string,
+        order: order as string
+      });
+      console.log('get products data', products);
+
+      res.status(200).json({
+        success: true,
+        data: { products }
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  getProductById = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const authReq = req as AdminRequest;
+      if (!authReq.admin) {
+        res.status(401).json({
+          success: false,
+          message: 'Admin not authenticated'
+        });
+        return;
+      }
+
+      const { id } = req.params;
+      const product = await this._adminInteractor.getProductById(id as string);
+
+      if (!product) {
+        res.status(404).json({
+          success: false,
+          message: 'Product not found'
+        });
+        return;
+      }
+
+      res.status(200).json({
+        success: true,
+        data: { product }
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  getCategoryById = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const authReq = req as AdminRequest;
+      if (!authReq.admin) {
+        res.status(401).json({
+          success: false,
+          message: 'Admin not authenticated'
+        });
+        return;
+      }
+
+      const { id } = req.params;
+      const category = await this._adminInteractor.getCategoryById(id as string);
+
+      if (!category) {
+        res.status(404).json({
+          success: false,
+          message: 'Category not found'
+        });
+        return;
+      }
+
+      res.status(200).json({
+        success: true,
+        data: { category }
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
   createProduct = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const authReq = req as AdminRequest;
       if (!authReq.admin) {
         res.status(401).json({
           success: false,
-          error: 'Admin not authenticated'
+          message: 'Admin not authenticated'
         });
         return;
       }
@@ -512,7 +657,7 @@ export class AdminController {
     } catch (error: any) {
       res.status(400).json({
         success: false,
-        error: error.message || 'Product creation failed'
+        message: error.message || 'Product creation failed'
       });
     }
   };
@@ -523,7 +668,7 @@ export class AdminController {
       if (!authReq.admin) {
         res.status(401).json({
           success: false,
-          error: 'Admin not authenticated'
+          message: 'Admin not authenticated'
         });
         return;
       }
@@ -540,7 +685,7 @@ export class AdminController {
     } catch (error: any) {
       res.status(400).json({
         success: false,
-        error: error.message || 'Product update failed'
+        message: error.message || 'Product update failed'
       });
     }
   };
@@ -551,22 +696,194 @@ export class AdminController {
       if (!authReq.admin) {
         res.status(401).json({
           success: false,
-          error: 'Admin not authenticated'
+          message: 'Admin not authenticated'
         });
         return;
       }
 
       await this._adminInteractor.deleteProduct(req.params.id);
-
       res.status(200).json({
         success: true,
         message: 'Product deleted successfully'
       });
-    } catch (error: any) {
-      res.status(400).json({
-        success: false,
-        error: error.message || 'Product deletion failed'
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  getUsers = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      console.log('hey iam here');
+
+      const authReq = req as AdminRequest;
+      if (!authReq.admin) {
+        res.status(401).json({
+          success: false,
+          message: 'Admin not authenticated'
+        });
+        return;
+      }
+
+      const { page = 1, limit = 10, search, role, status } = req.query;
+
+      const users = await this._adminInteractor.getUsers({
+        page: parseInt(page as string),
+        limit: parseInt(limit as string),
+        search: search as string,
+        role: role as string,
+        status: status as string
       });
+      console.log('users list in admin controler', users);
+
+      res.status(200).json({
+        success: true,
+        data: { users }
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  // Category Management Methods for Admin
+  getAllCategories = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const authReq = req as AdminRequest;
+      if (!authReq.admin) {
+        res.status(401).json({
+          success: false,
+          message: 'Admin not authenticated'
+        });
+        return;
+      }
+
+      const categories = await this._adminInteractor.getAllCategories();
+
+      res.status(200).json({
+        success: true,
+        data: { categories }
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  createCategory = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const authReq = req as AdminRequest;
+      if (!authReq.admin) {
+        res.status(401).json({
+          success: false,
+          message: 'Admin not authenticated'
+        });
+        return;
+      }
+
+      const { name, description, isActive } = req.body;
+
+      // Validate required fields
+      const nameValidation = validateRequiredString(name, 'Name');
+      if (!nameValidation.isValid) {
+        res.status(400).json({
+          success: false,
+          message: nameValidation.message
+        });
+        return;
+      }
+
+      const category = await this._adminInteractor.createCategory({
+        name,
+        description,
+        isActive: isActive !== undefined ? isActive : true
+      });
+
+      res.status(201).json({
+        success: true,
+        message: 'Category created successfully',
+        data: { category }
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  updateCategory = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const authReq = req as AdminRequest;
+      if (!authReq.admin) {
+        res.status(401).json({
+          success: false,
+          message: 'Admin not authenticated'
+        });
+        return;
+      }
+
+      const { id } = req.params;
+      const { name, description, isActive } = req.body;
+
+      // Validate name if provided
+      if (name !== undefined) {
+        const nameValidation = validateRequiredString(name, 'Name');
+        if (!nameValidation.isValid) {
+          res.status(400).json({
+            success: false,
+            message: nameValidation.message
+          });
+          return;
+        }
+      }
+
+      const category = await this._adminInteractor.updateCategory(id, {
+        name,
+        description,
+        isActive
+      });
+
+      if (!category) {
+        res.status(404).json({
+          success: false,
+          message: 'Category not found'
+        });
+        return;
+      }
+
+      res.status(200).json({
+        success: true,
+        message: 'Category updated successfully',
+        data: { category }
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  deleteCategory = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const authReq = req as AdminRequest;
+      if (!authReq.admin) {
+        res.status(401).json({
+          success: false,
+          message: 'Admin not authenticated'
+        });
+        return;
+      }
+
+      const { id } = req.params;
+      const category = await this._adminInteractor.deleteCategory(id);
+
+      if (!category) {
+        res.status(404).json({
+          success: false,
+          message: 'Category not found'
+        });
+        return;
+      }
+
+      res.status(200).json({
+        success: true,
+        message: 'Category deleted successfully'
+      });
+    } catch (error) {
+      next(error);
     }
   };
 }

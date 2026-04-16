@@ -79,13 +79,21 @@ export class ProductInteractor implements IProductInteractor {
       });
       total = await this._productRepository.count({ ...query, $text: { $search: search } });
     } else {
-      // Regular query
-      products = await this._productRepository.findActive(query, {
+      // Regular query - include both active and draft products for admin view
+      const finalQuery = { ...query, status: { $in: ['active', 'draft','inactive'] } };
+      console.log('Final query:', JSON.stringify(finalQuery, null, 2));
+      console.log('Query options:', { limit, skip, sort: sortOptions });
+
+      products = await this._productRepository.find(finalQuery, {
         limit,
         skip,
-        sort: sortOptions
+        sort: sortOptions,
+        populate: { path: 'category', select: 'name description' }
       });
-      total = await this._productRepository.count(query);
+      console.log('Products found:', products.length);
+
+      total = await this._productRepository.count(finalQuery);
+      console.log('Total count:', total);
     }
 
     return {

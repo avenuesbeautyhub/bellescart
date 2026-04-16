@@ -234,7 +234,6 @@ router.put('/change-password', authenticateAdmin, controller.changeAdminPassword
  *       401:
  *         description: Unauthorized
  */
-router.get('/users', authenticateAdmin, controller.getAllUsers.bind(controller));
 
 /**
  * @swagger
@@ -292,6 +291,8 @@ router.get('/users/:userId', authenticateAdmin, controller.getUserById.bind(cont
  *       401:
  *         description: Unauthorized
  */
+router.put('/users/:userId', authenticateAdmin, controller.updateUser.bind(controller));
+
 router.put('/users/:userId/status', authenticateAdmin, controller.updateUserStatus.bind(controller));
 
 /**
@@ -667,7 +668,100 @@ router.put('/products/:id', authenticateAdmin, upload.array('images', 5), contro
  */
 router.delete('/products/:id', authenticateAdmin, controller.deleteProduct.bind(controller));
 
+/**
+ * @swagger
+ * /admin/products:
+ *   get:
+ *     summary: Get all products (admin only)
+ *     tags: [Admin Product Management]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *         description: Page number
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *         description: Number of products per page
+ *       - in: query
+ *         name: category
+ *         schema:
+ *           type: string
+ *         description: Filter by category ID
+ *       - in: query
+ *         name: search
+ *         schema:
+ *           type: string
+ *         description: Search products by name
+ *     responses:
+ *       200:
+ *         description: Products retrieved successfully
+ *       401:
+ *         description: Unauthorized
+ */
+router.get('/products', authenticateAdmin, controller.getProducts.bind(controller));
+
+/**
+ * @swagger
+ * /admin/products/{id}:
+ *   get:
+ *     summary: Get a single product by ID (admin only)
+ *     tags: [Admin Product Management]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Product retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     product:
+ *                       $ref: '#/components/schemas/Product'
+ *       401:
+ *         description: Unauthorized
+ *       404:
+ *         description: Product not found
+ */
+router.get('/products/:id', authenticateAdmin, controller.getProductById.bind(controller));
+
 // Category Management Routes
+/**
+ * @swagger
+ * /admin/categories:
+ *   get:
+ *     summary: Get all categories (admin only)
+ *     tags: [Admin Category Management]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Categories retrieved successfully
+ *       401:
+ *         description: Unauthorized
+ */
+router.get('/users', authenticateAdmin, controller.getUsers.bind(controller));
+
+router.get('/categories', authenticateAdmin, controller.getAllCategories.bind(controller));
+
 /**
  * @swagger
  * /admin/categories:
@@ -703,7 +797,7 @@ router.delete('/products/:id', authenticateAdmin, controller.deleteProduct.bind(
  *       401:
  *         description: Unauthorized
  */
-router.post('/categories', authenticateAdmin, categoryController.createCategory.bind(categoryController));
+router.post('/categories', authenticateAdmin, controller.createCategory.bind(controller));
 
 /**
  * @swagger
@@ -744,7 +838,38 @@ router.post('/categories', authenticateAdmin, categoryController.createCategory.
  *       404:
  *         description: Category not found
  */
-router.put('/categories/:id', authenticateAdmin, categoryController.updateCategory.bind(categoryController));
+router.put('/categories/:id', authenticateAdmin, controller.updateCategory.bind(controller));
+
+/**
+ * @swagger
+ * /admin/categories/{id}:
+ *   get:
+ *     summary: Get a single category by ID (admin only)
+ *     tags: [Admin Category Management]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Category retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 category:
+ *                   $ref: '#/components/schemas/Category'
+ *       401:
+ *         description: Unauthorized
+ *       404:
+ *         description: Category not found
+ */
+router.get('/categories/:id', authenticateAdmin, controller.getCategoryById.bind(controller));
 
 /**
  * @swagger
@@ -768,6 +893,6 @@ router.put('/categories/:id', authenticateAdmin, categoryController.updateCatego
  *       404:
  *         description: Category not found
  */
-router.delete('/categories/:id', authenticateAdmin, categoryController.deleteCategory.bind(categoryController));
+router.delete('/categories/:id', authenticateAdmin, controller.deleteCategory.bind(controller));
 
 export default router;

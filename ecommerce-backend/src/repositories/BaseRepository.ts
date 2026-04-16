@@ -4,7 +4,7 @@ export interface IBaseRepository<T extends Document> {
   create(data: Partial<T>): Promise<T>;
   findById(id: string): Promise<T | null>;
   findOne(filter: FilterQuery<T>): Promise<T | null>;
-  find(filter: FilterQuery<T>, options?: { limit?: number; skip?: number; sort?: any }): Promise<T[]>;
+  find(filter: FilterQuery<T>, options?: { limit?: number; skip?: number; sort?: any; populate?: string | any }): Promise<T[]>;
   update(id: string, data: UpdateQuery<T>): Promise<T | null>;
   updateMany(filter: FilterQuery<T>, data: UpdateQuery<T>): Promise<{ modifiedCount: number }>;
   delete(id: string): Promise<T | null>;
@@ -29,7 +29,7 @@ export class BaseRepository<T extends Document> implements IBaseRepository<T> {
 
   async find(
     filter: FilterQuery<T>,
-    options?: { limit?: number; skip?: number; sort?: any }
+    options?: { limit?: number; skip?: number; sort?: any; populate?: string | any }
   ): Promise<T[]> {
     let query = this.model.find(filter);
 
@@ -43,6 +43,10 @@ export class BaseRepository<T extends Document> implements IBaseRepository<T> {
 
     if (options?.limit) {
       query = query.limit(options.limit);
+    }
+
+    if (options?.populate) {
+      query = query.populate(options.populate);
     }
 
     return query;

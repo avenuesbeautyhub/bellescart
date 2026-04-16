@@ -77,8 +77,38 @@ export class AdminRepository implements IAdminRepository {
     await Admin.findByIdAndDelete(id);
   }
 
-  async getAllUsers(): Promise<IUser[]> {
-    return await User.find().sort({ createdAt: -1 });
+  async findAllUsers(filter?: any, options?: { limit?: number; skip?: number; sort?: any }): Promise<IUser[]> {
+    return await this.findWithFilter(filter, options);
+  }
+
+  private async findWithFilter(filter?: any, options?: { limit?: number; skip?: number; sort?: any }): Promise<IUser[]> {
+    const query = User.find(filter || {});
+
+    if (options?.limit) {
+      query.limit(options.limit);
+    }
+
+    if (options?.skip) {
+      query.skip(options.skip);
+    }
+
+    if (options?.sort) {
+      query.sort(options.sort);
+    }
+
+    return await query.exec();
+  }
+
+  async getAllUsers(): Promise<Partial<IUser>[]> {
+    const users = await User.find().sort({ createdAt: -1 });
+    return users.map(user => ({
+      id: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      isActive: user.isActive,
+      createdAt: user.createdAt
+    }));
   }
 
   async getAdminStats(): Promise<{

@@ -25,6 +25,7 @@ export interface IAdminRepository {
   updateStatus(id: string, status: 'active' | 'inactive' | 'suspended'): Promise<void>;
   delete(id: string): Promise<void>;
   getAllUsers(): Promise<Partial<IUser>[]>;
+  findAllUsers(filter?: any, options?: { limit?: number; skip?: number; sort?: any }): Promise<IUser[]>;
   getAdminStats(): Promise<{
     totalUsers: number;
     activeUsers: number;
