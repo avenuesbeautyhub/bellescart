@@ -1,10 +1,11 @@
 'use client';
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import { useAdminProducts } from '@/hooks/admin/useAdminProducts';
+import { adminCategoryService } from '@/services/admin/categoryService';
 
 interface ProductFormData {
   name: string;
@@ -42,7 +43,31 @@ export default function AddProductPage() {
   });
 
   const [images, setImages] = useState<ImagePreview[]>([]);
+  const [categories, setCategories] = useState<any[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    loadCategories();
+  }, []);
+
+  const loadCategories = async () => {
+    try {
+      const response = await adminCategoryService.getAllCategories();
+      if (response.success && response.data?.categories) {
+        const categories = response.data.categories;
+        setCategories(categories);
+        // Set default category to first category if available and no category is selected
+        if (categories.length > 0 && !formData.category) {
+          setFormData(prev => ({
+            ...prev,
+            category: categories[0]._id
+          }));
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load categories:', error);
+    }
+  };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
@@ -174,11 +199,11 @@ export default function AddProductPage() {
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-gray-900"
                 >
                   <option value="">Select a category</option>
-                  <option value="jewelry">Jewelry</option>
-                  <option value="clothing">Clothing</option>
-                  <option value="accessories">Accessories</option>
-                  <option value="footwear">Footwear</option>
-                  <option value="beauty">Beauty</option>
+                  {categories.map(category => (
+                    <option key={category._id} value={category._id}>
+                      {category.name}
+                    </option>
+                  ))}
                 </select>
               </div>
 

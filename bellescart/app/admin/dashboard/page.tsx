@@ -1,12 +1,72 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
+import { adminProductService } from '@/services/admin/productService';
+import { adminUserService } from '@/services/admin/userService';
+import { globalToast } from '@/utils/globalToast';
+
+interface DashboardStats {
+  totalProducts: number;
+  totalOrders: number;
+  totalRevenue: number;
+  activeUsers: number;
+  totalUsers: number;
+  loading: boolean;
+}
+
+interface RecentOrder {
+  id: string;
+  customer: string;
+  amount: string;
+  status: string;
+}
+
+interface ChartData {
+  daily: { label: string; value: number }[];
+  monthly: { label: string; value: number }[];
+  yearly: { label: string; value: number }[];
+}
 
 export default function AdminDashboard() {
   const [timeframe, setTimeframe] = useState<'daily' | 'monthly' | 'yearly'>('monthly');
+  const [stats, setStats] = useState<DashboardStats>({
+    totalProducts: 0,
+    totalOrders: 0,
+    totalRevenue: 0,
+    activeUsers: 0,
+    totalUsers: 0,
+    loading: true,
+  });
+
+  useEffect(() => {
+    loadDashboardData();
+  }, []);
+
+  const loadDashboardData = async () => {
+    try {
+      const productsResponse = await adminProductService.getProducts({ limit: 1000 });
+      const productCount = productsResponse.success ? productsResponse.data?.products?.length || 0 : 0;
+
+      const usersResponse = await adminUserService.getUsers({ limit: 1000 });
+      const users = usersResponse.success ? usersResponse.data?.users || [] : [];
+      const activeUsers = users.filter(user => user.isActive === true).length;
+      console.log('active users', activeUsers);
+
+      setStats({
+        totalProducts: productCount,
+        totalOrders: 0,
+        totalRevenue: 0,
+        activeUsers: activeUsers,
+        totalUsers: users.length,
+        loading: false,
+      });
+    } catch (error: any) {
+      console.error('Failed to load dashboard data:', error);
+      globalToast.admin.error('Load Failed', 'Failed to load dashboard data');
+    }
+  };
 
   const chartData = {
     daily: [
@@ -43,22 +103,8 @@ export default function AdminDashboard() {
   const selectedChart = chartData[timeframe];
   const maxChartValue = Math.max(...selectedChart.map(point => point.value));
 
-  const stats = [
-    { label: 'Total Products', value: '234', color: 'bg-blue-50' },
-    { label: 'Total Orders', value: '1,256', color: 'bg-green-50' },
-    { label: 'Total Revenue', value: '₹45,89,000', color: 'bg-purple-50' },
-    { label: 'Active Users', value: '892', color: 'bg-orange-50' },
-  ];
-
-  const recentOrders = [
-    { id: 'ORD-001', customer: 'John Doe', amount: '₹8,999', status: 'delivered' },
-    { id: 'ORD-002', customer: 'Jane Smith', amount: '₹15,650', status: 'shipped' },
-    { id: 'ORD-003', customer: 'Mike Johnson', amount: '₹23,400', status: 'pending' },
-  ];
-
   return (
     <div className="min-h-screen bg-gray-100">
-      {/* Header */}
       <header className="bg-white shadow">
         <div className="max-w-7xl mx-auto px-4 py-6">
           <h1 className="text-3xl font-bold text-gray-800">Admin Dashboard</h1>
@@ -66,17 +112,25 @@ export default function AdminDashboard() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 py-12">
-        {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
-          {stats.map((stat, index) => (
-            <div key={index} className={`${stat.color} p-6 rounded-lg shadow`}>
-              <p className="text-gray-600 text-sm font-semibold mb-2">{stat.label}</p>
-              <p className="text-3xl font-bold text-gray-900">{stat.value}</p>
-            </div>
-          ))}
+          <div className="bg-blue-50 p-6 rounded-lg shadow">
+            <p className="text-gray-600 text-sm font-semibold mb-2">Total Products</p>
+            <p className="text-3xl font-bold text-gray-900">{stats.loading ? '...' : stats.totalProducts}</p>
+          </div>
+          <div className="bg-green-50 p-6 rounded-lg shadow">
+            <p className="text-gray-600 text-sm font-semibold mb-2">Total Orders</p>
+            <p className="text-3xl font-bold text-gray-900">{stats.loading ? '...' : stats.totalOrders}</p>
+          </div>
+          <div className="bg-purple-50 p-6 rounded-lg shadow">
+            <p className="text-gray-600 text-sm font-semibold mb-2">Total Revenue</p>
+            <p className="text-3xl font-bold text-gray-900">{stats.loading ? '...' : `₹${stats.totalRevenue.toLocaleString()}`}</p>
+          </div>
+          <div className="bg-orange-50 p-6 rounded-lg shadow">
+            <p className="text-gray-600 text-sm font-semibold mb-2">Active Users</p>
+            <p className="text-3xl font-bold text-gray-900">{stats.loading ? '...' : stats.activeUsers}</p>
+          </div>
         </div>
 
-        {/* Management Sections */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
           <Link href="/admin/products">
             <div className="bg-white p-6 rounded-lg shadow hover:shadow-lg transition cursor-pointer">
@@ -111,7 +165,6 @@ export default function AdminDashboard() {
           </Link>
         </div>
 
-        {/* Orders Chart */}
         <div className="bg-white rounded-lg shadow p-6 mb-12">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
             <div>
@@ -137,7 +190,7 @@ export default function AdminDashboard() {
           <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-6">
             <div className="overflow-x-auto">
               <div className="min-w-[320px] sm:min-w-[640px] h-72 flex items-end gap-2 px-2">
-                {selectedChart.map(point => (
+                {selectedChart.map((point: any) => (
                   <div key={point.label} className="flex-1 min-w-[48px] max-w-[80px] flex flex-col justify-end items-center gap-2">
                     <div className="w-full bg-gray-100 rounded-full overflow-hidden h-48 flex items-end">
                       <div
@@ -171,7 +224,6 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        {/* Recent Orders */}
         <div className="bg-white rounded-lg shadow">
           <div className="p-6 border-b border-gray-200">
             <h2 className="text-xl font-semibold text-gray-800">Recent Orders</h2>
@@ -180,45 +232,18 @@ export default function AdminDashboard() {
             <table className="w-full">
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700">
-                    Order ID
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700">
-                    Customer
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700">
-                    Amount
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700">
-                    Status
-                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700">Order ID</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700">Customer</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700">Amount</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700">Status</th>
                 </tr>
               </thead>
               <tbody>
-                {recentOrders.map(order => (
-                  <tr key={order.id} className="border-b border-gray-200 hover:bg-gray-50">
-                    <td className="px-6 py-4 text-sm font-semibold text-gray-800">
-                      {order.id}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-600">{order.customer}</td>
-                    <td className="px-6 py-4 text-sm font-semibold text-gray-800">
-                      {order.amount}
-                    </td>
-                    <td className="px-6 py-4 text-sm">
-                      <Badge
-                        variant={
-                          order.status === 'delivered'
-                            ? 'success'
-                            : order.status === 'shipped'
-                              ? 'primary'
-                              : 'warning'
-                        }
-                      >
-                        {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
-                      </Badge>
-                    </td>
-                  </tr>
-                ))}
+                <tr>
+                  <td colSpan={4} className="px-6 py-8 text-center text-gray-500">
+                    Order management not implemented yet
+                  </td>
+                </tr>
               </tbody>
             </table>
           </div>

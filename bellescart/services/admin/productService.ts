@@ -1,8 +1,6 @@
 'use client';
 
-import { appConfig } from '@/config/appConfig';
-
-const API_BASE_URL = appConfig.apiBaseUrl;
+import { adminApi } from './apiInterceptor';
 
 export interface CreateProductData {
   name: string;
@@ -28,11 +26,7 @@ export interface ProductResponse {
 class AdminProductService {
   async createProduct(formData: FormData): Promise<ProductResponse> {
     try {
-      const response = await fetch(`${API_BASE_URL}/admin/products`, {
-        method: 'POST',
-        body: formData,
-      });
-
+      const response = await adminApi.postFormData('/admin/products', formData);
       const result = await response.json();
       return result;
     } catch (error) {
@@ -43,11 +37,7 @@ class AdminProductService {
 
   async updateProduct(id: string, formData: FormData): Promise<ProductResponse> {
     try {
-      const response = await fetch(`${API_BASE_URL}/admin/products/${id}`, {
-        method: 'PUT',
-        body: formData,
-      });
-
+      const response = await adminApi.putFormData(`/admin/products/${id}`, formData);
       const result = await response.json();
       return result;
     } catch (error) {
@@ -58,10 +48,7 @@ class AdminProductService {
 
   async deleteProduct(id: string): Promise<ProductResponse> {
     try {
-      const response = await fetch(`${API_BASE_URL}/admin/products/${id}`, {
-        method: 'DELETE',
-      });
-
+      const response = await adminApi.delete(`/admin/products/${id}`);
       const result = await response.json();
       return result;
     } catch (error) {
@@ -75,12 +62,15 @@ class AdminProductService {
     limit?: number;
     category?: string;
     search?: string;
+    status?: string;
+    sort?: string;
+    order?: string;
   }): Promise<ProductResponse> {
     try {
       const queryString = new URLSearchParams(params as any).toString();
-      const url = queryString ? `${API_BASE_URL}/products?${queryString}` : `${API_BASE_URL}/products`;
-      
-      const response = await fetch(url);
+      const url = queryString ? `/admin/products?${queryString}` : '/admin/products';
+
+      const response = await adminApi.get(url);
       const result = await response.json();
       return result;
     } catch (error) {
@@ -91,7 +81,11 @@ class AdminProductService {
 
   async getProductById(id: string): Promise<ProductResponse> {
     try {
-      const response = await fetch(`${API_BASE_URL}/products/${id}`);
+      console.log('Service: Getting product with ID:', id); // Debug log
+      if (!id) {
+        throw new Error('Product ID is required');
+      }
+      const response = await adminApi.get(`/admin/products/${id}`);
       const result = await response.json();
       return result;
     } catch (error) {
