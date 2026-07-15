@@ -1,16 +1,35 @@
-export interface Product {
-  id: string;
+export interface ProductImage {
+  url: string;
+  alt: string;
+  isMain: boolean;
+  _id: string;
+}
+
+export interface ProductCategory {
+  _id: string;
   name: string;
+  description: string;
+}
+
+export interface Product {
+  _id: string;
+  name: string;
+  description: string;
   price: number;
   originalPrice?: number;
-  image: string;
-  description: string;
-  category: string;
-  rating: number;
-  reviews: number;
-  inStock: boolean;
+  image?: string;
+  category: ProductCategory;
+  rating?: number;
+  reviews?: number;
+  inStock?: boolean;
   sizes?: string[];
   colors?: string[];
+  images: ProductImage[];
+  brand?: string;
+  quantity: number;
+  featured: boolean;
+  status: 'active' | 'inactive' | 'draft';
+  tags?: string[];
 }
 
 export interface User {
@@ -24,6 +43,8 @@ export interface User {
 
 export interface CartItem extends Product {
   quantity: number;
+  cartQuantity?: number;
+  stock?: number;
 }
 
 export interface Order {

@@ -60,9 +60,18 @@ export class OrderInteractor implements IOrderInteractor {
     const discount = cart.couponDiscount || 0; // Apply coupon discount
     const total = subtotal + tax + shipping - discount;
 
+    // Generate order number
+    const date = new Date();
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+    const orderNumber = `ORD-${year}${month}${day}-${random}`;
+
     // Create order
     const order = new Order({
       user: userId,
+      orderNumber,
       items: orderItems,
       shippingAddress: orderData.shippingAddress,
       billingAddress: orderData.billingAddress || orderData.shippingAddress,
@@ -79,11 +88,13 @@ export class OrderInteractor implements IOrderInteractor {
 
     // Update product inventory
     for (const cartItem of cart.items) {
+      // Extract product ID (handle both ObjectId and populated object)
+      const productId = typeof cartItem.product === 'object' && cartItem.product._id
+        ? cartItem.product._id.toString()
+        : cartItem.product.toString();
+
       // Decrease product quantity when order is placed
-      await this._productRepository.updateQuantity(
-        cartItem.product.toString(),
-        cartItem.quantity
-      );
+      await this._productRepository.updateQuantity(productId, cartItem.quantity);
     }
     await this._cartRepository.clearCart(userId);
 
@@ -164,10 +175,12 @@ export class OrderInteractor implements IOrderInteractor {
 
     // Restore inventory (increase quantity)
     for (const item of order.items) {
-      await this._productRepository.updateQuantity(
-        item.product.toString(),
-        item.quantity
-      );
+      // Extract product ID (handle both ObjectId and populated object)
+      const productId = typeof item.product === 'object' && item.product._id
+        ? item.product._id.toString()
+        : item.product.toString();
+
+      await this._productRepository.updateQuantity(productId, item.quantity);
     }
 
     // Update order status

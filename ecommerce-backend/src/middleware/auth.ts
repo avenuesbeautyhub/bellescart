@@ -18,7 +18,7 @@ export const authenticate = async (
 ): Promise<void> => {
   try {
     const token = req.header('Authorization')?.replace('Bearer ', '');
-    console.log('req from the forntend', req);
+    // console.log('req from the forntend', req);
 
     if (!token) {
       res.status(401).json({

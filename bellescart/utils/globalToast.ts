@@ -37,6 +37,28 @@ export const globalToast = {
     loadError: () => globalToast.show(toastMessages.profile.loadError()),
   },
 
+  // Cart toast functions
+  cart: {
+    loadFailed: () => globalToast.show(toastMessages.cart.loadFailed()),
+    quantityUpdated: () => globalToast.show(toastMessages.cart.quantityUpdated()),
+    updateFailed: () => globalToast.show(toastMessages.cart.updateFailed()),
+    itemRemoved: () => globalToast.show(toastMessages.cart.itemRemoved()),
+    removeFailed: () => globalToast.show(toastMessages.cart.removeFailed()),
+    addSuccess: () => globalToast.show(toastMessages.cart.addSuccess()),
+    addFailed: () => globalToast.show(toastMessages.cart.addFailed()),
+    clearSuccess: () => globalToast.show(toastMessages.cart.clearSuccess()),
+    clearFailed: () => globalToast.show(toastMessages.cart.clearFailed()),
+  },
+
+  // Order toast functions
+  order: {
+    createSuccess: () => globalToast.show(toastMessages.order.createSuccess()),
+    createFailed: (error?: string) => globalToast.show(toastMessages.order.createFailed(error)),
+    loadFailed: () => globalToast.show(toastMessages.order.loadFailed()),
+    cancelSuccess: () => globalToast.show(toastMessages.order.cancelSuccess()),
+    cancelFailed: () => globalToast.show(toastMessages.order.cancelFailed()),
+  },
+
   // Admin toast functions - flexible functions that accept custom messages
   admin: {
     success: (title: string, message?: string) => globalToast.show(toastMessages.admin.success(title, message)),

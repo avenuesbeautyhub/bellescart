@@ -8,49 +8,51 @@ import Footer from '@/components/Footer/Footer';
 import OrderCard from '@/components/OrderCard/OrderCard';
 import Button from '@/components/ui/Button';
 import Loader from '@/components/ui/Loader';
-import { Order } from '@/utils/types';
+import { orderService } from '@/services/orderService';
+import { globalToast } from '@/utils/globalToast';
 
 export default function OrdersPage() {
   const { loaded, isAuthenticated } = useRequireUserAuth();
-  const [isLoading, setIsLoading] = useState(false);
-  const mockOrders: Order[] = [
-    {
-      id: 'ORD-001',
-      userId: 'user1',
-      items: [],
-      total: 89.97,
-      status: 'delivered',
-      date: '2024-03-15',
-      shippingAddress: '123 Main St, New York, NY 10001',
-    },
-    {
-      id: 'ORD-002',
-      userId: 'user1',
-      items: [],
-      total: 59.98,
-      status: 'shipped',
-      date: '2024-04-01',
-      shippingAddress: '123 Main St, New York, NY 10001',
-    },
-    {
-      id: 'ORD-003',
-      userId: 'user1',
-      items: [],
-      total: 129.99,
-      status: 'pending',
-      date: '2024-04-03',
-      shippingAddress: '123 Main St, New York, NY 10001',
-    },
-  ];
+  const [isLoading, setIsLoading] = useState(true);
+  const [orders, setOrders] = useState<any[]>([]);
 
-  // Simulate loading orders
+  // Load orders when authenticated
   useEffect(() => {
-    setIsLoading(true);
-    const timer = setTimeout(() => {
+    if (loaded && isAuthenticated) {
+      loadOrders();
+    }
+  }, [loaded, isAuthenticated]);
+
+  const loadOrders = async () => {
+    try {
+      setIsLoading(true);
+      const response = await orderService.getOrders();
+      if (response.success && response.data?.orders) {
+        setOrders(response.data.orders);
+      }
+    } catch (error) {
+      console.error('Failed to load orders:', error);
+      globalToast.order.loadFailed();
+    } finally {
       setIsLoading(false);
-    }, 700); // Simulate API delay
-    return () => clearTimeout(timer);
-  }, []);
+    }
+  };
+
+  const handleCancelOrder = async (orderId: string) => {
+    try {
+      const response = await orderService.cancelOrder(orderId);
+      if (response.success) {
+        globalToast.order.cancelSuccess();
+        // Reload orders to reflect the cancellation
+        await loadOrders();
+      } else {
+        globalToast.order.cancelFailed();
+      }
+    } catch (error) {
+      console.error('Failed to cancel order:', error);
+      globalToast.order.cancelFailed();
+    }
+  };
 
   // Show loader while checking authentication
   if (!loaded) {
@@ -59,29 +61,33 @@ export default function OrdersPage() {
 
   if (!isAuthenticated) return null;
 
+  if (isLoading) {
+    return <Loader size="lg" text="Loading orders..." fullScreen />;
+  }
+
   return (
     <div className="min-h-screen flex flex-col">
       <Navbar />
 
       <main className="flex-1">
-        {/* Loading Overlay */}
-        {isLoading && (
-          <div className="fixed inset-0 bg-white bg-opacity-90 flex items-center justify-center z-50">
-            <Loader size="lg" text="Loading orders..." />
-          </div>
-        )}
-
         <div className="max-w-7xl mx-auto px-4 py-12">
           <h1 className="text-3xl font-bold text-gray-800 mb-8">My Orders</h1>
 
-          {mockOrders.length === 0 ? (
+          {orders.length === 0 ? (
             <div className="text-center py-12">
-              <p className="text-gray-600 text-lg">You haven't placed any orders yet</p>
+              <p className="text-gray-600 text-lg mb-6">You haven't placed any orders yet</p>
+              <Link href="/products">
+                <Button>Browse Products</Button>
+              </Link>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {mockOrders.map(order => (
-                <OrderCard key={order.id} order={order} />
+              {orders.map(order => (
+                <OrderCard
+                  key={order._id || order.id}
+                  order={order}
+                  onCancel={handleCancelOrder}
+                />
               ))}
             </div>
           )}

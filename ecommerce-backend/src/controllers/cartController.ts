@@ -24,7 +24,11 @@ export class CartController {
 
       res.status(200).json({
         success: true,
-        data: { cart }
+        data: {
+          items: cart.items,
+          total: cart.total,
+          itemCount: cart.items.length
+        }
       });
     } catch (error) {
       next(error);
@@ -52,7 +56,11 @@ export class CartController {
 
       res.status(200).json({
         success: true,
-        data: { cart }
+        data: {
+          items: cart.items,
+          total: cart.total,
+          itemCount: cart.items.length
+        }
       });
     } catch (error) {
       next(error);
@@ -77,7 +85,11 @@ export class CartController {
 
       res.status(200).json({
         success: true,
-        data: { cart }
+        data: {
+          items: cart.items,
+          total: cart.total,
+          itemCount: cart.items.length
+        }
       });
     } catch (error) {
       next(error);
@@ -101,7 +113,11 @@ export class CartController {
 
       res.status(200).json({
         success: true,
-        data: { cart }
+        data: {
+          items: cart.items,
+          total: cart.total,
+          itemCount: cart.items.length
+        }
       });
     } catch (error) {
       next(error);
@@ -123,7 +139,11 @@ export class CartController {
 
       res.status(200).json({
         success: true,
-        data: { cart }
+        data: {
+          items: cart.items,
+          total: cart.total,
+          itemCount: cart.items.length
+        }
       });
     } catch (error) {
       next(error);

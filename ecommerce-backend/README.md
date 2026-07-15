@@ -84,9 +84,9 @@ src/
    AWS_REGION=us-east-1
    AWS_S3_BUCKET=bellescart-product-images
 
-   # Stripe Configuration
-   STRIPE_SECRET_KEY=sk_test_your-stripe-secret-key
-   STRIPE_PUBLISHABLE_KEY=pk_test_your-stripe-publishable-key
+   # Razorpay Configuration
+   RAZORPAY_KEY_ID=your-razorpay-key-id
+   RAZORPAY_KEY_SECRET=your-razorpay-key-secret
    ```
 
 ### Running the Application

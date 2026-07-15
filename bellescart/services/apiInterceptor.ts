@@ -1,3 +1,4 @@
+import { appConfig } from '@/config/appConfig';
 import { authService } from './authService';
 import { globalToast } from '@/utils/globalToast';
 
@@ -58,7 +59,8 @@ export const apiFetch = async (url: string, options: RequestInit = {}): Promise<
 
   try {
     // Make initial request
-    const response = await fetch(url, authOptions);
+    const fullUrl = url.startsWith('http') ? url : appConfig.apiBaseUrl + url;
+    const response = await fetch(fullUrl, authOptions);
 
     // If response is successful, return it
     if (response.ok) {
@@ -85,7 +87,7 @@ export const apiFetch = async (url: string, options: RequestInit = {}): Promise<
           return new Promise((resolve, reject) => {
             addRefreshSubscriber(async (newToken: string) => {
               try {
-                const retryResponse = await fetch(url, {
+                const retryResponse = await fetch(fullUrl, {
                   ...options,
                   headers: {
                     ...options.headers,
@@ -122,7 +124,7 @@ export const apiFetch = async (url: string, options: RequestInit = {}): Promise<
             notifyRefreshSubscribers(newToken);
 
             // Retry original request with new token
-            const retryResponse = await fetch(url, {
+            const retryResponse = await fetch(fullUrl, {
               ...options,
               headers: {
                 ...options.headers,
@@ -195,3 +197,29 @@ export const apiPut = (url: string, data?: any, options: RequestInit = {}) =>
 
 export const apiDelete = (url: string, options: RequestInit = {}) =>
   apiFetch(url, { ...options, method: 'DELETE' });
+
+// Public API fetch function that doesn't require authentication
+export const publicApiFetch = async (url: string, options: RequestInit = {}): Promise<Response> => {
+  // Add full backend URL for relative URLs
+  const fullUrl = appConfig.apiBaseUrl + url;
+
+  const publicOptions = {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  };
+
+  try {
+    const response = await fetch(fullUrl, publicOptions);
+    return response;
+  } catch (error) {
+    console.error('Public API fetch error:', error);
+    throw error;
+  }
+};
+
+// Helper methods for public API calls
+export const publicApiGet = (url: string, options: RequestInit = {}) =>
+  publicApiFetch(url, { ...options, method: 'GET' });

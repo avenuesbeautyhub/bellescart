@@ -1,6 +1,13 @@
-import { Router, Request, Response, NextFunction } from 'express';
+import { Router } from 'express';
 import { AdminRepository } from '../repositories/AdminRepository';
 import { ProductRepository } from '../repositories/ProductRepository';
+
+
+
+
+
+
+
 import { CategoryRepository } from '../repositories/CategoryRepository';
 import { AdminInteractor } from '../interactors/AdminInteractor';
 import { ProductInteractor } from '../interactors/ProductInteractor';

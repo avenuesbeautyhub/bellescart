@@ -74,6 +74,12 @@ export const toastMessages = {
       title: 'Session Refreshed',
       message: 'Your session has been automatically refreshed.',
       duration: 2000
+    }),
+    loginRequired: (): Omit<ToastMessage, 'id'> => ({
+      type: 'warning',
+      title: 'Login Required',
+      message: 'Please login to perform this action.',
+      duration: 3000
     })
   },
 
@@ -95,6 +101,98 @@ export const toastMessages = {
       type: 'error',
       title: 'Profile Error',
       message: 'Failed to load profile data',
+      duration: 5000
+    })
+  },
+
+  // Cart messages
+  cart: {
+    loadFailed: (): Omit<ToastMessage, 'id'> => ({
+      type: 'error',
+      title: 'Cart Error',
+      message: 'Failed to load cart items',
+      duration: 5000
+    }),
+    quantityUpdated: (): Omit<ToastMessage, 'id'> => ({
+      type: 'success',
+      title: 'Cart Updated',
+      message: 'Quantity updated successfully',
+      duration: 2000
+    }),
+    updateFailed: (): Omit<ToastMessage, 'id'> => ({
+      type: 'error',
+      title: 'Update Failed',
+      message: 'Failed to update cart item',
+      duration: 5000
+    }),
+    itemRemoved: (): Omit<ToastMessage, 'id'> => ({
+      type: 'success',
+      title: 'Item Removed',
+      message: 'Item removed from cart',
+      duration: 2000
+    }),
+    removeFailed: (): Omit<ToastMessage, 'id'> => ({
+      type: 'error',
+      title: 'Remove Failed',
+      message: 'Failed to remove item from cart',
+      duration: 5000
+    }),
+    addSuccess: (): Omit<ToastMessage, 'id'> => ({
+      type: 'success',
+      title: 'Added to Cart',
+      message: 'Item added to cart successfully',
+      duration: 2000
+    }),
+    addFailed: (): Omit<ToastMessage, 'id'> => ({
+      type: 'error',
+      title: 'Add Failed',
+      message: 'Failed to add item to cart',
+      duration: 5000
+    }),
+    clearSuccess: (): Omit<ToastMessage, 'id'> => ({
+      type: 'success',
+      title: 'Cart Cleared',
+      message: 'Cart has been cleared',
+      duration: 2000
+    }),
+    clearFailed: (): Omit<ToastMessage, 'id'> => ({
+      type: 'error',
+      title: 'Clear Failed',
+      message: 'Failed to clear cart',
+      duration: 5000
+    })
+  },
+
+  // Order messages
+  order: {
+    createSuccess: (): Omit<ToastMessage, 'id'> => ({
+      type: 'success',
+      title: 'Order Placed Successfully!',
+      message: 'Thank you for your purchase',
+      duration: 5000
+    }),
+    createFailed: (error?: string): Omit<ToastMessage, 'id'> => ({
+      type: 'error',
+      title: 'Order Failed',
+      message: error || 'Failed to place order',
+      duration: 5000
+    }),
+    loadFailed: (): Omit<ToastMessage, 'id'> => ({
+      type: 'error',
+      title: 'Order Error',
+      message: 'Failed to load orders',
+      duration: 5000
+    }),
+    cancelSuccess: (): Omit<ToastMessage, 'id'> => ({
+      type: 'success',
+      title: 'Order Cancelled',
+      message: 'Your order has been cancelled',
+      duration: 3000
+    }),
+    cancelFailed: (): Omit<ToastMessage, 'id'> => ({
+      type: 'error',
+      title: 'Cancellation Failed',
+      message: 'Failed to cancel order',
       duration: 5000
     })
   },

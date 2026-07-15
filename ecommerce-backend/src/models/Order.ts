@@ -17,7 +17,7 @@ export interface IOrder extends Document {
   items: IOrderItem[];
   status: 'pending' | 'confirmed' | 'processing' | 'shipped' | 'delivered' | 'cancelled' | 'refunded';
   paymentStatus: 'pending' | 'paid' | 'failed' | 'refunded';
-  paymentMethod: 'credit_card' | 'debit_card' | 'paypal' | 'stripe' | 'cash_on_delivery';
+  paymentMethod: 'credit_card' | 'debit_card' | 'paypal' | 'stripe' | 'razorpay' | 'cash_on_delivery';
   shippingAddress: {
     street: string;
     city: string;
@@ -94,7 +94,7 @@ const orderSchema = new Schema<IOrder>({
   },
   paymentMethod: {
     type: String,
-    enum: ['credit_card', 'debit_card', 'paypal', 'stripe', 'cash_on_delivery'],
+    enum: ['credit_card', 'debit_card', 'paypal', 'stripe', 'razorpay', 'cash_on_delivery'],
     required: true
   },
   shippingAddress: {

@@ -1,28 +1,27 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import Button from '@/components/ui/Button';
 import { useAuth, useAuthActions } from '@/auth/user';
+import { useCart } from '@/contexts/CartContext';
 
 export default function Navbar() {
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
-  const [mounted, setMounted] = useState(false);
-  const { user, isAuthenticated } = useAuth();
+  const { cartCount } = useCart();
+  const { user, isAuthenticated, loaded } = useAuth();
   const { logout } = useAuthActions();
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   const handleLogout = () => {
     logout();
     router.push('/login');
   };
 
-  const isLoggedIn = mounted && isAuthenticated;
+  // console.log('current user is ', user);
+
+  const isLoggedIn = isAuthenticated && loaded;
 
   return (
     <nav className="bg-gradient-to-r from-gray-900 via-black to-gray-900 text-white shadow-xl border-b border-gray-800">
@@ -83,13 +82,14 @@ export default function Navbar() {
                   </svg>
                 </div>
                 <span className="absolute -top-1 -right-1 bg-gradient-to-r from-pink-500 to-pink-600 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-semibold shadow-lg">
-                  0
+                  {cartCount}
                 </span>
               </Link>
             )}
 
             <div className="hidden md:flex items-center space-x-2">
               {isLoggedIn ? (
+                <Link href="/profile">
                 <div className="flex items-center space-x-3 pl-3 border-l border-gray-700">
                   <div className="flex items-center space-x-2">
                     <div className="w-8 h-8 bg-gradient-to-r from-pink-500 to-pink-600 rounded-full flex items-center justify-center">
@@ -111,6 +111,7 @@ export default function Navbar() {
                     Logout
                   </Button>
                 </div>
+                </Link>
               ) : (
                 <>
                   <Link href="/login">

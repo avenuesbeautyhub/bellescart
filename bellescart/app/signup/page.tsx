@@ -73,9 +73,10 @@ export default function SignupPage() {
       setIsLoading(true);
 
       try {
+        const nameParts = formData.name.trim().split(' ');
         const response = await signup({
-          firstName: formData.name.split(' ')[0],
-          lastName: formData.name.split(' ')[1],
+          firstName: nameParts[0],
+          lastName: nameParts.length > 1 ? nameParts.slice(1).join(' ') : '',
           email: formData.email,
           password: formData.password,
           phone: formData.phone,

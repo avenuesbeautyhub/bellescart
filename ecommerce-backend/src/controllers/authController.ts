@@ -148,7 +148,7 @@ export class AuthController {
 
       res.status(200).json({
         success: true,
-        data: { user }
+        data: user
       });
     } catch (error) {
       next(error);
@@ -166,7 +166,7 @@ export class AuthController {
         return;
       }
 
-      const { name, phone, addresses } = req.body;
+      const { name, phone, addresses, avatar } = req.body;
 
       // Validate name if provided
       if (name !== undefined) {
@@ -195,7 +195,8 @@ export class AuthController {
       const user = await this._userInteractor.updateProfile(authReq.user._id.toString(), {
         name,
         phone,
-        addresses
+        addresses,
+        avatar
       });
 
       if (!user) {
@@ -208,6 +209,51 @@ export class AuthController {
 
       res.status(200).json({
         success: true,
+        data: user
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  uploadProfilePicture = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const authReq = req as AuthRequest;
+      if (!authReq.user) {
+        res.status(401).json({
+          success: false,
+          error: 'User not authenticated'
+        });
+        return;
+      }
+
+      if (!req.file) {
+        res.status(400).json({
+          success: false,
+          error: 'No file uploaded'
+        });
+        return;
+      }
+
+      // Upload to Cloudinary using the cloudinary service
+      const { uploadProductImage } = await import('../services/cloudinaryService');
+      const uploadedImage = await uploadProductImage(req);
+
+      const user = await this._userInteractor.updateProfile(authReq.user._id.toString(), {
+        avatar: uploadedImage.url
+      });
+
+      if (!user) {
+        res.status(404).json({
+          success: false,
+          error: 'User not found'
+        });
+        return;
+      }
+
+      res.status(200).json({
+        success: true,
+        message: 'Profile picture uploaded successfully',
         data: { user }
       });
     } catch (error) {
@@ -383,7 +429,7 @@ export class AuthController {
   getCurrentUser = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       // User ID is extracted from token by authenticate middleware
-      const userId = (req as AuthRequest).user?.id;
+      const userId = (req as AuthRequest).user?._id?.toString();
 
       if (!userId) {
         res.status(401).json({
@@ -407,6 +453,262 @@ export class AuthController {
       res.status(200).json({
         success: true,
         message: 'Current user retrieved successfully',
+        data: user
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  addToWishlist = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const authReq = req as AuthRequest;
+      if (!authReq.user) {
+        res.status(401).json({
+          success: false,
+          error: 'User not authenticated'
+        });
+        return;
+      }
+
+      const { productId } = req.body;
+
+      if (!productId) {
+        res.status(400).json({
+          success: false,
+          error: 'Product ID is required'
+        });
+        return;
+      }
+
+      await this._userInteractor.addToWishlist(authReq.user._id.toString(), productId);
+
+      res.status(200).json({
+        success: true,
+        message: 'Product added to wishlist'
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  removeFromWishlist = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const authReq = req as AuthRequest;
+      if (!authReq.user) {
+        res.status(401).json({
+          success: false,
+          error: 'User not authenticated'
+        });
+        return;
+      }
+
+      const { productId } = req.params;
+
+      if (!productId) {
+        res.status(400).json({
+          success: false,
+          error: 'Product ID is required'
+        });
+        return;
+      }
+
+      await this._userInteractor.removeFromWishlist(authReq.user._id.toString(), productId);
+
+      res.status(200).json({
+        success: true,
+        message: 'Product removed from wishlist'
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  getWishlist = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const authReq = req as AuthRequest;
+      if (!authReq.user) {
+        res.status(401).json({
+          success: false,
+          error: 'User not authenticated'
+        });
+        return;
+      }
+
+      const user = await this._userInteractor.getWishlist(authReq.user._id.toString());
+
+      if (!user) {
+        res.status(404).json({
+          success: false,
+          error: 'User not found'
+        });
+        return;
+      }
+
+      res.status(200).json({
+        success: true,
+        data: { wishlist: user.wishlist }
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  addAddress = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+
+
+
+
+      const authReq = req as AuthRequest;
+      if (!authReq.user) {
+        res.status(401).json({
+          success: false,
+          error: 'User not authenticated'
+        });
+        return;
+      }
+
+      const { label, address, city, state, zipCode, country, isDefault } = req.body;
+
+      // Validate required fields
+      if (!label || !address || !city || !state || !zipCode || !country) {
+        res.status(400).json({
+          success: false,
+          error: 'All address fields are required'
+        });
+        return;
+      }
+
+      const user = await this._userInteractor.addAddress(authReq.user._id.toString(), {
+        label,
+        address,
+        city,
+        state,
+        zipCode,
+        country,
+        isDefault: isDefault || false
+      });
+
+      if (!user) {
+        res.status(404).json({
+          success: false,
+          error: 'User not found'
+        });
+        return;
+      }
+
+      res.status(200).json({
+        success: true,
+        message: 'Address added successfully',
+        data: user
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  updateAddress = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const authReq = req as AuthRequest;
+      if (!authReq.user) {
+        res.status(401).json({
+          success: false,
+          error: 'User not authenticated'
+        });
+        return;
+      }
+
+      const { addressId } = req.params;
+      const { label, address, city, state, zipCode, country, isDefault } = req.body;
+
+      const user = await this._userInteractor.updateAddress(authReq.user._id.toString(), addressId, {
+        label,
+        address,
+        city,
+        state,
+        zipCode,
+        country,
+        isDefault
+      });
+
+      if (!user) {
+        res.status(404).json({
+          success: false,
+          error: 'User or address not found'
+        });
+        return;
+      }
+
+      res.status(200).json({
+        success: true,
+        message: 'Address updated successfully',
+        data: user
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  removeAddress = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const authReq = req as AuthRequest;
+      if (!authReq.user) {
+        res.status(401).json({
+          success: false,
+          error: 'User not authenticated'
+        });
+        return;
+      }
+
+      const { addressId } = req.params;
+
+      const user = await this._userInteractor.removeAddress(authReq.user._id.toString(), addressId);
+
+      if (!user) {
+        res.status(404).json({
+          success: false,
+          error: 'User or address not found'
+        });
+        return;
+      }
+
+      res.status(200).json({
+        success: true,
+        message: 'Address removed successfully',
+        data: user
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  setDefaultAddress = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const authReq = req as AuthRequest;
+      if (!authReq.user) {
+        res.status(401).json({
+          success: false,
+          error: 'User not authenticated'
+        });
+        return;
+      }
+
+      const { addressId } = req.params;
+
+      const user = await this._userInteractor.setDefaultAddress(authReq.user._id.toString(), addressId);
+
+      if (!user) {
+        res.status(404).json({
+          success: false,
+          error: 'User or address not found'
+        });
+        return;
+      }
+
+      res.status(200).json({
+        success: true,
+        message: 'Default address set successfully',
         data: user
       });
     } catch (error) {

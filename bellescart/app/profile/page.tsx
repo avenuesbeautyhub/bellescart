@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRequireUserAuth, clearUserSession } from '@/auth/user';
-import { UserProfile } from '@/types/auth';
+import { UserProfile, Address } from '@/types/auth';
 import { useRouter } from 'next/navigation';
 import Navbar from '@/components/Navbar/Navbar';
 import Footer from '@/components/Footer/Footer';
@@ -13,6 +13,7 @@ import Badge from '@/components/ui/Badge';
 import Loader from '@/components/ui/Loader';
 import { profileService } from '@/services/profileService';
 import { authService } from '@/services/authService';
+import { globalToast } from '@/utils/globalToast';
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -29,6 +30,7 @@ export default function ProfilePage() {
     role: '',
     avatar: '',
     phone: '',
+    addresses: [],
   });
 
   const [isLoadingProfile, setIsLoadingProfile] = useState(false);
@@ -49,6 +51,7 @@ export default function ProfilePage() {
             role: response.data.role,
             avatar: response.data.avatar || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=face',
             phone: response.data.phone || '+91 (555) 000-0000',
+            addresses: response.data.addresses || [],
           });
         }
       } catch (error) {
@@ -63,25 +66,13 @@ export default function ProfilePage() {
     }
   }, [isAuthenticated]);
 
-  const [addresses, setAddresses] = useState([
-    {
-      id: 1,
-      label: 'Home',
-      address: '123 Main St',
-      city: 'New York',
-      state: 'NY',
-      zipCode: '10001',
-      country: 'India',
-      isDefault: true,
-    },
-  ]);
-
   const [newAddress, setNewAddress] = useState({
     label: '',
     address: '',
     city: '',
     state: '',
     zipCode: '',
+    phone: '',
     country: 'India',
   });
 
@@ -127,45 +118,97 @@ export default function ProfilePage() {
     setIsEditing(false);
   };
 
-  const handleAddAddress = () => {
-    if (newAddress.address && newAddress.city) {
+  const handleAddAddress = async () => {
+    // Validate all required fields
+    if (!newAddress.address || !newAddress.city || !newAddress.state || !newAddress.zipCode || !newAddress.country) {
+      globalToast.general.error('Validation Error', 'All address fields are required');
+      return;
+    }
+
+    setIsUpdatingProfile(true);
+    try {
       const addressToAdd = {
-        id: Math.max(0, ...addresses.map(a => a.id)) + 1,
         ...newAddress,
-        isDefault: addresses.length === 0,
+        isDefault: (profile.addresses?.length || 0) === 0,
       };
-      setAddresses([...addresses, addressToAdd]);
-      setNewAddress({
-        label: '',
-        address: '',
-        city: '',
-        state: '',
-        zipCode: '',
-        country: 'India',
-      });
-      setShowAddAddress(false);
+      const response = await profileService.addAddress(addressToAdd);
+
+      if (response.success && response.data) {
+        setProfile(response.data);
+        setNewAddress({
+          label: '',
+          address: '',
+          city: '',
+          state: '',
+          zipCode: '',
+          phone: '',
+          country: 'India',
+        });
+        setShowAddAddress(false);
+        globalToast.general.success('Address added successfully');
+      } else {
+        const errorMessage = response.message || response.error || 'Failed to add address';
+        globalToast.general.error('Error', errorMessage);
+      }
+    } catch (error: any) {
+      const errorMessage = error?.response?.data?.message || error?.message || 'Failed to add address';
+      globalToast.general.error('Error', errorMessage);
+    } finally {
+      setIsUpdatingProfile(false);
     }
   };
 
-  const handleDeleteAddress = (id: number) => {
-    setAddresses(addresses.filter(a => a.id !== id));
+  const handleDeleteAddress = async (addressId: string) => {
+    setIsUpdatingProfile(true);
+    try {
+      const response = await profileService.deleteAddress(addressId);
+
+      if (response.success && response.data) {
+        setProfile(response.data);
+      } else {
+        console.error('Address deletion failed:', response);
+      }
+    } catch (error) {
+      console.error('Address deletion error:', error);
+    } finally {
+      setIsUpdatingProfile(false);
+    }
   };
 
-  const handleSetDefault = (id: number) => {
-    setAddresses(addresses.map(a => ({
-      ...a,
-      isDefault: a.id === id,
-    })));
+  const handleSetDefault = async (addressId: string) => {
+    setIsUpdatingProfile(true);
+    try {
+      const response = await profileService.setDefaultAddress(addressId);
+
+      if (response.success && response.data) {
+        setProfile(response.data);
+      } else {
+        console.error('Set default address failed:', response);
+      }
+    } catch (error) {
+      console.error('Set default address error:', error);
+    } finally {
+      setIsUpdatingProfile(false);
+    }
   };
 
-  const handlePicChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePicChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setProfilePic(reader.result as string);
-      };
-      reader.readAsDataURL(file);
+      setIsUpdatingProfile(true);
+      try {
+        const response = await profileService.uploadProfilePicture(file);
+
+        if (response.success && response.data) {
+          setProfile(response.data);
+        } else {
+          console.error('Profile picture upload failed:', response);
+        }
+      } catch (error) {
+        console.error('Profile picture upload error:', error);
+      } finally {
+        setIsUpdatingProfile(false);
+      }
     }
   };
 
@@ -334,8 +377,8 @@ export default function ProfilePage() {
                       />
                       <Input
                         label="Phone"
-                        value={newAddress.zipCode}
-                        onChange={(e) => setNewAddress({ ...newAddress, zipCode: e.target.value })}
+                        value={newAddress.phone}
+                        onChange={(e) => setNewAddress({ ...newAddress, phone: e.target.value })}
                         placeholder="+91"
                       />
                     </div>
@@ -378,10 +421,10 @@ export default function ProfilePage() {
                   </div>
                 )}
 
-                {addresses.length > 0 ? (
+                {profile.addresses && profile.addresses.length > 0 ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {addresses.map(address => (
-                      <div key={address.id} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition">
+                    {profile.addresses.map((address: Address) => (
+                      <div key={address._id} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition">
                         <div className="flex justify-between items-start mb-3">
                           <h3 className="font-semibold text-gray-800">{address.label}</h3>
                           {address.isDefault && (
@@ -398,7 +441,7 @@ export default function ProfilePage() {
                             <Button
                               size="sm"
                               variant="outline"
-                              onClick={() => handleSetDefault(address.id)}
+                              onClick={() => handleSetDefault(address._id!)}
                             >
                               Set as Default
                             </Button>
@@ -406,7 +449,7 @@ export default function ProfilePage() {
                           <Button
                             size="sm"
                             variant="danger"
-                            onClick={() => handleDeleteAddress(address.id)}
+                            onClick={() => handleDeleteAddress(address._id!)}
                           >
                             Delete
                           </Button>

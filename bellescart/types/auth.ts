@@ -50,6 +50,17 @@ export interface LoginResponse extends ApiResponse {
   message: string;
 }
 
+export interface Address {
+  _id?: string;
+  label: string;
+  address: string;
+  city: string;
+  state: string;
+  zipCode: string;
+  country: string;
+  isDefault: boolean;
+}
+
 export interface UserProfile {
   id: string;
   name: string;
@@ -57,4 +68,5 @@ export interface UserProfile {
   role: string;
   avatar?: string;
   phone?: string;
+  addresses?: Address[];
 }

@@ -10,5 +10,6 @@ export interface IUserRepository {
   addToWishlist(userId: string, productId: string): Promise<IUser | null>;
   removeFromWishlist(userId: string, productId: string): Promise<IUser | null>;
   getWishlist(userId: string): Promise<IUser | null>;
-
+  addAddress(userId: string, addressId: string): Promise<IUser | null>;
+  removeAddress(userId: string, addressId: string): Promise<IUser | null>;
 }

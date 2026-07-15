@@ -39,5 +39,24 @@ export class UserRepository extends BaseRepository<IUser> implements IUserReposi
     return this.model.findById(userId).populate('wishlist');
   }
 
- 
+  async findById(id: string): Promise<IUser | null> {
+    return this.model.findById(id);
+  }
+
+  async addAddress(userId: string, addressId: string): Promise<IUser | null> {
+    return this.model.findByIdAndUpdate(
+      userId,
+      { $push: { addresses: addressId } },
+      { new: true }
+    );
+  }
+
+  async removeAddress(userId: string, addressId: string): Promise<IUser | null> {
+    return this.model.findByIdAndUpdate(
+      userId,
+      { $pull: { addresses: addressId } },
+      { new: true }
+    );
+  }
+
 }
