@@ -1,5 +1,159 @@
 import nodemailer from "nodemailer";
 
+export const sendOrderConfirmationEmail = async (email: string, orderData: {
+  orderNumber: string;
+  items: Array<{ name: string; quantity: number; price: number; total: number }>;
+  total: number;
+  shippingAddress: { street: string; city: string; state: string; zipCode: string; country: string };
+  status: string;
+}): Promise<any> => {
+  try {
+    const transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS,
+      },
+    });
+
+    const isDev = process.env.DEV;
+    const frontendUrl = isDev ? 'http://localhost:3000' : 'https://bellescrt.shop';
+
+    const itemsHtml = orderData.items.map(item => `
+      <tr style="border-bottom: 1px solid #27232d;">
+        <td style="padding: 16px; color: #f5f2f8;">${item.name}</td>
+        <td style="padding: 16px; text-align: center; color: #a39fb3;">${item.quantity}</td>
+        <td style="padding: 16px; text-align: right; color: #f5f2f8;">₹${item.price.toFixed(2)}</td>
+        <td style="padding: 16px; text-align: right; color: #ff4da6; font-weight: 600;">₹${item.total.toFixed(2)}</td>
+      </tr>
+    `).join('');
+
+    const mailOptions = {
+      from: process.env.EMAIL_USER,
+      to: email,
+      subject: `Order Confirmation - ${orderData.orderNumber} - BellesCart`,
+      html: `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>Order Confirmation - BellesCart</title>
+        </head>
+        <body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #0b0b0d;">
+          <div style="max-width: 600px; margin: 40px auto; background: linear-gradient(135deg, #0b0b0d 0%, #16151b 100%); border-radius: 16px; overflow: hidden; box-shadow: 0 20px 40px rgba(0,0,0,0.3);">
+            
+            <!-- Header -->
+            <div style="background: linear-gradient(135deg, #ff4da6 0%, #ff66b3 100%); padding: 40px 30px; text-align: center;">
+              <div style="font-size: 32px; font-weight: 800; color: white; letter-spacing: -1px; margin-bottom: 8px;">BellesCart</div>
+              <div style="font-size: 14px; color: rgba(255,255,255,0.9); font-weight: 500;">Order Confirmation</div>
+            </div>
+            
+            <!-- Content -->
+            <div style="padding: 40px 30px;">
+              <div style="text-align: center; margin-bottom: 40px;">
+                <div style="width: 80px; height: 80px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px;">
+                  <svg width="40" height="40" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z" fill="white"/>
+                  </svg>
+                </div>
+                <h1 style="color: #f5f2f8; font-size: 24px; font-weight: 700; margin: 0 0 12px 0;">Order Confirmed!</h1>
+                <p style="color: #a39fb3; font-size: 16px; line-height: 1.6; margin: 0;">Thank you for your purchase. Your order has been successfully placed.</p>
+              </div>
+              
+              <!-- Order Number -->
+              <div style="background: #1f1d22; border: 2px solid #27232d; border-radius: 12px; padding: 20px; margin-bottom: 30px;">
+                <p style="color: #a39fb3; font-size: 14px; margin: 0 0 8px 0; text-transform: uppercase; letter-spacing: 1px;">Order Number</p>
+                <p style="color: #ff4da6; font-size: 24px; font-weight: 700; margin: 0; letter-spacing: 2px;">${orderData.orderNumber}</p>
+              </div>
+              
+              <!-- Order Items Table -->
+              <div style="background: #1f1d22; border: 1px solid #27232d; border-radius: 12px; overflow: hidden; margin-bottom: 30px;">
+                <table style="width: 100%; border-collapse: collapse;">
+                  <thead>
+                    <tr style="background: #27232d;">
+                      <th style="padding: 12px 16px; text-align: left; color: #a39fb3; font-size: 12px; text-transform: uppercase; letter-spacing: 1px;">Product</th>
+                      <th style="padding: 12px 16px; text-align: center; color: #a39fb3; font-size: 12px; text-transform: uppercase; letter-spacing: 1px;">Qty</th>
+                      <th style="padding: 12px 16px; text-align: right; color: #a39fb3; font-size: 12px; text-transform: uppercase; letter-spacing: 1px;">Price</th>
+                      <th style="padding: 12px 16px; text-align: right; color: #a39fb3; font-size: 12px; text-transform: uppercase; letter-spacing: 1px;">Total</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${itemsHtml}
+                  </tbody>
+                </table>
+              </div>
+              
+              <!-- Total -->
+              <div style="background: linear-gradient(135deg, #1f1d22 0%, #27232d 100%); border: 2px solid #ff4da6; border-radius: 12px; padding: 24px; margin-bottom: 30px;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                  <span style="color: #f5f2f8; font-size: 18px; font-weight: 600;">Total Amount</span>
+                  <span style="color: #ff4da6; font-size: 28px; font-weight: 700;">₹${orderData.total.toFixed(2)}</span>
+                </div>
+              </div>
+              
+              <!-- Shipping Address -->
+              <div style="background: #1f1d22; border: 1px solid #27232d; border-radius: 12px; padding: 20px; margin-bottom: 30px;">
+                <p style="color: #a39fb3; font-size: 14px; margin: 0 0 12px 0; text-transform: uppercase; letter-spacing: 1px;">Shipping Address</p>
+                <p style="color: #f5f2f8; font-size: 14px; line-height: 1.6; margin: 0;">
+                  ${orderData.shippingAddress.street}<br/>
+                  ${orderData.shippingAddress.city}, ${orderData.shippingAddress.state} ${orderData.shippingAddress.zipCode}<br/>
+                  ${orderData.shippingAddress.country}
+                </p>
+              </div>
+              
+              <!-- Status -->
+              <div style="background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 8px; padding: 16px; margin-bottom: 30px;">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                  <div style="width: 12px; height: 12px; background: #10b981; border-radius: 50%;"></div>
+                  <p style="color: #10b981; font-size: 14px; font-weight: 600; margin: 0;">Status: ${orderData.status.charAt(0).toUpperCase() + orderData.status.slice(1)}</p>
+                </div>
+              </div>
+              
+              <!-- Action Button -->
+              <div style="text-align: center; margin-bottom: 30px;">
+                <a href="${frontendUrl}/orders" style="display: inline-block; background: linear-gradient(135deg, #ff4da6 0%, #ff66b3 100%); color: white; padding: 16px 32px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px; transition: transform 0.2s; box-shadow: 0 4px 15px rgba(255, 77, 166, 0.3);">
+                  View Your Orders
+                </a>
+              </div>
+              
+              <!-- Info -->
+              <div style="text-align: center; margin-bottom: 30px;">
+                <p style="color: #a39fb3; font-size: 14px; line-height: 1.6; margin: 0;">
+                  You'll receive shipping updates via email once your order is processed.
+                </p>
+              </div>
+              
+              <!-- Footer -->
+              <div style="text-align: center; padding-top: 20px; border-top: 1px solid #27232d;">
+                <p style="color: #a39fb3; font-size: 14px; line-height: 1.6; margin: 0;">
+                  Need help? Contact our support team<br/>
+                  <span style="color: #ff4da6; font-weight: 600;">support@bellescrt.shop</span>
+                </p>
+              </div>
+            </div>
+            
+            <!-- Bottom Bar -->
+            <div style="background: #121117; padding: 20px 30px; text-align: center;">
+              <p style="color: #a39fb3; font-size: 12px; margin: 0;">
+                © 2024 BellesCart. All rights reserved.<br/>
+                <span style="color: #666;">Belles Avenue Premium Shopping</span>
+              </p>
+            </div>
+          </div>
+        </body>
+        </html>
+      `,
+    };
+
+    const result = await transporter.sendMail(mailOptions);
+    return result;
+  } catch (error) {
+    console.error('Error sending order confirmation email:', error);
+    throw error;
+  }
+};
+
 export const sendOtpEmail = async (email: string, otp: number): Promise<any> => {
   try {
     const transporter = nodemailer.createTransport({

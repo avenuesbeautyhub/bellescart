@@ -144,7 +144,12 @@ export default function ProductCard({
 
           {/* Badges */}
           <div className="absolute top-3 left-3 flex flex-col gap-2">
-            {discountPercent > 0 && (
+            {!product.quantity && (
+              <div className="bg-gradient-to-r from-red-600 to-red-700 text-white text-xs font-bold px-4 py-2 rounded-full shadow-lg animate-pulse">
+                OUT OF STOCK
+              </div>
+            )}
+            {discountPercent > 0 && product.quantity > 0 && (
               <div className="bg-gradient-to-r from-pink-500 to-rose-500 text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-lg">
                 -{discountPercent}% OFF
               </div>
@@ -171,15 +176,6 @@ export default function ProductCard({
               </svg>
             </button>
           </div>
-
-          {/* Out of Stock Overlay */}
-          {!product.quantity && (
-            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center">
-              <div className="text-center">
-                <span className="text-white font-bold text-lg">Out of Stock</span>
-              </div>
-            </div>
-          )}
         </div>
       </Link>
 
@@ -230,13 +226,15 @@ export default function ProductCard({
           onClick={() => handleAddToCart(product)}
           disabled={!product.quantity || !isLoggedIn}
           className={`w-full mt-4 py-3 rounded-xl font-semibold text-sm transition-all duration-200 ${!product.quantity || !isLoggedIn
-            ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+            ? !product.quantity 
+              ? 'bg-red-100 text-red-400 cursor-not-allowed border-2 border-red-200'
+              : 'bg-gray-100 text-gray-400 cursor-not-allowed'
             : isInCart
               ? 'bg-green-500 text-white hover:bg-green-600 hover:shadow-lg hover:shadow-green-500/25 transform hover:-translate-y-0.5'
               : 'bg-gradient-to-r from-pink-500 to-rose-500 text-white hover:from-pink-600 hover:to-rose-600 hover:shadow-lg hover:shadow-pink-500/25 transform hover:-translate-y-0.5'
             }`}
         >
-          {!isLoggedIn ? 'Login to Add' : isInCart ? `In Cart (${cartQuantity})` : 'Add to Cart'}
+          {!isLoggedIn ? 'Login to Add' : !product.quantity ? 'Out of Stock' : isInCart ? `In Cart (${cartQuantity})` : 'Add to Cart'}
         </button>
       </div>
     </div>

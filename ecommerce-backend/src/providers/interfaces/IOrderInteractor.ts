@@ -6,8 +6,16 @@ export interface IOrderInteractor {
     billingAddress?: IOrder['billingAddress'];
     paymentMethod: IOrder['paymentMethod'];
     notes?: string;
+    processShiprocket?: boolean;
+    shiprocketCourierId?: number;
+    calculatedShippingFee?: number;
   }): Promise<IOrder>;
   getOrders(userId: string, filters?: {
+    page?: number;
+    limit?: number;
+    status?: IOrder['status'];
+  }): Promise<{ orders: IOrder[]; pagination: any }>;
+  getAllOrders(filters?: {
     page?: number;
     limit?: number;
     status?: IOrder['status'];
@@ -16,6 +24,14 @@ export interface IOrderInteractor {
   updateOrderStatus(orderId: string, status: IOrder['status'], additionalData?: {
     trackingNumber?: string;
     estimatedDelivery?: Date;
+    shiprocket?: {
+      orderId?: string;
+      shipmentId?: string;
+      awb?: string;
+      courier?: string;
+      trackingStatus?: string;
+      expectedDelivery?: Date;
+    };
   }): Promise<IOrder | null>;
   cancelOrder(userId: string, orderId: string): Promise<IOrder | null>;
   getOrderByOrderNumber(orderNumber: string): Promise<IOrder | null>;
@@ -43,4 +59,12 @@ export interface IOrderInteractor {
     startDate?: Date;
     endDate?: Date;
   }): Promise<{ orders: IOrder[]; pagination: any }>;
+  retryShiprocketIntegration(orderId: string, courierId: number): Promise<{
+    success: boolean;
+    shiprocketOrderId?: string;
+    shipmentId?: string;
+    awb?: string;
+    courier?: string;
+    error?: string;
+  }>;
 }

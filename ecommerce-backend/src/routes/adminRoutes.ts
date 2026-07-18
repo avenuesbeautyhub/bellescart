@@ -9,11 +9,16 @@ import { ProductRepository } from '../repositories/ProductRepository';
 
 
 import { CategoryRepository } from '../repositories/CategoryRepository';
+import { OrderRepository } from '../repositories/OrderRepository';
+import { UserRepository } from '../repositories/UserRepository';
+import { CartRepository } from '../repositories/CartRepository';
 import { AdminInteractor } from '../interactors/AdminInteractor';
 import { ProductInteractor } from '../interactors/ProductInteractor';
 import { CategoryInteractor } from '../interactors/CategoryInteractor';
+import { OrderInteractor } from '../interactors/OrderInteractor';
 import { AdminController } from '../controllers/adminController';
 import { CategoryController } from '../controllers/CategoryController';
+import { OrderController } from '../controllers/orderController';
 import { authenticateAdmin } from '../middleware/auth';
 import { upload } from '../services/cloudinaryService';
 
@@ -23,15 +28,20 @@ const router = Router();
 const adminRepository = new AdminRepository();
 const productRepository = new ProductRepository();
 const categoryRepository = new CategoryRepository();
+const orderRepository = new OrderRepository();
+const userRepository = new UserRepository();
+const cartRepository = new CartRepository();
 
 // Creating instances for interactors
 const categoryInteractor = new CategoryInteractor(categoryRepository);
 const productInteractor = new ProductInteractor(productRepository, categoryInteractor);
+const orderInteractor = new OrderInteractor(orderRepository, cartRepository, productRepository, userRepository);
 const adminInteractor = new AdminInteractor(adminRepository, productInteractor, categoryInteractor);
 
 // Creating instances of controllers
-const controller = new AdminController(adminInteractor);
+const controller = new AdminController(adminInteractor, orderInteractor);
 const categoryController = new CategoryController(categoryInteractor);
+const orderController = new OrderController(orderInteractor, cartRepository);
 
 /**
  * @swagger
@@ -901,5 +911,266 @@ router.get('/categories/:id', authenticateAdmin, controller.getCategoryById.bind
  *         description: Category not found
  */
 router.delete('/categories/:id', authenticateAdmin, controller.deleteCategory.bind(controller));
+
+// Admin Order Management Routes
+/**
+ * @swagger
+ * /admin/orders:
+ *   get:
+ *     summary: Get all orders (admin only)
+ *     tags: [Admin Order Management]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *         description: Page number
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *         description: Number of orders per page
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *           enum: [pending, processing, shipped, delivered, cancelled]
+ *         description: Filter by order status
+ *       - in: query
+ *         name: search
+ *         schema:
+ *           type: string
+ *         description: Search orders by ID or customer email
+ *     responses:
+ *       200:
+ *         description: Orders retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     orders:
+ *                       type: array
+ *                       items:
+ *                         $ref: '#/components/schemas/Order'
+ *                     total:
+ *                       type: integer
+ *                     page:
+ *                       type: integer
+ *                     limit:
+ *                       type: integer
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden
+ */
+router.get('/orders', authenticateAdmin, controller.getAllOrders.bind(controller));
+
+/**
+ * @swagger
+ * /admin/orders/{id}:
+ *   get:
+ *     summary: Get order by ID (admin only)
+ *     tags: [Admin Order Management]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Order ID
+ *     responses:
+ *       200:
+ *         description: Order retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     order:
+ *                       $ref: '#/components/schemas/Order'
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden
+ *       404:
+ *         description: Order not found
+ */
+router.get('/orders/:id', authenticateAdmin, controller.getOrderById.bind(controller));
+
+/**
+ * @swagger
+ * /admin/orders/{id}/status:
+ *   put:
+ *     summary: Update order status (admin only)
+ *     tags: [Admin Order Management]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Order ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - status
+ *             properties:
+ *               status:
+ *                 type: string
+ *                 enum: [pending, processing, shipped, delivered, cancelled]
+ *                 description: New order status
+ *               trackingNumber:
+ *                 type: string
+ *                 description: Tracking number for shipment
+ *               estimatedDelivery:
+ *                 type: string
+ *                 format: date
+ *                 description: Estimated delivery date
+ *     responses:
+ *       200:
+ *         description: Order status updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     order:
+ *                       $ref: '#/components/schemas/Order'
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden
+ *       404:
+ *         description: Order not found
+ */
+router.put('/orders/:id/status', authenticateAdmin, controller.updateOrderStatus.bind(controller));
+
+/**
+ * @swagger
+ * /admin/orders/{id}/cancel:
+ *   put:
+ *     summary: Cancel order (admin only)
+ *     tags: [Admin Order Management]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Order ID
+ *     responses:
+ *       200:
+ *         description: Order cancelled successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     order:
+ *                       $ref: '#/components/schemas/Order'
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden
+ *       404:
+ *         description: Order not found
+ */
+router.put('/orders/:id/cancel', authenticateAdmin, controller.cancelOrder.bind(controller));
+
+/**
+ * @swagger
+ * /admin/users/{userId}/orders:
+ *   get:
+ *     summary: Get orders by user ID (admin only)
+ *     tags: [Admin Order Management]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: User ID
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *         description: Page number
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *         description: Number of orders per page
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *           enum: [pending, processing, shipped, delivered, cancelled]
+ *         description: Filter by order status
+ *     responses:
+ *       200:
+ *         description: User orders retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     orders:
+ *                       type: array
+ *                       items:
+ *                         $ref: '#/components/schemas/Order'
+ *                     total:
+ *                       type: integer
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden
+ *       404:
+ *         description: User not found
+ */
+router.get('/users/:userId/orders', authenticateAdmin, controller.getOrdersByUser.bind(controller));
 
 export default router;

@@ -14,14 +14,16 @@ export default function AdminAuthWrapper({ children }: AdminAuthWrapperProps) {
   const router = useRouter();
   const { user, isAuthenticated, loaded } = useRequireAdminAuth();
 
-  // Don't require auth for the login page (root admin page)
+  // Don't require auth for the login page (root admin page) and register page
   const isLoginPage = pathname === '/admin';
+  const isRegisterPage = pathname === '/admin/register';
+  const isAuthPage = isLoginPage || isRegisterPage;
 
   useEffect(() => {
     if (!loaded) return;
 
-    // If not authenticated and not on login page, redirect to login
-    if (!isAuthenticated && !isLoginPage) {
+    // If not authenticated and not on auth page, redirect to login
+    if (!isAuthenticated && !isAuthPage) {
       router.replace('/admin');
       return;
     }
@@ -31,7 +33,13 @@ export default function AdminAuthWrapper({ children }: AdminAuthWrapperProps) {
       router.replace('/admin/dashboard');
       return;
     }
-  }, [loaded, isAuthenticated, isLoginPage, router]);
+
+    // If authenticated and on register page, redirect to dashboard
+    if (isAuthenticated && isRegisterPage) {
+      router.replace('/admin/dashboard');
+      return;
+    }
+  }, [loaded, isAuthenticated, isLoginPage, isRegisterPage, router]);
 
   // Show loading state while checking authentication
   if (!loaded) {
@@ -42,8 +50,8 @@ export default function AdminAuthWrapper({ children }: AdminAuthWrapperProps) {
     );
   }
 
-  // If not authenticated and not on login page, show loading during redirect
-  if (!isAuthenticated && !isLoginPage) {
+  // If not authenticated and not on auth page, show loading during redirect
+  if (!isAuthenticated && !isAuthPage) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <p className="text-gray-600">Redirecting to admin login...</p>
@@ -60,8 +68,17 @@ export default function AdminAuthWrapper({ children }: AdminAuthWrapperProps) {
     );
   }
 
-  // On login page, don't show header, just render children
-  if (isLoginPage) {
+  // If authenticated and on register page, show loading during redirect
+  if (isAuthenticated && isRegisterPage) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <p className="text-gray-600">Redirecting to admin dashboard...</p>
+      </div>
+    );
+  }
+
+  // On auth pages (login/register), don't show header, just render children
+  if (isAuthPage) {
     return <>{children}</>;
   }
 

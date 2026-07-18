@@ -111,7 +111,7 @@ export class ProfileController {
         });
         return;
       }
-
+      
       if (!req.file) {
         res.status(400).json({
           success: false,
@@ -121,8 +121,8 @@ export class ProfileController {
       }
 
       // Upload to Cloudinary using the cloudinary service
-      const { uploadProductImage } = await import('../services/cloudinaryService');
-      const uploadedImage = await uploadProductImage(req);
+      const { uploadProfilePicture } = await import('../services/cloudinaryService');
+      const uploadedImage = await uploadProfilePicture(req);
 
       const user = await this._userInteractor.updateProfile(authReq.user._id.toString(), {
         avatar: uploadedImage.url
@@ -139,7 +139,7 @@ export class ProfileController {
       res.status(200).json({
         success: true,
         message: 'Profile picture uploaded successfully',
-        data: { user }
+        data: user
       });
     } catch (error) {
       next(error);

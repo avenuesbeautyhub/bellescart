@@ -30,11 +30,11 @@ export const authenticate = async (
 
     const decoded = verifyToken(token);
 
-    console.log('decoded', decoded);
+    // console.log('decoded', decoded);
 
     const user = await User.findById(decoded.id).select('-password');
 
-    console.log('user after verification in auth middleware', user);
+    // console.log('user after verification in auth middleware', user);
 
     if (!user) {
       res.status(401).json({
@@ -49,7 +49,7 @@ export const authenticate = async (
     next();
   } catch (error: any) {
 
-    console.log('jwt erorr name is ',error.name);
+    // console.log('jwt erorr name is ',error.name);
     
 
     // Check if token is expired vs invalid

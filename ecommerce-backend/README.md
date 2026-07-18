@@ -9,6 +9,7 @@ A comprehensive, scalable e-commerce backend built with Node.js, Express, TypeSc
 - **Product Catalog**: Product CRUD, categories, search, filtering, inventory management
 - **Shopping Cart**: Add/remove items, quantity management, coupon support
 - **Order Management**: Order processing, status tracking, payment integration ready
+- **Shipping Integration**: Shiprocket API integration for shipping rates, courier assignment, and order tracking
 - **Admin Features**: Product management, order management, analytics dashboard
 
 ### Technical Features
@@ -87,6 +88,12 @@ src/
    # Razorpay Configuration
    RAZORPAY_KEY_ID=your-razorpay-key-id
    RAZORPAY_KEY_SECRET=your-razorpay-key-secret
+
+   # Shiprocket Configuration
+   SHIPROCKET_BASE_URL=https://apiv2.shiprocket.in/v1/external
+   SHIPROCKET_EMAIL=your-shiprocket-email@example.com
+   SHIPROCKET_PASSWORD=your-shiprocket-password
+   SHIPROCKET_PICKUP_PINCODE=691305
    ```
 
 ### Running the Application
@@ -141,6 +148,10 @@ Once the server is running, visit:
 - `GET /api/orders/:id` - Get order by ID
 - `PUT /api/orders/:id/cancel` - Cancel order
 - `PUT /api/orders/:id/status` - Update order status (admin only)
+- `POST /api/orders/shipping/calculate` - Calculate shipping rates (weight auto-calculated from cart)
+- `POST /api/orders/shiprocket/process` - Process complete Shiprocket order flow
+- `GET /api/orders/track/:awb` - Track order by AWB number
+- `GET /api/orders/:id/track` - Track order by order ID
 
 ## Architecture Patterns
 
@@ -155,6 +166,8 @@ Business logic is encapsulated in service classes:
 - `ProductService`: Product catalog operations
 - `CartService`: Shopping cart operations
 - `OrderService`: Order processing and management
+- `ShiprocketService`: Shipping integration with Shiprocket API
+- `PaymentService`: Payment processing with Razorpay
 
 ### Controllers
 Controllers handle HTTP requests and responses:
@@ -162,6 +175,46 @@ Controllers handle HTTP requests and responses:
 - Call appropriate service methods
 - Format responses
 - Handle errors
+
+## Shiprocket Integration
+
+The backend includes comprehensive Shiprocket API integration for shipping management:
+
+### Features
+- **Authentication**: Automatic token management with 10-day refresh cycle
+- **Shipping Rate Calculation**: Get real-time courier rates and delivery estimates
+- **Order Creation**: Create orders in Shiprocket system after payment success
+- **Courier Assignment**: Assign couriers and generate AWB numbers
+- **Pickup Scheduling**: Schedule courier pickups automatically
+- **Order Tracking**: Real-time shipment tracking with status updates
+
+### Pickup Location
+- **Belles Avenue Fashion Hub**
+- **Post Office Junction**
+- **Pincode**: 691305 (default)
+
+### Integration Flow
+1. **Calculate Shipping**: User enters delivery pincode, system calculates shipping rates
+2. **Select Courier**: User selects courier from available options
+3. **Create Order**: Order is created with calculated shipping fee
+4. **Process Shiprocket**: Complete flow creates order, assigns courier, schedules pickup
+5. **Track Shipments**: Provide real-time tracking to customers
+
+### Database Schema
+Orders now include Shiprocket fields:
+```typescript
+shiprocket?: {
+  orderId?: string;        // Shiprocket order ID
+  shipmentId?: string;     // Shipment ID
+  awb?: string;           // Air Way Bill number
+  courier?: string;       // Courier name
+  trackingStatus?: string; // Current tracking status
+  expectedDelivery?: Date; // Expected delivery date
+}
+```
+
+### Setup Instructions
+See `SHIPROCKET_SETUP.md` for detailed setup instructions and API examples.
 
 ## Security Features
 

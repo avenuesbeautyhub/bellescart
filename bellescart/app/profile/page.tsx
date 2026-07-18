@@ -21,7 +21,7 @@ export default function ProfilePage() {
   const [isEditing, setIsEditing] = useState(false);
   const [profilePic, setProfilePic] = useState('');
   const [showAddAddress, setShowAddAddress] = useState(false);
-  console.log('user', user);
+  // console.log('user', user);
 
   const [profile, setProfile] = useState<UserProfile>({
     id: '',
@@ -159,6 +159,10 @@ export default function ProfilePage() {
   };
 
   const handleDeleteAddress = async (addressId: string) => {
+    if (!confirm('Are you sure you want to delete this address?')) {
+      return;
+    }
+
     setIsUpdatingProfile(true);
     try {
       const response = await profileService.deleteAddress(addressId);

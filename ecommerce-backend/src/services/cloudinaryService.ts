@@ -121,3 +121,37 @@ export const deleteImage = async (publicId: string): Promise<void> => {
     throw new Error(`Failed to delete image: ${error}`);
   }
 };
+
+export const uploadProfilePicture = async (req: Request): Promise<UploadedImage> => {
+  const file = req.file as Express.Multer.File;
+  if (!file) {
+    throw new Error('No file uploaded');
+  }
+
+  return new Promise((resolve, reject) => {
+    cloudinaryConfig.uploader.upload_stream(
+      {
+        resource_type: 'auto',
+        folder: 'bellescart/profiles',
+        public_id: `${Date.now()}-${file.originalname}`,
+      },
+      (error, result) => {
+        if (error) {
+          return reject(error);
+        }
+
+        if (!result) {
+          return reject(new Error('Upload failed'));
+        }
+
+        resolve({
+          url: result.secure_url,
+          publicId: result.public_id,
+          originalName: file.originalname,
+          size: file.size,
+          mimeType: file.mimetype,
+        });
+      }
+    ).end(file.buffer);
+  });
+};

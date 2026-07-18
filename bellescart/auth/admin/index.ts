@@ -99,9 +99,9 @@ export const useRequireAdminAuth = () => {
 
   useEffect(() => {
     if (loaded && !isAuthenticated && typeof window !== 'undefined') {
-      // Check if we're on login page to avoid redirect loop
+      // Check if we're on login or register page to avoid redirect loop
       const currentPath = window.location.pathname;
-      if (currentPath !== '/admin') {
+      if (currentPath !== '/admin' && currentPath !== '/admin/register') {
         window.location.replace('/admin');
       }
     }

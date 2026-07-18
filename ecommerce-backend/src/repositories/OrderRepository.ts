@@ -30,6 +30,10 @@ export class OrderRepository extends BaseRepository<IOrder> implements IOrderRep
     return this.find({ status }, options);
   }
 
+  async findAll(options?: { limit?: number; skip?: number; sort?: any }): Promise<IOrder[]> {
+    return this.model.find({}, null, options).populate('user').populate('items.product');
+  }
+
   async updateStatus(orderId: string, status: IOrder['status'], additionalData?: any): Promise<IOrder | null> {
     const updateData: any = { status };
 

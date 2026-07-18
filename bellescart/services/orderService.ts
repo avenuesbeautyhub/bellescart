@@ -22,6 +22,10 @@ export interface CreateOrderRequest {
   paymentMethod: 'credit_card' | 'debit_card' | 'paypal' | 'razorpay' | 'cash_on_delivery';
   notes?: string;
   paymentId?: string;
+  calculatedShippingFee?: number;
+  processShiprocket?: boolean;
+  shiprocketCourierId?: number;
+  shiprocketAllRates?: any[];
 }
 
 export interface OrderResponse {
@@ -97,6 +101,73 @@ export const orderService = {
       return data;
     } catch (error) {
       console.error('Error cancelling order:', error);
+      throw error;
+    }
+  },
+
+  // Calculate shipping rates
+  calculateShipping: async (request: {
+    delivery_postcode: string;
+    cod?: number;
+  }): Promise<any> => {
+    try {
+      const response = await apiPost('/orders/shipping/calculate', request);
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error('Error calculating shipping:', error);
+      throw error;
+    }
+  },
+
+  // Update order status (admin only)
+  updateOrderStatus: async (orderId: string, status: string): Promise<OrderResponse> => {
+    try {
+      const response = await apiPut(`/orders/${orderId}/status`, { status });
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error('Error updating order status:', error);
+      throw error;
+    }
+  },
+
+  // Process Shiprocket order
+  processShiprocketOrder: async (request: {
+    orderId: string;
+    orderData: any;
+    courierId: number;
+  }): Promise<any> => {
+    try {
+      const response = await apiPost('/orders/shiprocket/process', request);
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error('Error processing Shiprocket order:', error);
+      throw error;
+    }
+  },
+
+  // Track order by AWB number
+  trackOrder: async (awb: string): Promise<any> => {
+    try {
+      const response = await apiGet(`/orders/track/${awb}`);
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error('Error tracking order:', error);
+      throw error;
+    }
+  },
+
+  // Track order by order ID
+  trackOrderByOrderId: async (orderId: string): Promise<any> => {
+    try {
+      const response = await apiGet(`/orders/${orderId}/track`);
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error('Error tracking order by ID:', error);
       throw error;
     }
   },

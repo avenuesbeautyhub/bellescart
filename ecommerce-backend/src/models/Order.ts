@@ -41,6 +41,14 @@ export interface IOrder extends Document {
   trackingNumber?: string;
   estimatedDelivery?: Date;
   actualDelivery?: Date;
+  shiprocket?: {
+    orderId?: string;
+    shipmentId?: string;
+    awb?: string;
+    courier?: string;
+    trackingStatus?: string;
+    expectedDelivery?: Date;
+  };
   createdAt: Date;
   updatedAt: Date;
 }
@@ -160,7 +168,15 @@ const orderSchema = new Schema<IOrder>({
   },
   trackingNumber: String,
   estimatedDelivery: Date,
-  actualDelivery: Date
+  actualDelivery: Date,
+  shiprocket: {
+    orderId: String,
+    shipmentId: String,
+    awb: String,
+    courier: String,
+    trackingStatus: String,
+    expectedDelivery: Date
+  }
 }, {
   timestamps: true
 });

@@ -1,7 +1,7 @@
 import { ApiResponse, UserProfile, Address } from '@/types/auth';
 import { appConfig, isMockMode } from '@/config/appConfig';
 import { ProfileMockService } from './mock/profileMockService';
-import { apiGet, apiPut, apiPost, apiDelete } from './apiInterceptor';
+import { apiGet, apiPut, apiPost, apiDelete, apiFetch } from './apiInterceptor';
 import { globalToast } from '@/utils/globalToast';
 
 const API_BASE_URL = appConfig.apiBaseUrl;
@@ -131,10 +131,13 @@ class ProfileService {
       const formData = new FormData();
       formData.append('file', file);
 
+      const token = localStorage.getItem('bellescart_token');
+
       const response = await fetch(`${API_BASE_URL}/profile/profile-picture`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          ...(token && { 'Authorization': `Bearer ${token}` }),
+          // Don't set Content-Type - let browser set it with boundary for FormData
         },
         body: formData,
       });

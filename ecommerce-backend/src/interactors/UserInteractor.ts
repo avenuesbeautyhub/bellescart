@@ -141,6 +141,9 @@ export class UserInteractor implements IUserInteractor {
     const user = await this._userRepository.updateProfile(userId, updateData);
     if (!user) return null;
 
+    // Fetch all addresses for the user to ensure consistency
+    const addresses = await this._addressRepository.findByUserId(userId);
+
     return {
       id: user._id,
       name: user.name,
@@ -148,7 +151,7 @@ export class UserInteractor implements IUserInteractor {
       role: user.role,
       avatar: user.avatar,
       phone: user.phone,
-      addresses: user.addresses,
+      addresses: addresses as any,
     };
   }
 

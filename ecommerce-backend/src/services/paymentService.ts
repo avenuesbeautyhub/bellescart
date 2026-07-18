@@ -131,6 +131,33 @@ export class PaymentService {
       };
     }
   }
+
+  async refundPayment(paymentId: string, amount?: number): Promise<PaymentIntentResponse> {
+    try {
+      const refundData: any = {
+        payment_id: paymentId,
+      };
+
+      if (amount) {
+        refundData.amount = Math.round(amount * 100); // Razorpay expects amount in paise
+      }
+
+      const refund = await razorpay.payments.refund(paymentId, refundData);
+
+      console.log('💰 Refund processed successfully:', refund.id);
+
+      return {
+        success: true,
+        orderId: refund.id,
+      };
+    } catch (error: any) {
+      console.error('Error processing refund:', error);
+      return {
+        success: false,
+        error: error.message || 'Failed to process refund',
+      };
+    }
+  }
 }
 
 export const paymentService = new PaymentService();
