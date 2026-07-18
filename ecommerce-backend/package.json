@@ -6,7 +6,7 @@
   "scripts": {
     "start": "nodemon --exec ts-node src/server.ts",
     "build": "tsc",
-    "dev": "ts-node src/server.ts",
+    "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
     "prod": "node dist/server.js"
   },
   "devDependencies": {
@@ -31,6 +31,7 @@
     "nodemon": "^3.1.0",
     "swagger-autogen": "^2.23.7",
     "ts-node": "^10.9.2",
+    "ts-node-dev": "^2.0.0",
     "typescript": "^5.4.5",
     "typescript-eslint": "7.6.0"
   },
@@ -38,6 +39,7 @@
     "@aws-sdk/client-s3": "^3.583.0",
     "@aws-sdk/lib-storage": "^3.583.0",
     "aws-sdk": "^1.18.0",
+    "axios": "^1.18.1",
     "bcryptjs": "^2.4.3",
     "cloudinary": "^1.41.3",
     "cors": "^2.8.5",
@@ -54,7 +56,7 @@
     "nodemailer": "^8.0.5",
     "passport": "^0.7.0",
     "passport-google-oauth20": "^2.0.0",
-    "stripe": "^15.1.0",
+    "razorpay": "^2.9.6",
     "swagger-jsdoc": "^6.2.8",
     "swagger-ui-express": "^5.0.1",
     "validator": "^13.11.0"

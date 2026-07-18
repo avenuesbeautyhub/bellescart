@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { User } from '@/utils/types';
 import { UserProfile } from '@/types/auth';
+import { authService } from '@/services/authService';
 
 // User authentication keys - only tokens needed
 const AUTH_TOKEN_KEY = 'bellescart_token';
@@ -81,14 +82,30 @@ export const useAuth = () => {
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
-    const updateAuthState = () => {
+    const updateAuthState = async () => {
       const token = getUserToken();
       const refreshToken = getUserRefreshToken();
 
-      // User data will be fetched from API when needed
-      // For now, we don't have user data without an API call
+      // Fetch current user data if we have a token
+      if (token) {
+        try {
+          const response = await authService.getCurrentUser();
+          if (response.success && response.data) {
+            setUser(response.data as User);
+          } else {
+            // If token is invalid, clear it
+            setUser(null);
+          }
+        } catch (error) {
+          console.error('Failed to fetch current user:', error);
+          setUser(null);
+        }
+      } else {
+        // No token, clear user
+        setUser(null);
+      }
 
-      // Only set loaded to true after checking tokens
+      // Only set loaded to true after checking tokens and fetching user
       setLoaded(true);
     };
 
@@ -99,12 +116,17 @@ export const useAuth = () => {
       updateAuthState();
     };
 
+    // Listen for auth state changes (login/logout)
+    const handleAuthStateChange = () => {
+      updateAuthState();
+    };
+
     window.addEventListener('storage', handleStorageChange);
-    window.addEventListener('auth-state-changed', handleStorageChange);
+    window.addEventListener('auth-state-changed', handleAuthStateChange);
 
     return () => {
       window.removeEventListener('storage', handleStorageChange);
-      window.removeEventListener('auth-state-changed', handleStorageChange);
+      window.removeEventListener('auth-state-changed', handleAuthStateChange);
     };
   }, []);
 
@@ -124,11 +146,10 @@ export const useAuth = () => {
 };
 
 export const useAuthActions = () => {
-  const { user, loaded, isAuthenticated } = useUserAuth();
+  const { user, loaded, isAuthenticated } = useAuth();
 
   const login = async (credentials: { email: string; password: string }) => {
     try {
-      const { authService } = await import('@/services/authService');
       const response = await authService.login(credentials);
 
       if (response.success && response.data?.user && response.data?.token) {
@@ -156,7 +177,6 @@ export const useAuthActions = () => {
     phone: string;
   }) => {
     try {
-      const { authService } = await import('@/services/authService');
       const response = await authService.signup(data);
       return response;
     } catch (error) {
@@ -167,7 +187,6 @@ export const useAuthActions = () => {
 
   const verifyOtp = async (data: { email: string; otp: string }) => {
     try {
-      const { authService } = await import('@/services/authService');
       const response = await authService.verifyOtp(data);
 
       if (response.success && response.data?.user && response.data?.token) {
@@ -188,7 +207,6 @@ export const useAuthActions = () => {
 
   const resendOtp = async (data: { email: string }) => {
     try {
-      const { authService } = await import('@/services/authService');
       const response = await authService.resendOtp(data);
       return response;
     } catch (error) {

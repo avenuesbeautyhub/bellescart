@@ -8,21 +8,35 @@ import Footer from '@/components/Footer/Footer';
 import ProductGrid from '@/components/ProductGrid/ProductGrid';
 import Button from '@/components/ui/Button';
 import Loader from '@/components/ui/Loader';
-import { mockProducts } from '@/utils/mockData';
+import { wishlistService } from '@/services/wishlistService';
+import { globalToast } from '@/utils/globalToast';
 
 export default function WishlistPage() {
   const { loaded, isAuthenticated } = useRequireUserAuth();
-  const [isLoading, setIsLoading] = useState(false);
-  const [wishlistItems] = useState(mockProducts.slice(0, 4));
+  const [isLoading, setIsLoading] = useState(true);
+  const [wishlistItems, setWishlistItems] = useState<any[]>([]);
 
-  // Simulate loading wishlist
+  // Load wishlist when authenticated
   useEffect(() => {
-    setIsLoading(true);
-    const timer = setTimeout(() => {
+    if (loaded && isAuthenticated) {
+      loadWishlist();
+    }
+  }, [loaded, isAuthenticated]);
+
+  const loadWishlist = async () => {
+    try {
+      setIsLoading(true);
+      const response = await wishlistService.getWishlist();
+      if (response.success && response.data?.wishlist) {
+        setWishlistItems(response.data.wishlist);
+      }
+    } catch (error) {
+      console.error('Failed to load wishlist:', error);
+      globalToast.general.error('Error', 'Failed to load wishlist');
+    } finally {
       setIsLoading(false);
-    }, 600); // Simulate API delay
-    return () => clearTimeout(timer);
-  }, []);
+    }
+  };
 
   // Show loader while checking authentication
   if (!loaded) {
@@ -31,18 +45,15 @@ export default function WishlistPage() {
 
   if (!isAuthenticated) return null;
 
+  if (isLoading) {
+    return <Loader size="lg" text="Loading wishlist..." fullScreen />;
+  }
+
   return (
     <div className="min-h-screen flex flex-col">
       <Navbar />
 
       <main className="flex-1">
-        {/* Loading Overlay */}
-        {isLoading && (
-          <div className="fixed inset-0 bg-white bg-opacity-90 flex items-center justify-center z-50">
-            <Loader size="lg" text="Loading wishlist..." />
-          </div>
-        )}
-
         <div className="max-w-7xl mx-auto px-4 py-12">
           <h1 className="text-3xl font-bold text-gray-800 mb-8">My Wishlist</h1>
 

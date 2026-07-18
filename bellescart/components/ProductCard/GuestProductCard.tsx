@@ -1,0 +1,150 @@
+'use client';
+
+import React from 'react';
+import Image from 'next/image';
+import Link from 'next/link';
+import { Product, ProductImage, ProductCategory } from '@/utils/types';
+import Button from '@/components/ui/Button';
+import Badge from '@/components/ui/Badge';
+import Rating from '@/components/ui/Rating';
+
+interface GuestProductCardProps {
+  product: Product;
+  onAddToCart?: (product: Product) => void;
+  onAddToWishlist?: (product: Product) => void;
+}
+
+export default function GuestProductCard({
+  product,
+  onAddToCart,
+  onAddToWishlist,
+}: GuestProductCardProps) {
+  const discountPercent = product.originalPrice
+    ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)
+    : 0;
+
+  // Get the main image URL from the images array
+  const mainImage = product.images?.find((img: ProductImage) => img.isMain)?.url || product.images?.[0]?.url || '';
+
+  return (
+    <div className="group bg-white rounded-2xl shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden border border-gray-100">
+      <Link href={`/product/guest/${product._id}`}>
+        <div className="relative aspect-[4/5] bg-gradient-to-br from-gray-50 to-gray-100 overflow-hidden cursor-pointer">
+          {mainImage ? (
+            <Image
+              src={mainImage}
+              alt={product.name}
+              fill
+              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw"
+              className="object-cover group-hover:scale-105 transition-transform duration-500"
+            />
+          ) : (
+            <div className="absolute inset-0 flex items-center justify-center bg-gray-100">
+              <span className="text-gray-400 text-sm">No Image</span>
+            </div>
+          )}
+
+          {/* Badges */}
+          <div className="absolute top-3 left-3 flex flex-col gap-2">
+            {!product.quantity && (
+              <div className="bg-gradient-to-r from-red-600 to-red-700 text-white text-xs font-bold px-4 py-2 rounded-full shadow-lg animate-pulse">
+                OUT OF STOCK
+              </div>
+            )}
+            {discountPercent > 0 && product.quantity > 0 && (
+              <div className="bg-gradient-to-r from-pink-500 to-rose-500 text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-lg">
+                -{discountPercent}% OFF
+              </div>
+            )}
+            {product.quantity <= 5 && product.quantity > 0 && (
+              <div className="bg-amber-500 text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-lg">
+                Only {product.quantity} left
+              </div>
+            )}
+          </div>
+
+          {/* Quick Actions Overlay */}
+          <div className="absolute top-3 right-3 flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+            <button
+              onClick={() => window.location.href = '/login'}
+              className="w-10 h-10 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center hover:bg-pink-500 hover:text-white transition-colors duration-200 shadow-lg"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+              </svg>
+            </button>
+          </div>
+
+          {/* Out of Stock Overlay */}
+          {!product.quantity && (
+            <div className="absolute inset-0 bg-black/70 backdrop-blur-md flex items-center justify-center z-10">
+              <div className="text-center px-6">
+                <svg className="w-12 h-12 text-white mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
+                </svg>
+                <span className="text-white font-bold text-xl">Out of Stock</span>
+                <p className="text-white/80 text-sm mt-2">Currently unavailable</p>
+              </div>
+            </div>
+          )}
+        </div>
+      </Link>
+
+      <div className="p-5">
+        {/* Category */}
+        {product.category && (
+          <p className="text-xs font-medium text-pink-500 uppercase tracking-wider mb-2">
+            {product.category.name}
+          </p>
+        )}
+
+        {/* Product Name */}
+        <Link href={`/product/guest/${product._id}`}>
+          <h3 className="text-base font-semibold text-gray-900 hover:text-pink-500 transition-colors duration-200 line-clamp-2 min-h-[48px]">
+            {product.name}
+          </h3>
+        </Link>
+
+        {/* Rating */}
+        <div className="flex items-center gap-1 mt-2">
+          <div className="flex">
+            {[...Array(5)].map((_, i) => (
+              <svg
+                key={i}
+                className={`w-4 h-4 ${i < (product.rating || 4) ? 'text-amber-400' : 'text-gray-200'}`}
+                fill="currentColor"
+                viewBox="0 0 20 20"
+              >
+                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+              </svg>
+            ))}
+          </div>
+          <span className="text-xs text-gray-500 ml-1">({product.reviews || 12})</span>
+        </div>
+
+        {/* Price */}
+        <div className="flex items-center gap-2 mt-3">
+          <span className="text-2xl font-bold text-gray-900">₹{product.price}</span>
+          {product.originalPrice && (
+            <span className="text-sm text-gray-400 line-through">
+              ₹{product.originalPrice}
+            </span>
+          )}
+        </div>
+
+        {/* Add to Cart Button */}
+        <Link href="/login" className="block mt-4">
+          <button
+            disabled={!product.quantity}
+            className={`w-full py-3 rounded-xl font-semibold text-sm transition-all duration-200 ${!product.quantity
+              ? 'bg-red-100 text-red-400 cursor-not-allowed border-2 border-red-200'
+              : 'bg-gradient-to-r from-pink-500 to-rose-500 text-white hover:from-pink-600 hover:to-rose-600 hover:shadow-lg hover:shadow-pink-500/25 transform hover:-translate-y-0.5'
+              }`}
+          >
+            {!product.quantity ? 'Out of Stock' : 'Login to Add'}
+          </button>
+        </Link>
+      </div>
+    </div>
+  );
+}

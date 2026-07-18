@@ -9,6 +9,8 @@ export interface IUser extends Document {
   avatar?: string;
   phone?: string;
   isActive: boolean;
+  wishlist?: mongoose.Types.ObjectId[];
+  addresses?: mongoose.Types.ObjectId[];
   createdAt: Date;
   comparePassword(candidatePassword: string): Promise<boolean>;
 }
@@ -63,6 +65,14 @@ const userSchema = new Schema<IUser>({
     type: String,
     match: [/^\+?[\d\s-()]+$/, 'Please provide a valid phone number']
   },
+  wishlist: [{
+    type: Schema.Types.ObjectId,
+    ref: 'Product'
+  }],
+  addresses: [{
+    type: Schema.Types.ObjectId,
+    ref: 'Address'
+  }],
   isActive: {
     type: Boolean,
     default: true

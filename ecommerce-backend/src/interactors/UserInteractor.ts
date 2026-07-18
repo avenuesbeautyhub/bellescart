@@ -3,15 +3,19 @@ import { IUserRepository } from '../providers/interfaces/IUserRepository';
 import { IOtpRepository } from '../providers/interfaces/IOtpRepository';
 import { generateToken, generateRefreshToken, verifyToken } from '../utils/jwt';
 import { IUser } from '../models/User';
+import { IAddress } from '../models/Address';
 import { sendOtpEmail } from '../utils/emailService';
+import { AddressRepository } from '../repositories/AddressRepository';
 
 export class UserInteractor implements IUserInteractor {
   private _userRepository: IUserRepository;
   private _otpRepository: IOtpRepository;
+  private _addressRepository: AddressRepository;
 
   constructor(userRepository: IUserRepository, otpRepository: IOtpRepository) {
     this._userRepository = userRepository;
     this._otpRepository = otpRepository;
+    this._addressRepository = new AddressRepository();
   }
 
   async register(userData: {
@@ -111,8 +115,11 @@ export class UserInteractor implements IUserInteractor {
   }
 
   async getProfile(userId: string): Promise<Partial<IUser> | null> {
-    const user = await this._userRepository.getWishlist(userId);
+    const user = await this._userRepository.findById(userId);
     if (!user) return null;
+
+    // Fetch all addresses for the user
+    const addresses = await this._addressRepository.findByUserId(userId);
 
     return {
       id: user._id,
@@ -121,15 +128,21 @@ export class UserInteractor implements IUserInteractor {
       role: user.role,
       avatar: user.avatar,
       phone: user.phone,
+      addresses: addresses as any,
     };
   }
 
   async updateProfile(userId: string, updateData: {
     name?: string;
     phone?: string;
+    addresses?: any[];
+    avatar?: string;
   }): Promise<Partial<IUser> | null> {
     const user = await this._userRepository.updateProfile(userId, updateData);
     if (!user) return null;
+
+    // Fetch all addresses for the user to ensure consistency
+    const addresses = await this._addressRepository.findByUserId(userId);
 
     return {
       id: user._id,
@@ -138,6 +151,7 @@ export class UserInteractor implements IUserInteractor {
       role: user.role,
       avatar: user.avatar,
       phone: user.phone,
+      addresses: addresses as any,
     };
   }
 
@@ -174,28 +188,119 @@ export class UserInteractor implements IUserInteractor {
     await this._userRepository.removeFromWishlist(userId, productId);
   }
 
-  async addAddress(userId: string, address: string[]): Promise<void> {
-    // TODO: Implement address addition logic
-    // For now, we'll just log the action
-    console.log(`Adding address for user ${userId}:`, address);
+  async getWishlist(userId: string): Promise<Partial<IUser> | null> {
+    const user = await this._userRepository.getWishlist(userId);
+    if (!user) return null;
+
+    return {
+      id: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      avatar: user.avatar,
+      phone: user.phone,
+      wishlist: user.wishlist
+    };
   }
 
-  async updateAddress(userId: string, addressIndex: number, address: string[]): Promise<void> {
-    // TODO: Implement address update logic
-    // For now, we'll just log the action
-    console.log(`Updating address at index ${addressIndex} for user ${userId}:`, address);
+  async addAddress(userId: string, address: any): Promise<Partial<IUser> | null> {
+    // Check if the same address already exists for the user
+    const existingAddresses = await this._addressRepository.findByUserId(userId);
+    const isDuplicate = existingAddresses.some((existingAddress: any) =>
+      existingAddress.address === address.address &&
+      existingAddress.city === address.city &&
+      existingAddress.state === address.state &&
+      existingAddress.zipCode === address.zipCode &&
+      existingAddress.country === address.country
+    );
+
+    if (isDuplicate) {
+      throw new Error('This address already exists in your saved addresses');
+    }
+
+    // Create the address in the Address collection
+    const newAddress = await this._addressRepository.createForUser(userId, address);
+
+    // Add the address ID to the user's addresses array
+    const user = await this._userRepository.addAddress(userId, newAddress._id.toString());
+    if (!user) return null;
+
+    // Fetch all addresses for the user
+    const addresses = await this._addressRepository.findByUserId(userId);
+
+    return {
+      id: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      avatar: user.avatar,
+      phone: user.phone,
+      addresses: addresses as any,
+    };
   }
 
-  async removeAddress(userId: string, addressIndex: number): Promise<void> {
-    // TODO: Implement address removal logic
-    // For now, we'll just log the action
-    console.log(`Removing address at index ${addressIndex} for user ${userId}`);
+  async updateAddress(userId: string, addressId: string, address: any): Promise<Partial<IUser> | null> {
+    // Update the address in the Address collection
+    await this._addressRepository.updateAddress(addressId, address);
+
+    // Fetch all addresses for the user
+    const addresses = await this._addressRepository.findByUserId(userId);
+    const user = await this._userRepository.findById(userId);
+
+    if (!user) return null;
+
+    return {
+      id: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      avatar: user.avatar,
+      phone: user.phone,
+      addresses: addresses as any,
+    };
   }
 
-  async setDefaultAddress(userId: string, addressIndex: number): Promise<void> {
-    // TODO: Implement default address setting logic
-    // For now, we'll just log the action
-    console.log(`Setting address at index ${addressIndex} as default for user ${userId}`);
+  async removeAddress(userId: string, addressId: string): Promise<Partial<IUser> | null> {
+    // Delete the address from the Address collection
+    await this._addressRepository.deleteAddress(addressId);
+
+    // Remove the address ID from the user's addresses array
+    const user = await this._userRepository.removeAddress(userId, addressId);
+    if (!user) return null;
+
+    // Fetch all addresses for the user
+    const addresses = await this._addressRepository.findByUserId(userId);
+
+    return {
+      id: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      avatar: user.avatar,
+      phone: user.phone,
+      addresses: addresses as any,
+    };
+  }
+
+  async setDefaultAddress(userId: string, addressId: string): Promise<Partial<IUser> | null> {
+    // Set the address as default in the Address collection
+    await this._addressRepository.setDefaultAddress(userId, addressId);
+
+    // Fetch all addresses for the user
+    const addresses = await this._addressRepository.findByUserId(userId);
+    const user = await this._userRepository.findById(userId);
+
+    if (!user) return null;
+
+    return {
+      id: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      avatar: user.avatar,
+      phone: user.phone,
+      addresses: addresses as any,
+    };
   }
 
   async findByEmail(email: string): Promise<Partial<IUser> | null> {

@@ -52,7 +52,7 @@ export class ProductRepository extends BaseRepository<IProduct> implements IProd
   async updateQuantity(productId: string, quantity: number): Promise<IProduct | null> {
     return this.model.findByIdAndUpdate(
       productId,
-      { $set: { quantity: Math.max(1, quantity) } },
+      { $inc: { quantity: -quantity } },
       { new: true }
     );
   }

@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { OrderRepository } from '../repositories/OrderRepository';
 import { CartRepository } from '../repositories/CartRepository';
 import { ProductRepository } from '../repositories/ProductRepository';
+import { UserRepository } from '../repositories/UserRepository';
 import { OrderInteractor } from '../interactors/OrderInteractor';
 import { OrderController } from '../controllers/orderController';
 import { authenticate, authorize } from '../middleware/auth';
@@ -14,12 +15,14 @@ const orderRepository = new OrderRepository();
 const cartRepository = new CartRepository();
 // Creating a new instance of ProductRepository to handle data access operations for the Product entity.
 const productRepository = new ProductRepository();
+// Creating a new instance of UserRepository to handle data access operations for the User entity.
+const userRepository = new UserRepository();
 // Creating a new instance of OrderInteractor to contain application-specific business logic and orchestrate data flow.
-// OrderRepository, CartRepository, and ProductRepository instances are injected into OrderInteractor for database interaction.
-const interactor = new OrderInteractor(orderRepository, cartRepository, productRepository);
+// OrderRepository, CartRepository, ProductRepository, and UserRepository instances are injected into OrderInteractor for database interaction.
+const interactor = new OrderInteractor(orderRepository, cartRepository, productRepository, userRepository);
 // Creating a new instance of OrderController to handle incoming HTTP requests related to order operations.
-// OrderInteractor instance is injected into OrderController to delegate business logic execution.
-const controller = new OrderController(interactor);
+// OrderInteractor and CartRepository instances are injected into OrderController to delegate business logic execution.
+const controller = new OrderController(interactor, cartRepository);
 
 // All order routes require authentication
 router.use(authenticate);
@@ -163,5 +166,194 @@ router.put('/:id/cancel', authenticate,controller.cancelOrder.bind(controller));
  *         description: Order not found
  */
 router.put('/:id/status', controller.updateOrderStatus.bind(controller));
+
+/**
+ * @swagger
+ * /orders/shipping/calculate:
+ *   post:
+ *     summary: Calculate shipping rates using Shiprocket
+ *     tags: [Orders]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - pickup_postcode
+ *               - delivery_postcode
+ *               - weight
+ *             properties:
+ *               pickup_postcode:
+ *                 type: string
+ *                 description: Pickup location pincode
+ *               delivery_postcode:
+ *                 type: string
+ *                 description: Delivery location pincode
+ *               weight:
+ *                 type: number
+ *                 description: Package weight in kg
+ *               cod:
+ *                 type: number
+ *                 description: COD amount (0 for prepaid)
+ *     responses:
+ *       200:
+ *         description: Shipping rates calculated successfully
+ *       401:
+ *         description: Unauthorized
+ *       400:
+ *         description: Bad request
+ */
+router.post('/shipping/calculate', authenticate, controller.calculateShipping.bind(controller));
+
+/**
+ * @swagger
+ * /orders/shiprocket/process:
+ *   post:
+ *     summary: Process complete Shiprocket order flow
+ *     tags: [Orders]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - orderId
+ *               - orderData
+ *               - courierId
+ *             properties:
+ *               orderId:
+ *                 type: string
+ *                 description: Database order ID
+ *               orderData:
+ *                 type: object
+ *                 description: Shiprocket order data
+ *               shippingRequest:
+ *                 type: object
+ *                 description: Shipping calculation request
+ *               courierId:
+ *                 type: number
+ *                 description: Selected courier ID
+ *     responses:
+ *       200:
+ *         description: Shiprocket order processed successfully
+ *       401:
+ *         description: Unauthorized
+ *       400:
+ *         description: Bad request
+ */
+router.post('/shiprocket/process', authenticate, controller.processShiprocketOrder.bind(controller));
+
+/**
+ * @swagger
+ * /orders/track/{awb}:
+ *   get:
+ *     summary: Track order by AWB number
+ *     tags: [Orders]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: awb
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: AWB number
+ *     responses:
+ *       200:
+ *         description: Tracking data retrieved successfully
+ *       401:
+ *         description: Unauthorized
+ *       400:
+ *         description: Bad request
+ */
+router.get('/track/:awb', authenticate, controller.trackOrder.bind(controller));
+
+/**
+ * @swagger
+ * /orders/{id}/track:
+ *   get:
+ *     summary: Track order by order ID
+ *     tags: [Orders]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Order ID
+ *     responses:
+ *       200:
+ *         description: Tracking data retrieved successfully
+ *       401:
+ *         description: Unauthorized
+ *       404:
+ *         description: Order not found
+ *       400:
+ *         description: Bad request
+ */
+router.get('/:id/track', authenticate, controller.trackOrderByOrderId.bind(controller));
+
+/**
+ * @swagger
+ * /orders/{orderId}/shiprocket/retry:
+ *   post:
+ *     summary: Retry Shiprocket integration for an existing order
+ *     tags: [Orders]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: orderId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Order ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - courierId
+ *             properties:
+ *               courierId:
+ *                 type: number
+ *                 description: Courier ID to assign
+ *     responses:
+ *       200:
+ *         description: Shiprocket integration retried successfully
+ *       401:
+ *         description: Unauthorized
+ *       400:
+ *         description: Bad request
+ */
+router.post('/:orderId/shiprocket/retry', authenticate, controller.retryShiprocketIntegration.bind(controller));
+
+/**
+ * @swagger
+ * /orders/shiprocket/pickup-locations:
+ *   get:
+ *     summary: Get available Shiprocket pickup locations
+ *     tags: [Orders]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Pickup locations retrieved successfully
+ *       401:
+ *         description: Unauthorized
+ *       400:
+ *         description: Bad request
+ */
+router.get('/shiprocket/pickup-locations', authenticate, controller.getPickupLocations.bind(controller));
 
 export default router;

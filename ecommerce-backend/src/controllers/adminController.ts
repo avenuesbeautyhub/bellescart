@@ -2,12 +2,15 @@ import { Response, NextFunction, Request } from 'express';
 import { IAdminInteractor } from '../providers/interfaces/IAdminInteractor';
 import { AdminRequest } from '../middleware/auth';
 import { isValidEmail, validatePassword, validateRequiredString } from '../utils/validators';
+import { IOrderInteractor } from '../providers/interfaces/IOrderInteractor';
 
 export class AdminController {
   private _adminInteractor: IAdminInteractor;
+  private _orderInteractor: IOrderInteractor;
 
-  constructor(adminInteractor: IAdminInteractor) {
+  constructor(adminInteractor: IAdminInteractor, orderInteractor?: IOrderInteractor) {
     this._adminInteractor = adminInteractor;
+    this._orderInteractor = orderInteractor as IOrderInteractor;
   }
 
   adminLogin = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -881,6 +884,179 @@ export class AdminController {
       res.status(200).json({
         success: true,
         message: 'Category deleted successfully'
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  // Admin Order Management Methods
+  getAllOrders = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const authReq = req as AdminRequest;
+      if (!authReq.admin) {
+        res.status(401).json({
+          success: false,
+          message: 'Admin not authenticated'
+        });
+        return;
+      }
+
+      const { page = 1, limit = 10, status, search } = req.query;
+
+      const result = await this._orderInteractor.getAllOrders({
+        page: parseInt(page as string),
+        limit: parseInt(limit as string),
+        status: status as any
+      });
+
+      // Transform orders to match frontend expectations (total -> totalAmount)
+      const transformedOrders = result.orders.map(order => {
+        const orderObj = order.toObject();
+        const user = orderObj.user as any;
+        return {
+          ...orderObj,
+          id: order._id,
+          totalAmount: order.total,
+          customer: {
+            name: user?.name || 'Unknown',
+            email: user?.email || 'unknown@example.com',
+            phone: user?.phone
+          },
+          userId: user?._id || order.user
+        };
+      });
+
+      res.status(200).json({
+        success: true,
+        data: {
+          orders: transformedOrders,
+          pagination: result.pagination
+        }
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  getOrderById = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const authReq = req as AdminRequest;
+      if (!authReq.admin) {
+        res.status(401).json({
+          success: false,
+          message: 'Admin not authenticated'
+        });
+        return;
+      }
+
+      const order = await this._orderInteractor.getOrderById('admin', req.params.id);
+
+      if (!order) {
+        res.status(404).json({
+          success: false,
+          message: 'Order not found'
+        });
+        return;
+      }
+
+      res.status(200).json({
+        success: true,
+        data: { order }
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  updateOrderStatus = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const authReq = req as AdminRequest;
+      if (!authReq.admin) {
+        res.status(401).json({
+          success: false,
+          message: 'Admin not authenticated'
+        });
+        return;
+      }
+
+      const { status, trackingNumber, estimatedDelivery } = req.body;
+
+      const order = await this._orderInteractor.updateOrderStatus(req.params.id, status, {
+        trackingNumber,
+        estimatedDelivery
+      });
+
+      if (!order) {
+        res.status(404).json({
+          success: false,
+          message: 'Order not found'
+        });
+        return;
+      }
+
+      res.status(200).json({
+        success: true,
+        data: { order }
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  cancelOrder = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const authReq = req as AdminRequest;
+      if (!authReq.admin) {
+        res.status(401).json({
+          success: false,
+          message: 'Admin not authenticated'
+        });
+        return;
+      }
+
+      const order = await this._orderInteractor.cancelOrder('admin', req.params.id);
+
+      if (!order) {
+        res.status(404).json({
+          success: false,
+          message: 'Order not found'
+        });
+        return;
+      }
+
+      res.status(200).json({
+        success: true,
+        data: { order }
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  getOrdersByUser = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const authReq = req as AdminRequest;
+      if (!authReq.admin) {
+        res.status(401).json({
+          success: false,
+          message: 'Admin not authenticated'
+        });
+        return;
+      }
+
+      const { userId } = req.params;
+      const { page = 1, limit = 10, status } = req.query;
+
+      const result = await this._orderInteractor.getOrders(userId, {
+        page: parseInt(page as string),
+        limit: parseInt(limit as string),
+        status: status as any
+      });
+
+      res.status(200).json({
+        success: true,
+        data: result
       });
     } catch (error) {
       next(error);
