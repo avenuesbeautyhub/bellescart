@@ -315,17 +315,17 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
                         <p className="font-medium text-gray-900">{formatDate(order.estimatedDelivery)}</p>
                       </div>
                     )}
-                    {order.shiprocket?.courier && (
+                    {order.nimbus?.courier && (
                       <div>
                         <p className="text-sm text-gray-600">Courier</p>
-                        <p className="font-medium text-gray-900">{order.shiprocket.courier}</p>
+                        <p className="font-medium text-gray-900">{order.nimbus.courier}</p>
                       </div>
                     )}
-                    {order.shiprocket?.trackingStatus && (
+                    {order.nimbus?.shipmentStatus && (
                       <div>
                         <p className="text-sm text-gray-600">Tracking Status</p>
-                        <Badge variant={getStatusColor(order.shiprocket.trackingStatus.toLowerCase())}>
-                          {order.shiprocket.trackingStatus}
+                        <Badge variant={getStatusColor(order.nimbus.shipmentStatus.toLowerCase())}>
+                          {order.nimbus.shipmentStatus}
                         </Badge>
                       </div>
                     )}
@@ -363,10 +363,10 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
                 <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                   <h2 className="text-xl font-semibold text-gray-900 mb-4">Shipping Information</h2>
                   <div className="space-y-3">
-                    {order.shiprocket?.awb ? (
+                    {order.nimbus?.airwayBill ? (
                       <div>
-                        <p className="text-sm text-gray-600">AWB Number</p>
-                        <p className="font-medium text-gray-900">{order.shiprocket.awb}</p>
+                        <p className="text-sm text-gray-600">Airway Bill Number</p>
+                        <p className="font-medium text-gray-900">{order.nimbus.airwayBill}</p>
                       </div>
                     ) : (
                       <div className="p-3 bg-yellow-50 rounded-lg border border-yellow-100">
@@ -377,17 +377,17 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
                         </p>
                       </div>
                     )}
-                    {order.shiprocket?.courier && (
+                    {order.nimbus?.courier && (
                       <div>
                         <p className="text-sm text-gray-600">Courier</p>
-                        <p className="font-medium text-gray-900">{order.shiprocket.courier}</p>
+                        <p className="font-medium text-gray-900">{order.nimbus.courier}</p>
                       </div>
                     )}
-                    {order.shiprocket?.trackingStatus && (
+                    {order.nimbus?.shipmentStatus && (
                       <div>
                         <p className="text-sm text-gray-600">Status</p>
-                        <Badge variant={getStatusColor(order.shiprocket.trackingStatus.toLowerCase())}>
-                          {order.shiprocket.trackingStatus}
+                        <Badge variant={getStatusColor(order.nimbus.shipmentStatus.toLowerCase())}>
+                          {order.nimbus.shipmentStatus}
                         </Badge>
                       </div>
                     )}

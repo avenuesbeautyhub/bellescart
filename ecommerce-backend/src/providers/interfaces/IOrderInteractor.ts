@@ -6,8 +6,8 @@ export interface IOrderInteractor {
     billingAddress?: IOrder['billingAddress'];
     paymentMethod: IOrder['paymentMethod'];
     notes?: string;
-    processShiprocket?: boolean;
-    shiprocketCourierId?: number;
+    processNimbus?: boolean;
+    nimbusCourierId?: string;
     calculatedShippingFee?: number;
   }): Promise<IOrder>;
   getOrders(userId: string, filters?: {
@@ -24,12 +24,12 @@ export interface IOrderInteractor {
   updateOrderStatus(orderId: string, status: IOrder['status'], additionalData?: {
     trackingNumber?: string;
     estimatedDelivery?: Date;
-    shiprocket?: {
-      orderId?: string;
+    nimbus?: {
       shipmentId?: string;
-      awb?: string;
+      trackingId?: string;
+      airwayBill?: string;
       courier?: string;
-      trackingStatus?: string;
+      shipmentStatus?: string;
       expectedDelivery?: Date;
     };
   }): Promise<IOrder | null>;
@@ -59,11 +59,11 @@ export interface IOrderInteractor {
     startDate?: Date;
     endDate?: Date;
   }): Promise<{ orders: IOrder[]; pagination: any }>;
-  retryShiprocketIntegration(orderId: string, courierId: number): Promise<{
+  retryNimbusIntegration(orderId: string, courierId: string): Promise<{
     success: boolean;
-    shiprocketOrderId?: string;
     shipmentId?: string;
-    awb?: string;
+    trackingId?: string;
+    airwayBill?: string;
     courier?: string;
     error?: string;
   }>;

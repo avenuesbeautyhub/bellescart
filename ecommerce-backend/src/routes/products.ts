@@ -6,6 +6,7 @@ import { CategoryInteractor } from '../interactors/CategoryInteractor';
 import { authenticate, authorize } from '../middleware/auth';
 import { ProductController } from '../controllers/productController';
 import { CategoryController } from '../controllers/CategoryController';
+import { publicRateLimiter } from '../middleware/rateLimiter';
 
 const router = Router();
 
@@ -138,7 +139,7 @@ router.get('/:id', authenticate, controller.getProductById.bind(controller));
  *                     pagination:
  *                       type: object
  */
-router.get('/search', controller.searchProducts.bind(controller));
+router.get('/search', publicRateLimiter, controller.searchProducts.bind(controller));
 
 
 

@@ -6,6 +6,7 @@ import { UserRepository } from '../repositories/UserRepository';
 import { OrderInteractor } from '../interactors/OrderInteractor';
 import { OrderController } from '../controllers/orderController';
 import { authenticate, authorize } from '../middleware/auth';
+import { orderRateLimiter, shippingRateLimiter } from '../middleware/rateLimiter';
 
 const router = Router();
 
@@ -54,7 +55,7 @@ router.use(authenticate);
  *       401:
  *         description: Unauthorized
  */
-router.post('/', authenticate, controller.createOrder.bind(controller));
+router.post('/', authenticate, orderRateLimiter, controller.createOrder.bind(controller));
 
 /**
  * @swagger
@@ -171,7 +172,7 @@ router.put('/:id/status', controller.updateOrderStatus.bind(controller));
  * @swagger
  * /orders/shipping/calculate:
  *   post:
- *     summary: Calculate shipping rates using Shiprocket
+ *     summary: Calculate shipping rates using Shypfy
  *     tags: [Orders]
  *     security:
  *       - bearerAuth: []
@@ -206,48 +207,7 @@ router.put('/:id/status', controller.updateOrderStatus.bind(controller));
  *       400:
  *         description: Bad request
  */
-router.post('/shipping/calculate', authenticate, controller.calculateShipping.bind(controller));
-
-/**
- * @swagger
- * /orders/shiprocket/process:
- *   post:
- *     summary: Process complete Shiprocket order flow
- *     tags: [Orders]
- *     security:
- *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - orderId
- *               - orderData
- *               - courierId
- *             properties:
- *               orderId:
- *                 type: string
- *                 description: Database order ID
- *               orderData:
- *                 type: object
- *                 description: Shiprocket order data
- *               shippingRequest:
- *                 type: object
- *                 description: Shipping calculation request
- *               courierId:
- *                 type: number
- *                 description: Selected courier ID
- *     responses:
- *       200:
- *         description: Shiprocket order processed successfully
- *       401:
- *         description: Unauthorized
- *       400:
- *         description: Bad request
- */
-router.post('/shiprocket/process', authenticate, controller.processShiprocketOrder.bind(controller));
+router.post('/shipping/calculate', authenticate, shippingRateLimiter, controller.calculateShipping.bind(controller));
 
 /**
  * @swagger
@@ -303,9 +263,9 @@ router.get('/:id/track', authenticate, controller.trackOrderByOrderId.bind(contr
 
 /**
  * @swagger
- * /orders/{orderId}/shiprocket/retry:
+ * /orders/{orderId}/nimbus/retry:
  *   post:
- *     summary: Retry Shiprocket integration for an existing order
+ *     summary: Retry NimbusPost integration for an existing order
  *     tags: [Orders]
  *     security:
  *       - bearerAuth: []
@@ -326,34 +286,16 @@ router.get('/:id/track', authenticate, controller.trackOrderByOrderId.bind(contr
  *               - courierId
  *             properties:
  *               courierId:
- *                 type: number
+ *                 type: string
  *                 description: Courier ID to assign
  *     responses:
  *       200:
- *         description: Shiprocket integration retried successfully
+ *         description: NimbusPost integration retried successfully
  *       401:
  *         description: Unauthorized
  *       400:
  *         description: Bad request
  */
-router.post('/:orderId/shiprocket/retry', authenticate, controller.retryShiprocketIntegration.bind(controller));
-
-/**
- * @swagger
- * /orders/shiprocket/pickup-locations:
- *   get:
- *     summary: Get available Shiprocket pickup locations
- *     tags: [Orders]
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: Pickup locations retrieved successfully
- *       401:
- *         description: Unauthorized
- *       400:
- *         description: Bad request
- */
-router.get('/shiprocket/pickup-locations', authenticate, controller.getPickupLocations.bind(controller));
+router.post('/:orderId/nimbus/retry', authenticate, controller.retryNimbusIntegration.bind(controller));
 
 export default router;

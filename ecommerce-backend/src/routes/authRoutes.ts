@@ -4,6 +4,7 @@ import { OtpRepository } from '../repositories/OtpRepository';
 import { UserInteractor } from '../interactors/UserInteractor';
 import { AuthController } from '../controllers/authController';
 import { authenticate } from '../middleware/auth';
+import { authRateLimiter } from '../middleware/rateLimiter';
 
 const router = Router();
 
@@ -70,7 +71,7 @@ const controller = new AuthController(interactor);
  *       400:
  *         description: Bad request - Invalid data or user already exists
  */
-router.post('/register', controller.register.bind(controller));
+router.post('/register', authRateLimiter, controller.register.bind(controller));
 
 /**
  * @swagger
@@ -119,7 +120,7 @@ router.post('/register', controller.register.bind(controller));
  *       404:
  *         description: No OTP request found for this email
  */
-router.post('/resend-otp', controller.resendOtp.bind(controller));
+router.post('/resend-otp', authRateLimiter, controller.resendOtp.bind(controller));
 
 /**
  * @swagger
@@ -152,7 +153,7 @@ router.post('/resend-otp', controller.resendOtp.bind(controller));
  *       400:
  *         description: Bad request - Invalid OTP, expired OTP, or user already exists
  */
-router.post('/verify-otp', controller.verifyOtpAndRegister.bind(controller));
+router.post('/verify-otp', authRateLimiter, controller.verifyOtpAndRegister.bind(controller));
 
 /**
  * @swagger
@@ -180,7 +181,7 @@ router.post('/verify-otp', controller.verifyOtpAndRegister.bind(controller));
  *       401:
  *         description: Invalid credentials
  */
-router.post('/login', controller.login.bind(controller));
+router.post('/login', authRateLimiter, controller.login.bind(controller));
 
 /**
  * @swagger

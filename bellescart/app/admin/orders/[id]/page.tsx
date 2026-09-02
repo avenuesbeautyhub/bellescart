@@ -372,10 +372,10 @@ export default function AdminOrderDetailPage({ params }: { params: { id: string 
                         <p className="font-medium text-gray-900">{formatDate(order.estimatedDelivery)}</p>
                       </div>
                     )}
-                    {order.shiprocket?.courier && (
+                    {order.nimbus?.courier && (
                       <div>
                         <p className="text-sm text-gray-600">Courier</p>
-                        <p className="font-medium text-gray-900">{order.shiprocket.courier}</p>
+                        <p className="font-medium text-gray-900">{order.nimbus.courier}</p>
                       </div>
                     )}
                   </div>
@@ -410,27 +410,33 @@ export default function AdminOrderDetailPage({ params }: { params: { id: string 
                 </div>
               )}
 
-              {/* Shiprocket Information */}
-              {order.shiprocket && (
+              {/* NimbusPost Information */}
+              {order.nimbus && (
                 <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                  <h2 className="text-xl font-semibold text-gray-900 mb-4">Shiprocket Information</h2>
+                  <h2 className="text-xl font-semibold text-gray-900 mb-4">NimbusPost Information</h2>
                   <div className="space-y-3">
-                    {order.shiprocket.orderId && (
-                      <div>
-                        <p className="text-sm text-gray-600">Shiprocket Order ID</p>
-                        <p className="font-medium text-gray-900">{order.shiprocket.orderId}</p>
-                      </div>
-                    )}
-                    {order.shiprocket.shipmentId && (
+                    {order.nimbus.shipmentId && (
                       <div>
                         <p className="text-sm text-gray-600">Shipment ID</p>
-                        <p className="font-medium text-gray-900">{order.shiprocket.shipmentId}</p>
+                        <p className="font-medium text-gray-900">{order.nimbus.shipmentId}</p>
                       </div>
                     )}
-                    {order.shiprocket.trackingStatus && (
+                    {order.nimbus.trackingId && (
                       <div>
-                        <p className="text-sm text-gray-600">Tracking Status</p>
-                        <p className="font-medium text-gray-900">{order.shiprocket.trackingStatus}</p>
+                        <p className="text-sm text-gray-600">Tracking ID</p>
+                        <p className="font-medium text-gray-900">{order.nimbus.trackingId}</p>
+                      </div>
+                    )}
+                    {order.nimbus.airwayBill && (
+                      <div>
+                        <p className="text-sm text-gray-600">Airway Bill</p>
+                        <p className="font-medium text-gray-900">{order.nimbus.airwayBill}</p>
+                      </div>
+                    )}
+                    {order.nimbus.shipmentStatus && (
+                      <div>
+                        <p className="text-sm text-gray-600">Shipment Status</p>
+                        <p className="font-medium text-gray-900">{order.nimbus.shipmentStatus}</p>
                       </div>
                     )}
                   </div>

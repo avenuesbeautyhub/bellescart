@@ -8,6 +8,7 @@ import { connectDatabase } from "./config/database";
 import { errorHandler } from "./middleware/errorHandler";
 import { corsOptions } from "./config/cors_config";
 import { swaggerUi, specs } from "./config/swagger";
+import { apiRateLimiter } from "./middleware/rateLimiter";
 
 dotenv.config();
 
@@ -45,9 +46,9 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(specs, {
   customSiteTitle: 'BellesCart API Documentation'
 }));
 
-// API routes
+// API routes with rate limiting
 import apiRoutes from './routes';
-app.use('/api', apiRoutes);
+app.use('/api', apiRateLimiter, apiRoutes);
 
 // Error handling middleware
 app.use(errorHandler);

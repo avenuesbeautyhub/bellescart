@@ -2,7 +2,7 @@ import { Response, NextFunction, Request } from 'express';
 import { IOrderInteractor } from '../providers/interfaces/IOrderInteractor';
 import { ICartRepository } from '../providers/interfaces/ICartRepository';
 import { AuthRequest } from '../middleware/auth';
-import { shiprocketService } from '../services/shiprocket.service';
+import { nimbusPostService } from '../services/nimbusPost.service';
 
 export class OrderController {
   private _orderInteractor: IOrderInteractor;
@@ -30,14 +30,14 @@ export class OrderController {
         billingAddress,
         paymentMethod,
         notes,
-        processShiprocket,
-        shiprocketCourierId,
+        processNimbus,
+        nimbusCourierId,
         calculatedShippingFee
       } = req.body;
 
       console.log('📦 Request body received:', {
-        processShiprocket,
-        shiprocketCourierId,
+        processNimbus,
+        nimbusCourierId,
         calculatedShippingFee,
         paymentMethod
       });
@@ -47,8 +47,8 @@ export class OrderController {
         billingAddress,
         paymentMethod,
         notes,
-        processShiprocket,
-        shiprocketCourierId,
+        processNimbus,
+        nimbusCourierId,
         calculatedShippingFee
       });
 
@@ -175,7 +175,7 @@ export class OrderController {
     }
   };
 
-  // Shiprocket Integration Methods
+  // NimbusPost Integration Methods
 
   calculateShipping = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
@@ -220,19 +220,42 @@ export class OrderController {
         totalAmount += cartItem.total;
       }
 
-      const pickup_postcode = process.env.SHIPROCKET_PICKUP_PINCODE || '691305';
-
-      const result = await shiprocketService.calculateShipping({
-        pickup_postcode,
-        delivery_postcode,
-        weight: totalWeight,
-        cod: cod || totalAmount,
-      });
+      const result = await nimbusPostService.checkServiceability(delivery_postcode, totalWeight, cod || totalAmount);
 
       if (!result.success) {
-        res.status(400).json({
-          success: false,
-          error: result.error || 'Failed to calculate shipping rates. Please configure Shiprocket credentials.'
+        // Calculate dynamic shipping fee based on subtotal
+        let shippingRate = 60; // Default for orders < ₹250
+        if (totalAmount >= 999) {
+          shippingRate = 0; // Free shipping
+        } else if (totalAmount > 499) {
+          shippingRate = 40; // ₹40 shipping
+        }
+
+        // If courier service is disabled, return default shipping rates
+        res.status(200).json({
+          success: true,
+          data: {
+            rates: [
+              {
+                courier_id: 'standard',
+                courier_name: 'Standard Delivery',
+                estimated_delivery_days: '3-5',
+                rate: shippingRate,
+                cod: true,
+                cod_charges: cod > 0 ? 50 : 0,
+                availability: {
+                  blocked: 0,
+                  suppressDate: null,
+                  cutoffTime: null,
+                  pickupAvailability: '1',
+                  secondsLeftForPickup: 86400
+                }
+              }
+            ],
+            totalWeight,
+            totalAmount,
+            message: 'Courier service disabled - using dynamic rates'
+          }
         });
         return;
       }
@@ -240,73 +263,9 @@ export class OrderController {
       res.status(200).json({
         success: true,
         data: {
-          rates: result.rates,
+          rates: result.couriers,
           totalWeight,
           totalAmount
-        }
-      });
-    } catch (error) {
-      next(error);
-    }
-  };
-
-  processShiprocketOrder = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-    try {
-      const authReq = req as AuthRequest;
-      if (!authReq.user) {
-        res.status(401).json({
-          success: false,
-          error: 'User not authenticated'
-        });
-        return;
-      }
-
-      const { orderId, orderData, shippingRequest, courierId } = req.body;
-
-      if (!orderId || !orderData || !courierId) {
-        res.status(400).json({
-          success: false,
-          error: 'Missing required fields: orderId, orderData, courierId'
-        });
-        return;
-      }
-
-      // Process complete Shiprocket flow
-      const result = await shiprocketService.processOrderCompleteFlow(
-        orderData,
-        shippingRequest || {},
-        courierId
-      );
-
-      if (!result.success) {
-        res.status(400).json({
-          success: false,
-          error: result.error
-        });
-        return;
-      }
-
-      // Update order with Shiprocket details
-      const updatedOrder = await this._orderInteractor.updateOrderStatus(orderId, 'processing', {
-        shiprocket: {
-          orderId: result.shiprocketOrderId,
-          shipmentId: result.shipmentId,
-          awb: result.awb,
-          courier: result.courier,
-          trackingStatus: 'Processing',
-        },
-        trackingNumber: result.awb,
-      });
-
-      res.status(200).json({
-        success: true,
-        message: 'Shiprocket order processed successfully',
-        data: {
-          shiprocketOrderId: result.shiprocketOrderId,
-          shipmentId: result.shipmentId,
-          awb: result.awb,
-          courier: result.courier,
-          order: updatedOrder,
         }
       });
     } catch (error) {
@@ -321,12 +280,12 @@ export class OrderController {
       if (!awb) {
         res.status(400).json({
           success: false,
-          error: 'AWB number is required'
+          error: 'Tracking ID is required'
         });
         return;
       }
 
-      const result = await shiprocketService.trackOrder(awb);
+      const result = await nimbusPostService.trackShipment(awb);
 
       if (!result.success) {
         res.status(400).json({
@@ -366,15 +325,15 @@ export class OrderController {
         return;
       }
 
-      if (!order.shiprocket?.awb) {
+      if (!order.nimbus?.trackingId) {
         res.status(400).json({
           success: false,
-          error: 'Order does not have Shiprocket tracking information'
+          error: 'Order does not have NimbusPost tracking information'
         });
         return;
       }
 
-      const result = await shiprocketService.trackOrder(order.shiprocket.awb);
+      const result = await nimbusPostService.trackShipment(order.nimbus.trackingId);
 
       if (!result.success) {
         res.status(400).json({
@@ -386,9 +345,9 @@ export class OrderController {
 
       // Update order with latest tracking status
       await this._orderInteractor.updateOrderStatus(order._id.toString(), order.status, {
-        shiprocket: {
-          ...order.shiprocket,
-          trackingStatus: result.trackingData?.currentStatus,
+        nimbus: {
+          ...order.nimbus,
+          shipmentStatus: result.trackingData?.currentStatus,
         },
       });
 
@@ -401,7 +360,7 @@ export class OrderController {
     }
   };
 
-  retryShiprocketIntegration = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  retryNimbusIntegration = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const { orderId } = req.params;
       const { courierId } = req.body;
@@ -414,7 +373,7 @@ export class OrderController {
         return;
       }
 
-      const result = await this._orderInteractor.retryShiprocketIntegration(orderId, courierId);
+      const result = await this._orderInteractor.retryNimbusIntegration(orderId, courierId);
 
       if (!result.success) {
         res.status(400).json({
@@ -427,30 +386,6 @@ export class OrderController {
       res.status(200).json({
         success: true,
         data: result
-      });
-    } catch (error) {
-      next(error);
-    }
-  };
-
-  getPickupLocations = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-    try {
-      const result = await shiprocketService.getPickupLocations();
-
-      if (!result.success) {
-        res.status(400).json({
-          success: false,
-          error: result.error
-        });
-        return;
-      }
-
-      res.status(200).json({
-        success: true,
-        data: {
-          locations: result.locations,
-          configured: process.env.SHIPROCKET_PICKUP_LOCATION || 'Home'
-        }
       });
     } catch (error) {
       next(error);

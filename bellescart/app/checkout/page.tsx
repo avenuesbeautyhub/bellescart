@@ -30,12 +30,8 @@ export default function CheckoutPage() {
   const [savedAddresses, setSavedAddresses] = useState<Address[]>([]);
   const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
   const [showNewAddressForm, setShowNewAddressForm] = useState(false);
-  const [shippingRates, setShippingRates] = useState<any[]>([]);
-  const [selectedCourier, setSelectedCourier] = useState<any>(null);
-  const [isCalculatingShipping, setIsCalculatingShipping] = useState(false);
   const [isRefreshingCart, setIsRefreshingCart] = useState(false);
   const [calculatedShippingFee, setCalculatedShippingFee] = useState<number>(0);
-  const [courierAvailabilityError, setCourierAvailabilityError] = useState<string | null>(null);
   const [formData, setFormData] = useState<{
     fullName: string;
     email: string;
@@ -45,7 +41,7 @@ export default function CheckoutPage() {
     state: string;
     zipCode: string;
     country: string;
-    paymentMethod: 'razorpay' | 'credit_card' | 'debit_card' | 'paypal' | 'cash_on_delivery';
+    paymentMethod: 'razorpay';
     notes: string;
   }>({
     fullName: '',
@@ -91,25 +87,6 @@ export default function CheckoutPage() {
     };
   }, []);
 
-  // Recalculate shipping fee when payment method changes
-  useEffect(() => {
-    if (selectedCourier) {
-      const totalShippingFee = formData.paymentMethod === 'cash_on_delivery' 
-        ? selectedCourier.rate + (selectedCourier.codCharges || 0)
-        : selectedCourier.rate;
-      setCalculatedShippingFee(totalShippingFee);
-      console.log('💰 Payment method changed, updated shipping fee:', totalShippingFee);
-    }
-  }, [formData.paymentMethod, selectedCourier]);
-
-  // Recalculate shipping when cart items change (quantity updates)
-  useEffect(() => {
-    if (formData.zipCode.length >= 6 && cartItems.length > 0 && !isCalculatingShipping) {
-      console.log('🛒 Cart items changed, recalculating shipping...');
-      calculateShipping(formData.zipCode, formData.paymentMethod);
-    }
-  }, [cartItems, formData.zipCode, formData.paymentMethod]);
-
   const loadCart = async () => {
     try {
       setIsLoading(true);
@@ -125,16 +102,19 @@ export default function CheckoutPage() {
     }
   };
 
+  // Calculate shipping fee based on subtotal
+  const calculateShippingFee = (subtotal: number): number => {
+    if (subtotal >= 999) return 0; // Free shipping
+    if (subtotal > 499) return 40; // ₹40 shipping
+    return 60; // ₹60 shipping (default for orders < ₹250)
+  };
+
   const refreshCart = async () => {
     try {
       setIsRefreshingCart(true);
       const response = await cartService.getCart();
       if (response.success && response.data?.items) {
         setCartItems(response.data.items);
-        // Recalculate shipping if zip code is available
-        if (formData.zipCode.length >= 6) {
-          await calculateShipping(formData.zipCode, formData.paymentMethod);
-        }
       }
     } catch (error) {
       console.error('Failed to refresh cart:', error);
@@ -168,163 +148,11 @@ export default function CheckoutPage() {
               zipCode: defaultAddress.zipCode || '',
               country: defaultAddress.country || 'IN',
             }));
-            // Calculate shipping for default address
-            if (defaultAddress.zipCode) {
-              calculateShipping(defaultAddress.zipCode);
-            }
           }
         }
       }
     } catch (error) {
       console.error('Failed to load user profile:', error);
-    }
-  };
-
-  const calculateShipping = async (pincode: string, paymentMethod?: string) => {
-    if (!pincode || pincode.length < 6) return;
-
-    const currentSubtotal = cartItems.reduce((sum, item) => sum + (item.price || 0) * item.quantity, 0);
-    const effectivePaymentMethod = paymentMethod || formData.paymentMethod;
-
-    console.log('🚀 Calculating shipping for pincode:', pincode);
-    console.log('🛒 Cart items:', cartItems.length);
-    console.log('💰 Payment method:', effectivePaymentMethod);
-    console.log('💵 Subtotal:', currentSubtotal);
-
-    try {
-      setIsCalculatingShipping(true);
-      const data = await orderService.calculateShipping({
-        delivery_postcode: pincode,
-        cod: effectivePaymentMethod === 'cash_on_delivery' ? currentSubtotal : 0,
-      });
-
-      console.log('📦 Shipping API response:', data);
-      console.log('📦 Raw rates data:', JSON.stringify(data.data?.rates, null, 2));
-
-      if (data.success && data.data?.rates) {
-        console.log('✅ Shipping rates received:', data.data.rates);
-        // Normalize field names to match frontend expectations
-        const normalizedRates = data.data.rates.map((rate: any) => ({
-          courierId: rate.courierId || rate.courier_id,
-          courierName: rate.courierName || rate.courier_name,
-          estimatedDays: rate.estimatedDays || rate.estimated_delivery_days,
-          rate: rate.rate,
-          cod: rate.cod === 1 || rate.cod === true,
-          codCharges: rate.cod_charges || 0,
-          availability: rate.availability || null,
-        }));
-        console.log('📋 Normalized rates:', normalizedRates);
-
-        // Check courier availability and filter unavailable ones
-        const now = new Date();
-        console.log('🕐 Current time:', now.toISOString());
-        const availableRates = normalizedRates.filter((rate: any) => {
-          if (!rate.availability) return true; // If no availability data, assume available
-
-          const { availability } = rate;
-
-          // Check if courier is blocked
-          if (availability.blocked === 1) {
-            console.log(`❌ Courier ${rate.courierName} is blocked`);
-            return false;
-          }
-
-          // Check if courier is suppressed
-          // Only filter if suppressDate is more than 1 day in the future (temporary daily cutoff, not long-term suppression)
-          if (availability.suppressDate) {
-            const suppressDate = new Date(availability.suppressDate);
-            console.log(`📅 ${rate.courierName} suppressDate:`, availability.suppressDate, 'parsed:', suppressDate.toISOString(), 'valid:', !isNaN(suppressDate.getTime()));
-            const daysUntilSuppress = (suppressDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24);
-            // Only suppress if more than 1 day away (ignore daily cutoffs)
-            if (!isNaN(suppressDate.getTime()) && daysUntilSuppress > 1) {
-              console.log(`❌ Courier ${rate.courierName} suppressed until ${availability.suppressDate} (${daysUntilSuppress.toFixed(1)} days away)`);
-              return false;
-            } else if (!isNaN(suppressDate.getTime()) && daysUntilSuppress > 0) {
-              console.log(`⚠️ Courier ${rate.courierName} has daily cutoff at ${availability.suppressDate} (${daysUntilSuppress.toFixed(1)} days away) - allowing anyway`);
-            }
-          }
-
-          // Check cutoff time - ignore this check due to timezone issues with Shiprocket API
-          // The cutoff times are likely in IST but compared with UTC, causing false positives
-          if (availability.cutoffTime) {
-            console.log(`⚠️ Courier ${rate.courierName} has cutoff time (${availability.cutoffTime}) - ignoring due to timezone issues`);
-          }
-
-          // Check pickup availability - ignore this check as it's often outdated
-          if (availability.pickupAvailability === "0") {
-            console.log(`⚠️ Courier ${rate.courierName} pickup availability shows 0 - allowing anyway (may be outdated)`);
-          }
-
-          // Check pickup time window - ignore negative values as they're often temporary
-          if (availability.secondsLeftForPickup < 0) {
-            console.log(`⚠️ Courier ${rate.courierName} pickup time window expired (${availability.secondsLeftForPickup}s) - allowing anyway (may be temporary)`);
-          }
-
-          return true;
-        });
-
-        console.log('📋 Available couriers after filtering:', availableRates.length);
-        console.log('📋 Unavailable couriers:', normalizedRates.length - availableRates.length);
-
-        // Set all rates (including unavailable ones) for UI display
-        setShippingRates(normalizedRates);
-
-        // Show error if no couriers available
-        if (availableRates.length === 0) {
-          // Check if all couriers are suppressed
-          const allSuppressed = normalizedRates.every((rate: any) =>
-            rate.availability?.suppressDate && new Date() < new Date(rate.availability.suppressDate)
-          );
-
-          if (allSuppressed) {
-            const earliestAvailable = normalizedRates
-              .map((r: any) => r.availability?.suppressDate ? new Date(r.availability.suppressDate) : null)
-              .filter((d: Date | null) => d !== null)
-              .sort((a: Date, b: Date) => a.getTime() - b.getTime())[0];
-
-            const availableDate = earliestAvailable
-              ? earliestAvailable.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
-              : 'tomorrow';
-
-            setCourierAvailabilityError(
-              `All couriers are currently suppressed for this route. Shipping will be available starting ${availableDate}. Please try placing your order after that date.`
-            );
-          } else {
-            setCourierAvailabilityError('No couriers are currently available for this delivery route. Please try a different delivery address or contact support.');
-          }
-
-          setSelectedCourier(null);
-          setCalculatedShippingFee(0);
-          globalToast.general.error('No Shipping Available', 'No couriers are currently available for this delivery route');
-        } else {
-          setCourierAvailabilityError(null);
-          // Auto-select the cheapest available courier only if no courier is already selected
-          if (!selectedCourier) {
-            const cheapest = availableRates.reduce((min: any, curr: any) =>
-              curr.rate < min.rate ? curr : min
-            );
-            setSelectedCourier(cheapest);
-            // Include COD charges if COD is selected
-            const totalShippingFee = effectivePaymentMethod === 'cash_on_delivery'
-              ? cheapest.rate + (cheapest.codCharges || 0)
-              : cheapest.rate;
-            setCalculatedShippingFee(totalShippingFee);
-            console.log('🏆 Auto-selected cheapest available courier:', cheapest);
-            console.log('💰 Total shipping fee:', totalShippingFee);
-          } else {
-            console.log('🔒 Courier already selected, skipping auto-selection:', selectedCourier);
-          }
-        }
-      } else {
-        console.error('❌ Shipping calculation failed:', data);
-        globalToast.general.error('Shipping Error', data.error || 'Could not calculate shipping rates');
-      }
-    } catch (error: any) {
-      console.error('❌ Failed to calculate shipping:', error);
-      const errorMessage = error?.response?.data?.error || error?.message || 'Could not calculate shipping rates';
-      globalToast.general.error('Shipping Error', errorMessage);
-    } finally {
-      setIsCalculatingShipping(false);
     }
   };
 
@@ -348,16 +176,6 @@ export default function CheckoutPage() {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
-
-    // Calculate shipping when pincode changes
-    if (name === 'zipCode' && value.length >= 6) {
-      calculateShipping(value);
-    }
-
-    // Recalculate shipping when payment method changes (COD vs online)
-    if (name === 'paymentMethod' && formData.zipCode.length >= 6) {
-      calculateShipping(formData.zipCode, value);
-    }
   };
 
   const handleAddressSelect = (address: Address) => {
@@ -371,80 +189,6 @@ export default function CheckoutPage() {
       country: address.country || 'IN',
     }));
     setShowNewAddressForm(false);
-
-    // Calculate shipping for selected address
-    if (address.zipCode) {
-      calculateShipping(address.zipCode);
-    }
-  };
-
-  const handleCourierSelect = (courier: any) => {
-    console.log('🎯 Manual courier selection:', courier.courierName, 'ID:', courier.courierId);
-
-    // Check if courier is available before selection (using lenient logic)
-    if (courier.availability) {
-      const now = new Date();
-      const { availability } = courier;
-
-      if (availability.blocked === 1) {
-        globalToast.general.error('Courier Unavailable', 'This courier is currently blocked');
-        return;
-      }
-
-      if (availability.suppressDate) {
-        const suppressDate = new Date(availability.suppressDate);
-        const daysUntilSuppress = (suppressDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24);
-        if (!isNaN(suppressDate.getTime()) && daysUntilSuppress > 1) {
-          globalToast.general.error('Courier Unavailable', `This courier is suppressed until ${availability.suppressDate}`);
-          return;
-        }
-      }
-
-      // Ignore cutoff time, pickup availability and seconds left checks - they're often outdated/temporary or have timezone issues
-    }
-
-    setSelectedCourier(courier);
-    // Include COD charges if COD is selected
-    const totalShippingFee = formData.paymentMethod === 'cash_on_delivery'
-      ? courier.rate + (courier.codCharges || 0)
-      : courier.rate;
-    setCalculatedShippingFee(totalShippingFee);
-    console.log('✅ Courier selected successfully:', courier.courierName, 'Total fee:', totalShippingFee);
-  };
-
-  const isCourierAvailable = (courier: any): boolean => {
-    if (!courier.availability) return true;
-
-    const now = new Date();
-    const { availability } = courier;
-
-    if (availability.blocked === 1) return false;
-    if (availability.suppressDate) {
-      const suppressDate = new Date(availability.suppressDate);
-      const daysUntilSuppress = (suppressDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24);
-      if (!isNaN(suppressDate.getTime()) && daysUntilSuppress > 1) return false;
-    }
-    // Ignore cutoff time, pickup availability and seconds left checks - they're often outdated/temporary or have timezone issues
-
-    return true;
-  };
-
-  const getCourierAvailabilityMessage = (courier: any): string | null => {
-    if (!courier.availability) return null;
-
-    const { availability } = courier;
-
-    if (availability.blocked === 1) return 'Courier blocked';
-    // Don't show suppressDate message - it's just a pickup date, not an availability restriction
-    // if (availability.suppressDate) return `Available after ${availability.suppressDate}`;
-    // Don't show cutoff time - it's for same-day pickup, not order placement
-    // if (availability.cutoffTime) return `Cutoff: ${availability.cutoffTime}`;
-    // Don't show pickup availability - it's often outdated
-    // if (availability.pickupAvailability === "0") return 'Pickup unavailable';
-    // Don't show pickup window - it's often temporary
-    // if (availability.secondsLeftForPickup < 0) return 'Pickup window expired';
-
-    return null;
   };
 
   const validateForm = (): boolean => {
@@ -460,18 +204,6 @@ export default function CheckoutPage() {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(formData.email)) {
       globalToast.general.error('Invalid Email', 'Please enter a valid email address');
-      return false;
-    }
-
-    // Validate courier selection if shipping rates are available
-    if (shippingRates.length > 0 && !selectedCourier) {
-      globalToast.general.error('Validation Error', 'Please select a shipping courier');
-      return false;
-    }
-
-    // Prevent order submission if no courier is available
-    if (courierAvailabilityError) {
-      globalToast.general.error('Shipping Unavailable', courierAvailabilityError);
       return false;
     }
 
@@ -498,7 +230,7 @@ export default function CheckoutPage() {
       if (formData.paymentMethod === 'razorpay') {
         setProcessingStep('Initializing payment...');
         const subtotal = cartItems.reduce((sum, item) => sum + (item.price || 0) * item.quantity, 0);
-        const shipping = calculatedShippingFee || (subtotal > 50 ? 0 : 10);
+        const shipping = calculateShippingFee(subtotal);
         const grandTotal = subtotal + shipping;
 
         const paymentResponse = await paymentService.createPaymentIntent({
@@ -537,16 +269,14 @@ export default function CheckoutPage() {
                   paymentMethod: formData.paymentMethod,
                   notes: formData.notes,
                   paymentId: response.razorpay_payment_id,
-                  calculatedShippingFee: calculatedShippingFee,
-                  processShiprocket: true,
-                  shiprocketCourierId: selectedCourier?.courierId,
-                  shiprocketAllRates: shippingRates, // Send all rates for fallback
+                  calculatedShippingFee: shipping,
+                  processNimbus: false, // Disabled - orders managed by admin
+                  nimbusCourierId: undefined,
+                  nimbusAllRates: undefined,
                 };
 
-                console.log('📦 Creating order with Shiprocket:', {
-                  processShiprocket: orderRequest.processShiprocket,
-                  shiprocketCourierId: orderRequest.shiprocketCourierId,
-                  selectedCourier: selectedCourier
+                console.log('📦 Creating order (admin-managed):', {
+                  processNimbus: orderRequest.processNimbus
                 });
 
                 const orderResponse = await orderService.createOrder(orderRequest);
@@ -603,30 +333,6 @@ export default function CheckoutPage() {
         }
       }
 
-      // For other payment methods (COD, etc.)
-      setProcessingStep('Creating your order...');
-      const orderRequest: CreateOrderRequest = {
-        shippingAddress,
-        paymentMethod: formData.paymentMethod,
-        notes: formData.notes,
-        calculatedShippingFee: calculatedShippingFee,
-        processShiprocket: true,
-        shiprocketCourierId: selectedCourier?.courierId,
-        shiprocketAllRates: shippingRates, // Send all rates for fallback
-      };
-
-      const response = await orderService.createOrder(orderRequest);
-
-      if (response.success) {
-        setProcessingStep('Finalizing order...');
-        globalToast.order.createSuccess();
-        await cartService.clearCart();
-        await refreshCartCount();
-        const orderId = response.data?.order?._id || response.data?.order?.id;
-        router.push(`/order-confirmation?orderId=${orderId}`);
-      } else {
-        globalToast.order.createFailed(response.message);
-      }
     } catch (error) {
       console.error('Error placing order:', error);
       globalToast.order.createFailed();
@@ -637,7 +343,7 @@ export default function CheckoutPage() {
   };
 
   const subtotal = cartItems.reduce((sum, item) => sum + (item.price || 0) * item.quantity, 0);
-  const shipping = calculatedShippingFee || (subtotal > 50 ? 0 : 10);
+  const shipping = calculateShippingFee(subtotal);
   const grandTotal = subtotal + shipping;
 
   return (
@@ -892,138 +598,38 @@ export default function CheckoutPage() {
                   </div>
                 )}
 
-                {/* Shipping Options */}
-                {shippingRates.length > 0 && (
-                  <div className="bg-white p-6 rounded-xl shadow-md border border-gray-100">
-                    <div className="flex items-center justify-between mb-4">
-                      <h2 className="text-xl font-semibold text-gray-800 flex items-center gap-2">
-                        <svg className="w-5 h-5 text-pink-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m-8-4V7m8 4v10M4 7v10l8 4" />
-                        </svg>
-                        Shipping Options
-                        {isCalculatingShipping && (
-                          <Loader size="sm" text="Calculating..." />
-                        )}
-                      </h2>
-                      <button
-                        type="button"
-                        onClick={() => refreshCart()}
-                        disabled={isCalculatingShipping || isRefreshingCart || isSubmitting}
-                        className="text-sm text-pink-600 hover:text-pink-700 font-medium flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        {isRefreshingCart ? (
-                          <>
-                            <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                            </svg>
-                            Refreshing...
-                          </>
-                        ) : (
-                          <>
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.003 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                            </svg>
-                            Refresh Cart & Shipping
-                          </>
-                        )}
-                      </button>
-                    </div>
-
-                    {/* Error message when no couriers available */}
-                    {courierAvailabilityError && (
-                      <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-xl">
-                        <div className="flex items-start gap-3">
-                          <svg className="w-5 h-5 text-red-600 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                          </svg>
-                          <div>
-                            <p className="text-sm font-medium text-red-800">No Shipping Available</p>
-                            <p className="text-xs text-red-600 mt-1">{courierAvailabilityError}</p>
-                          </div>
-                        </div>
+                {/* Shipping Info */}
+                <div className="bg-white p-6 rounded-xl shadow-md border border-gray-100">
+                  <h2 className="text-xl font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                    <svg className="w-5 h-5 text-pink-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m-8-4V7m8 4v10M4 7v10l8 4" />
+                    </svg>
+                    Shipping Information
+                  </h2>
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <div className="flex items-start gap-3">
+                      <svg className="w-5 h-5 text-blue-600 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      <div>
+                        <p className="text-sm font-medium text-blue-800">Standard Shipping</p>
+                        <p className="text-xs text-blue-600 mt-1">
+                          {shipping === 0 ? (
+                            <span className="text-green-600 font-semibold">FREE • 3-5 business days</span>
+                          ) : (
+                            <span>₹{shipping} • 3-5 business days</span>
+                          )}
+                        </p>
+                        <p className="text-xs text-gray-500 mt-1">
+                          {subtotal >= 999 ? 'Free shipping on orders ₹999+' : 
+                           subtotal > 499 ? '₹40 shipping on orders ₹500-998' :
+                           '₹60 shipping on orders below ₹500'}
+                        </p>
+                        <p className="text-xs text-gray-500 mt-1">Shipping will be arranged by admin after order confirmation</p>
                       </div>
-                    )}
-
-                    <div className="space-y-3">
-                      {shippingRates.map((rate, index) => {
-                        const available = isCourierAvailable(rate);
-                        const availabilityMessage = getCourierAvailabilityMessage(rate);
-
-                        // Format suppression date for display
-                        const suppressDate = rate.availability?.suppressDate
-                          ? new Date(rate.availability.suppressDate).toLocaleDateString('en-US', {
-                              month: 'short',
-                              day: 'numeric',
-                              year: 'numeric',
-                            })
-                          : null;
-
-                        return (
-                          <div
-                            key={index}
-                            onClick={() => available && handleCourierSelect(rate)}
-                            className={`p-4 rounded-xl border-2 transition-all ${
-                              !available
-                                ? 'border-gray-200 bg-gray-50 cursor-not-allowed opacity-60'
-                                : selectedCourier?.courierId === rate.courierId
-                                  ? 'border-pink-500 bg-gradient-to-br from-pink-50 to-rose-50 shadow-md cursor-pointer hover:shadow-lg'
-                                  : 'border-gray-200 hover:border-pink-300 hover:bg-gray-50 cursor-pointer hover:shadow-lg'
-                            }`}
-                          >
-                            <div className="flex justify-between items-center">
-                              <div className="flex items-center gap-3">
-                                <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
-                                  !available
-                                    ? 'border-gray-300 bg-gray-200'
-                                    : selectedCourier?.courierId === rate.courierId
-                                      ? 'border-pink-500 bg-pink-500'
-                                      : 'border-gray-300'
-                                }`}>
-                                  {selectedCourier?.courierId === rate.courierId && available && (
-                                    <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                                    </svg>
-                                  )}
-                                </div>
-                                <div>
-                                  <p className={`font-semibold ${!available ? 'text-gray-500' : 'text-gray-800'}`}>{rate.courierName}</p>
-                                  <p className="text-sm text-gray-500">Estimated delivery: {rate.estimatedDays} days</p>
-                                  {availabilityMessage && (
-                                    <p className="text-xs text-red-600 mt-1 font-medium">{availabilityMessage}</p>
-                                  )}
-                                  {suppressDate && !available && (
-                                    <p className="text-xs text-orange-600 mt-1 font-medium">
-                                      Available from {suppressDate}
-                                    </p>
-                                  )}
-                                  {rate.cod && (
-                                    <div className="flex items-center gap-1 mt-1">
-                                      <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">
-                                        COD Available
-                                      </span>
-                                      {rate.codCharges > 0 && (
-                                        <span className="text-xs text-gray-500">
-                                          (+₹{rate.codCharges} COD charges)
-                                        </span>
-                                      )}
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                              <div className="text-right">
-                                <p className={`text-lg font-bold ${!available ? 'text-gray-400' : 'text-pink-600'}`}>₹{rate.rate}</p>
-                                {formData.paymentMethod === 'cash_on_delivery' && rate.codCharges > 0 && (
-                                  <p className="text-xs text-gray-500">+ ₹{rate.codCharges} COD</p>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })}
                     </div>
                   </div>
-                )}
+                </div>
 
                 {/* Payment Method */}
                 <div className="bg-white p-6 rounded-xl shadow-md border border-gray-100">
@@ -1070,38 +676,6 @@ export default function CheckoutPage() {
                       </div>
                     </label>
 
-                    <label className="flex items-center p-4 border-2 rounded-xl cursor-pointer transition-all hover:border-pink-300 hover:bg-pink-50">
-                      <input
-                        type="radio"
-                        name="paymentMethod"
-                        value="cash_on_delivery"
-                        checked={formData.paymentMethod === 'cash_on_delivery'}
-                        onChange={handleChange}
-                        className="w-4 h-4 text-pink-500"
-                      />
-                      <div className="ml-3 flex-1">
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium text-gray-800">Cash on Delivery</span>
-                          <div className="flex items-center gap-1 ml-2">
-                            <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
-                            </svg>
-                          </div>
-                        </div>
-                        <p className="text-sm text-gray-500 mt-1">Pay when you receive your order</p>
-                        <p className="text-xs text-gray-400 mt-1">Additional COD charges may apply based on courier</p>
-                      </div>
-                      <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${formData.paymentMethod === 'cash_on_delivery'
-                        ? 'border-pink-500 bg-pink-500'
-                        : 'border-gray-300'
-                        }`}>
-                        {formData.paymentMethod === 'cash_on_delivery' && (
-                          <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                          </svg>
-                        )}
-                      </div>
-                    </label>
                   </div>
                   
                   <div className="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-100">

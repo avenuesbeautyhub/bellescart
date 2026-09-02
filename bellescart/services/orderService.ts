@@ -23,9 +23,9 @@ export interface CreateOrderRequest {
   notes?: string;
   paymentId?: string;
   calculatedShippingFee?: number;
-  processShiprocket?: boolean;
-  shiprocketCourierId?: number;
-  shiprocketAllRates?: any[];
+  processNimbus?: boolean;
+  nimbusCourierId?: string;
+  nimbusAllRates?: any[];
 }
 
 export interface OrderResponse {
@@ -132,18 +132,18 @@ export const orderService = {
     }
   },
 
-  // Process Shiprocket order
-  processShiprocketOrder: async (request: {
+  // Process NimbusPost order
+  processNimbusOrder: async (request: {
     orderId: string;
     orderData: any;
-    courierId: number;
+    courierId: string;
   }): Promise<any> => {
     try {
-      const response = await apiPost('/orders/shiprocket/process', request);
+      const response = await apiPost('/orders/nimbus/process', request);
       const data = await response.json();
       return data;
     } catch (error) {
-      console.error('Error processing Shiprocket order:', error);
+      console.error('Error processing NimbusPost order:', error);
       throw error;
     }
   },

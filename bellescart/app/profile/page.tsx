@@ -35,6 +35,7 @@ export default function ProfilePage() {
 
   const [isLoadingProfile, setIsLoadingProfile] = useState(false);
   const [isUpdatingProfile, setIsUpdatingProfile] = useState(false);
+  const [settingDefaultAddress, setSettingDefaultAddress] = useState<string | null>(null);
 
   // Load current user data from authService
   useEffect(() => {
@@ -180,7 +181,7 @@ export default function ProfilePage() {
   };
 
   const handleSetDefault = async (addressId: string) => {
-    setIsUpdatingProfile(true);
+    setSettingDefaultAddress(addressId);
     try {
       const response = await profileService.setDefaultAddress(addressId);
 
@@ -192,7 +193,7 @@ export default function ProfilePage() {
     } catch (error) {
       console.error('Set default address error:', error);
     } finally {
-      setIsUpdatingProfile(false);
+      setSettingDefaultAddress(null);
     }
   };
 
@@ -446,8 +447,9 @@ export default function ProfilePage() {
                               size="sm"
                               variant="outline"
                               onClick={() => handleSetDefault(address._id!)}
+                              disabled={settingDefaultAddress === address._id}
                             >
-                              Set as Default
+                              {settingDefaultAddress === address._id ? 'Setting...' : 'Set as Default'}
                             </Button>
                           )}
                           <Button
