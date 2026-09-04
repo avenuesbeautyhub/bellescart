@@ -21,6 +21,7 @@ export interface IOrderInteractor {
     status?: IOrder['status'];
   }): Promise<{ orders: IOrder[]; pagination: any }>;
   getOrderById(userId: string, orderId: string): Promise<IOrder | null>;
+  getOrderByIdForAdmin(orderId: string): Promise<IOrder | null>;
   updateOrderStatus(orderId: string, status: IOrder['status'], additionalData?: {
     trackingNumber?: string;
     estimatedDelivery?: Date;

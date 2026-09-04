@@ -48,7 +48,16 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(specs, {
 
 // API routes with rate limiting
 import apiRoutes from './routes';
-app.use('/api', apiRateLimiter, apiRoutes);
+
+// Apply general rate limiter to all API routes except admin (which has its own)
+app.use('/api', (req, res, next) => {
+  // Skip general rate limiter for admin routes (they have their own)
+  if (req.path.startsWith('/admin')) {
+    next();
+  } else {
+    apiRateLimiter(req, res, next);
+  }
+}, apiRoutes);
 
 // Error handling middleware
 app.use(errorHandler);

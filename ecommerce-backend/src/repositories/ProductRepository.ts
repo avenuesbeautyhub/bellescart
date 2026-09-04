@@ -20,12 +20,63 @@ export class ProductRepository extends BaseRepository<IProduct> implements IProd
   }
 
   async searchProducts(query: string, options?: { limit?: number; skip?: number; sort?: any }): Promise<IProduct[]> {
+    // Create case-insensitive regex for better partial matching
+    // Split query into words and search for each
+    const searchTerms = query.trim().split(/\s+/).filter(term => term.length > 0);
+    
+    if (searchTerms.length === 0) {
+      return this.findActive({}, options);
+    }
+
+    // Create regex patterns for each search term with word boundaries
+    const regexPatterns = searchTerms.map(term => 
+      new RegExp(term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i')
+    );
+
+    const searchConditions = regexPatterns.map(pattern => ({
+      $or: [
+        { name: { $regex: pattern } },
+        { description: { $regex: pattern } },
+        { brand: { $regex: pattern } }
+      ]
+    }));
+
     const searchFilter = {
       status: 'active',
-      $text: { $search: query }
+      $and: searchConditions
     };
 
     return this.find(searchFilter, options);
+  }
+
+  async countSearchResults(query: string): Promise<number> {
+    // Create case-insensitive regex for better partial matching
+    // Split query into words and search for each
+    const searchTerms = query.trim().split(/\s+/).filter(term => term.length > 0);
+    
+    if (searchTerms.length === 0) {
+      return this.model.countDocuments({ status: 'active' });
+    }
+
+    // Create regex patterns for each search term with word boundaries
+    const regexPatterns = searchTerms.map(term => 
+      new RegExp(term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i')
+    );
+
+    const searchConditions = regexPatterns.map(pattern => ({
+      $or: [
+        { name: { $regex: pattern } },
+        { description: { $regex: pattern } },
+        { brand: { $regex: pattern } }
+      ]
+    }));
+
+    const searchFilter = {
+      status: 'active',
+      $and: searchConditions
+    };
+
+    return this.model.countDocuments(searchFilter);
   }
 
   async findByCategory(category: string, options?: { limit?: number; skip?: number; sort?: any }): Promise<IProduct[]> {

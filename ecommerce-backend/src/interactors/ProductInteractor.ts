@@ -71,13 +71,15 @@ export class ProductInteractor implements IProductInteractor {
     let total: number;
 
     if (search) {
-      // Use text search
+      // Use improved search with partial matching and case-insensitivity
       products = await this._productRepository.searchProducts(search, {
         limit,
         skip,
         sort: sortOptions
       });
-      total = await this._productRepository.count({ ...query, $text: { $search: search } });
+
+      // Count using the same search logic
+      total = await this._productRepository.countSearchResults(search);
     } else {
       // Regular query - include both active and draft products for admin view
       const finalQuery = { ...query, status: { $in: ['active', 'draft','inactive'] } };
@@ -239,18 +241,15 @@ export class ProductInteractor implements IProductInteractor {
     sort?: string;
     order?: 'asc' | 'desc';
   } = {}): Promise<{ products: IProduct[]; pagination: any }> {
-    const { page = 1, limit = 20, sort = 'relevance', order = 'desc' } = options;
+    const { page = 1, limit = 20, sort = 'name', order = 'asc' } = options;
 
     let sortOptions: any = {};
 
-    if (sort === 'relevance') {
-      // Text search relevance is handled by MongoDB
-      sortOptions = { score: { $meta: 'textScore' } };
-    } else if (['name', 'price', 'createdAt', 'rating.average'].includes(sort)) {
+    if (['name', 'price', 'createdAt', 'rating.average'].includes(sort)) {
       const sortOrder = order === 'asc' ? 1 : -1;
       sortOptions[sort] = sortOrder;
     } else {
-      sortOptions.createdAt = -1;
+      sortOptions.name = 1; // Default to name sort
     }
 
     const skip = (page - 1) * limit;
@@ -261,10 +260,8 @@ export class ProductInteractor implements IProductInteractor {
       sort: sortOptions
     });
 
-    const total = await this._productRepository.count({
-      status: 'active',
-      $text: { $search: query }
-    });
+    // Count using the same search logic
+    const total = await this._productRepository.countSearchResults(query);
 
     return {
       products,

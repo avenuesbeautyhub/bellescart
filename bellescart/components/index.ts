@@ -5,3 +5,4 @@ export { default as ProductCard } from './ProductCard/ProductCard';
 export { default as ProductGrid } from './ProductGrid/ProductGrid';
 export { default as CartItem } from './CartItem/CartItem';
 export { default as OrderCard } from './OrderCard/OrderCard';
+export { default as SearchBar } from './SearchBar/SearchBar';

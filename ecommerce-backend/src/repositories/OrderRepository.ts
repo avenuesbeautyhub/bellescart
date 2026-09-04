@@ -16,7 +16,7 @@ export class OrderRepository extends BaseRepository<IOrder> implements IOrderRep
   }
 
   async findByIdWithPopulate(id: string): Promise<IOrder | null> {
-    return this.model.findById(id).populate('items.product');
+    return this.model.findById(id).populate('user').populate('items.product');
   }
 
   async findByIdWithUserAndPopulate(userId: string, orderId: string): Promise<IOrder | null> {

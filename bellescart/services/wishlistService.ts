@@ -17,7 +17,7 @@ export const wishlistService = {
   // Get user's wishlist
   getWishlist: async (): Promise<WishlistResponse> => {
     try {
-      const response = await apiGet('/auth/wishlist');
+      const response = await apiGet('/profile/wishlist');
       const data = await response.json();
       return data;
     } catch (error) {
@@ -29,7 +29,7 @@ export const wishlistService = {
   // Add product to wishlist
   addToWishlist: async (productId: string): Promise<WishlistItemResponse> => {
     try {
-      const response = await apiPost('/auth/wishlist', { productId });
+      const response = await apiPost('/profile/wishlist', { productId });
       const data = await response.json();
       return data;
     } catch (error) {
@@ -41,7 +41,7 @@ export const wishlistService = {
   // Remove product from wishlist
   removeFromWishlist: async (productId: string): Promise<WishlistItemResponse> => {
     try {
-      const response = await apiDelete(`/auth/wishlist/${productId}`);
+      const response = await apiDelete(`/profile/wishlist/${productId}`);
       const data = await response.json();
       return data;
     } catch (error) {

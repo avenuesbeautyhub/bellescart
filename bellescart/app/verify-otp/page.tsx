@@ -96,10 +96,8 @@ function VerifyOtpContent() {
         // Show success toast
         toast.showToast(toastMessages.auth.otpVerified());
 
-        // Redirect to login after a short delay
-        setTimeout(() => {
-          router.push('/login');
-        }, 1500);
+        // Redirect to dashboard immediately since user is now authenticated
+        router.replace('/dashboard');
       } else {
         // Show error toast
         toast.showToast(toastMessages.auth.otpError(response.error));

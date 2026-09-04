@@ -4,33 +4,16 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
-import { adminUserService, UserData } from '@/services/admin/userService';
+import { useAdminUsers, useUpdateUserStatus } from '@/hooks/user/useAdminQueries';
+import { UserData } from '@/services/admin/userService';
 import { globalToast } from '@/utils/globalToast';
 
 export default function UserManagementPage() {
-  const [users, setUsers] = useState<UserData[]>([]);
-  const [loading, setLoading] = useState(false);
+  // React Query hooks
+  const { data: usersData, isLoading } = useAdminUsers();
+  const updateUserStatusMutation = useUpdateUserStatus();
 
-  useEffect(() => {
-    loadUsers();
-  }, []);
-
-  const loadUsers = async () => {
-    setLoading(true);
-    try {
-      const response = await adminUserService.getUsers();
-      if (response.success && response.data?.users) {
-        setUsers(response.data.users);
-      }
-      console.log('userdata', response.data);
-
-    } catch (error: any) {
-      console.error('Failed to load users:', error);
-      globalToast.admin.error('Load Failed', 'Failed to load users');
-    } finally {
-      setLoading(false);
-    }
-  };
+  const users = usersData?.data?.users || [];
 
   const getStatusBadge = (isActive: boolean) => {
     return isActive ? (
@@ -52,13 +35,8 @@ export default function UserManagementPage() {
     const newStatus = user.isActive ? 'inactive' : 'active';
 
     try {
-      const response = await adminUserService.updateUserStatus(user.id, newStatus);
-      if (response.success) {
-        globalToast.admin.success('Success', `User ${newStatus}d successfully`);
-        loadUsers(); // Reload users to show updated status
-      } else {
-        globalToast.admin.error('Error', response.message || 'Failed to update user status');
-      }
+      await updateUserStatusMutation.mutateAsync({ id: user.id, status: newStatus });
+      globalToast.admin.success('Success', `User ${newStatus}d successfully`);
     } catch (error: any) {
       console.error('Toggle status error:', error);
       globalToast.admin.error('Error', 'Failed to update user status');
@@ -111,7 +89,7 @@ export default function UserManagementPage() {
             <h2 className="text-xl font-semibold text-gray-800">All Users</h2>
           </div>
 
-          {loading ? (
+          {isLoading ? (
             <div className="flex justify-center items-center py-8">
               <div className="text-gray-500">Loading users...</div>
             </div>

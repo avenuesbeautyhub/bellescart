@@ -3,7 +3,8 @@
 import React from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { Product, ProductImage, ProductCategory } from '@/utils/types';
+import { Product } from '@/utils/types';
+import { ProductImage, ProductCategory } from '@/services/publicProductService';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 import Rating from '@/components/ui/Rating';
@@ -12,12 +13,14 @@ interface GuestProductCardProps {
   product: Product;
   onAddToCart?: (product: Product) => void;
   onAddToWishlist?: (product: Product) => void;
+  isLoggedIn?: boolean;
 }
 
 export default function GuestProductCard({
   product,
   onAddToCart,
   onAddToWishlist,
+  isLoggedIn = false,
 }: GuestProductCardProps) {
   const discountPercent = product.originalPrice
     ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)
@@ -133,17 +136,30 @@ export default function GuestProductCard({
         </div>
 
         {/* Add to Cart Button */}
-        <Link href="/login" className="block mt-4">
+        {isLoggedIn ? (
           <button
+            onClick={() => onAddToCart?.(product)}
             disabled={!product.quantity}
             className={`w-full py-3 rounded-xl font-semibold text-sm transition-all duration-200 ${!product.quantity
               ? 'bg-red-100 text-red-400 cursor-not-allowed border-2 border-red-200'
               : 'bg-gradient-to-r from-pink-500 to-rose-500 text-white hover:from-pink-600 hover:to-rose-600 hover:shadow-lg hover:shadow-pink-500/25 transform hover:-translate-y-0.5'
               }`}
           >
-            {!product.quantity ? 'Out of Stock' : 'Login to Add'}
+            {!product.quantity ? 'Out of Stock' : 'Add to Cart'}
           </button>
-        </Link>
+        ) : (
+          <Link href="/login" className="block mt-4">
+            <button
+              disabled={!product.quantity}
+              className={`w-full py-3 rounded-xl font-semibold text-sm transition-all duration-200 ${!product.quantity
+                ? 'bg-red-100 text-red-400 cursor-not-allowed border-2 border-red-200'
+                : 'bg-gradient-to-r from-pink-500 to-rose-500 text-white hover:from-pink-600 hover:to-rose-600 hover:shadow-lg hover:shadow-pink-500/25 transform hover:-translate-y-0.5'
+                }`}
+            >
+              {!product.quantity ? 'Out of Stock' : 'Login to Add'}
+            </button>
+          </Link>
+        )}
       </div>
     </div>
   );

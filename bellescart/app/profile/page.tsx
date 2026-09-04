@@ -11,8 +11,8 @@ import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Badge from '@/components/ui/Badge';
 import Loader from '@/components/ui/Loader';
-import { profileService } from '@/services/profileService';
-import { authService } from '@/services/authService';
+import { useProfile, useUpdateProfile, useAddAddress, useUpdateAddress, useDeleteAddress, useSetDefaultAddress, useUploadProfilePicture } from '@/hooks/user/useProfileQueries';
+import { useCurrentUser } from '@/hooks/user/useAuthQuery';
 import { globalToast } from '@/utils/globalToast';
 
 export default function ProfilePage() {
@@ -21,51 +21,46 @@ export default function ProfilePage() {
   const [isEditing, setIsEditing] = useState(false);
   const [profilePic, setProfilePic] = useState('');
   const [showAddAddress, setShowAddAddress] = useState(false);
-  // console.log('user', user);
 
-  const [profile, setProfile] = useState<UserProfile>({
-    id: '',
-    name: '',
-    email: '',
-    role: '',
-    avatar: '',
-    phone: '',
-    addresses: [],
+  // React Query hooks
+  const { data: profileData, isLoading: isLoadingProfile } = useProfile({
+    enabled: isAuthenticated && loaded
   });
+  const { data: currentUserData } = useCurrentUser();
+  const updateProfileMutation = useUpdateProfile();
+  const addAddressMutation = useAddAddress();
+  const updateAddressMutation = useUpdateAddress();
+  const deleteAddressMutation = useDeleteAddress();
+  const setDefaultAddressMutation = useSetDefaultAddress();
+  const uploadProfilePictureMutation = useUploadProfilePicture();
 
-  const [isLoadingProfile, setIsLoadingProfile] = useState(false);
-  const [isUpdatingProfile, setIsUpdatingProfile] = useState(false);
-  const [settingDefaultAddress, setSettingDefaultAddress] = useState<string | null>(null);
-
-  // Load current user data from authService
-  useEffect(() => {
-    const loadCurrentUser = async () => {
-      setIsLoadingProfile(true);
-      try {
-        const response = await authService.getCurrentUser();
-
-        if (response.success && response.data) {
-          setProfile({
-            id: response.data.id,
-            name: response.data.name,
-            email: response.data.email,
-            role: response.data.role,
-            avatar: response.data.avatar || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=face',
-            phone: response.data.phone || '+91 (555) 000-0000',
-            addresses: response.data.addresses || [],
-          });
-        }
-      } catch (error) {
-        console.error('Failed to load current user:', error);
-      } finally {
-        setIsLoadingProfile(false);
-      }
-    };
-
-    if (isAuthenticated) {
-      loadCurrentUser();
+  // Process profile data
+  const profile = React.useMemo(() => {
+    if (!profileData?.data) {
+      return {
+        id: '',
+        name: '',
+        email: '',
+        role: '',
+        avatar: '',
+        phone: '',
+        addresses: [],
+      };
     }
-  }, [isAuthenticated]);
+
+    const data = profileData.data;
+    return {
+      id: data._id || data.id,
+      name: data.name,
+      email: data.email,
+      role: data.role,
+      avatar: data.avatar || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=face',
+      phone: data.phone || '+91 (555) 000-0000',
+      addresses: data.addresses || [],
+    };
+  }, [profileData]);
+
+  const [settingDefaultAddress, setSettingDefaultAddress] = useState<string | null>(null);
 
   const [newAddress, setNewAddress] = useState({
     label: '',
@@ -79,7 +74,12 @@ export default function ProfilePage() {
 
   const [formData, setFormData] = useState(profile);
 
-  if (!loaded) {
+  // Update form data when profile data changes
+  useEffect(() => {
+    setFormData(profile);
+  }, [profile]);
+
+  if (!loaded || isLoadingProfile) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <p className="text-gray-600">Loading...</p>
@@ -97,20 +97,13 @@ export default function ProfilePage() {
   };
 
   const handleProfileSave = async () => {
-    setIsUpdatingProfile(true);
     try {
-      const response = await profileService.updateProfile(formData);
-
-      if (response.success && response.data) {
-        setProfile(response.data);
-        setIsEditing(false);
-      } else {
-        console.error('Profile update failed:', response);
-      }
+      await updateProfileMutation.mutateAsync(formData);
+      setIsEditing(false);
+      globalToast.general.success('Profile updated successfully');
     } catch (error) {
       console.error('Profile update error:', error);
-    } finally {
-      setIsUpdatingProfile(false);
+      globalToast.general.error('Error', 'Failed to update profile');
     }
   };
 
@@ -126,36 +119,27 @@ export default function ProfilePage() {
       return;
     }
 
-    setIsUpdatingProfile(true);
     try {
       const addressToAdd = {
         ...newAddress,
         isDefault: (profile.addresses?.length || 0) === 0,
       };
-      const response = await profileService.addAddress(addressToAdd);
+      await addAddressMutation.mutateAsync(addressToAdd);
 
-      if (response.success && response.data) {
-        setProfile(response.data);
-        setNewAddress({
-          label: '',
-          address: '',
-          city: '',
-          state: '',
-          zipCode: '',
-          phone: '',
-          country: 'India',
-        });
-        setShowAddAddress(false);
-        globalToast.general.success('Address added successfully');
-      } else {
-        const errorMessage = response.message || response.error || 'Failed to add address';
-        globalToast.general.error('Error', errorMessage);
-      }
+      setNewAddress({
+        label: '',
+        address: '',
+        city: '',
+        state: '',
+        zipCode: '',
+        phone: '',
+        country: 'India',
+      });
+      setShowAddAddress(false);
+      globalToast.general.success('Address added successfully');
     } catch (error: any) {
       const errorMessage = error?.response?.data?.message || error?.message || 'Failed to add address';
       globalToast.general.error('Error', errorMessage);
-    } finally {
-      setIsUpdatingProfile(false);
     }
   };
 
@@ -164,34 +148,23 @@ export default function ProfilePage() {
       return;
     }
 
-    setIsUpdatingProfile(true);
     try {
-      const response = await profileService.deleteAddress(addressId);
-
-      if (response.success && response.data) {
-        setProfile(response.data);
-      } else {
-        console.error('Address deletion failed:', response);
-      }
+      await deleteAddressMutation.mutateAsync(addressId);
+      globalToast.general.success('Address deleted successfully');
     } catch (error) {
       console.error('Address deletion error:', error);
-    } finally {
-      setIsUpdatingProfile(false);
+      globalToast.general.error('Error', 'Failed to delete address');
     }
   };
 
   const handleSetDefault = async (addressId: string) => {
     setSettingDefaultAddress(addressId);
     try {
-      const response = await profileService.setDefaultAddress(addressId);
-
-      if (response.success && response.data) {
-        setProfile(response.data);
-      } else {
-        console.error('Set default address failed:', response);
-      }
+      await setDefaultAddressMutation.mutateAsync(addressId);
+      globalToast.general.success('Default address updated');
     } catch (error) {
       console.error('Set default address error:', error);
+      globalToast.general.error('Error', 'Failed to set default address');
     } finally {
       setSettingDefaultAddress(null);
     }
@@ -200,19 +173,12 @@ export default function ProfilePage() {
   const handlePicChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      setIsUpdatingProfile(true);
       try {
-        const response = await profileService.uploadProfilePicture(file);
-
-        if (response.success && response.data) {
-          setProfile(response.data);
-        } else {
-          console.error('Profile picture upload failed:', response);
-        }
+        await uploadProfilePictureMutation.mutateAsync(file);
+        globalToast.general.success('Profile picture updated');
       } catch (error) {
         console.error('Profile picture upload error:', error);
-      } finally {
-        setIsUpdatingProfile(false);
+        globalToast.general.error('Error', 'Failed to upload profile picture');
       }
     }
   };
@@ -227,13 +193,6 @@ export default function ProfilePage() {
       <Navbar />
 
       <main className="flex-1 py-12">
-        {/* Loading Overlay */}
-        {(isLoadingProfile || isUpdatingProfile) && (
-          <div className="fixed inset-0 bg-white bg-opacity-90 flex items-center justify-center z-50">
-            <Loader size="lg" text={isUpdatingProfile ? "Updating profile..." : "Loading profile..."} />
-          </div>
-        )}
-
         <div className="max-w-6xl mx-auto px-4">
           <h1 className="text-4xl font-bold text-gray-800 mb-12">My Profile</h1>
 
@@ -333,8 +292,10 @@ export default function ProfilePage() {
                     />
 
                     <div className="flex gap-4">
-                      <Button onClick={handleProfileSave}>Save Changes</Button>
-                      <Button variant="outline" onClick={handleProfileCancel}>
+                      <Button onClick={handleProfileSave} disabled={updateProfileMutation.isPending}>
+                        {updateProfileMutation.isPending ? 'Saving...' : 'Save Changes'}
+                      </Button>
+                      <Button variant="outline" onClick={handleProfileCancel} disabled={updateProfileMutation.isPending}>
                         Cancel
                       </Button>
                     </div>
@@ -418,8 +379,10 @@ export default function ProfilePage() {
                     </div>
 
                     <div className="flex gap-4">
-                      <Button onClick={handleAddAddress}>Save Address</Button>
-                      <Button variant="outline" onClick={() => setShowAddAddress(false)}>
+                      <Button onClick={handleAddAddress} disabled={addAddressMutation.isPending}>
+                        {addAddressMutation.isPending ? 'Saving...' : 'Save Address'}
+                      </Button>
+                      <Button variant="outline" onClick={() => setShowAddAddress(false)} disabled={addAddressMutation.isPending}>
                         Cancel
                       </Button>
                     </div>
@@ -447,17 +410,18 @@ export default function ProfilePage() {
                               size="sm"
                               variant="outline"
                               onClick={() => handleSetDefault(address._id!)}
-                              disabled={settingDefaultAddress === address._id}
+                              disabled={setDefaultAddressMutation.isPending || settingDefaultAddress === address._id}
                             >
-                              {settingDefaultAddress === address._id ? 'Setting...' : 'Set as Default'}
+                              {setDefaultAddressMutation.isPending && settingDefaultAddress === address._id ? 'Setting...' : 'Set as Default'}
                             </Button>
                           )}
                           <Button
                             size="sm"
                             variant="danger"
                             onClick={() => handleDeleteAddress(address._id!)}
+                            disabled={deleteAddressMutation.isPending}
                           >
-                            Delete
+                            {deleteAddressMutation.isPending ? 'Deleting...' : 'Delete'}
                           </Button>
                         </div>
                       </div>

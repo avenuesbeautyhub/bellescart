@@ -5,49 +5,55 @@ import Navbar from '@/components/Navbar/Navbar';
 import Footer from '@/components/Footer/Footer';
 import GuestProductGrid from '@/components/ProductGrid/GuestProductGrid';
 import Loader from '@/components/ui/Loader';
-import { publicProductService } from '@/services/publicProductService';
+import { SearchBar } from '@/components';
+import { usePublicProducts, usePublicCategories } from '@/hooks/user/usePublicProductQueries';
+import { useDebounce } from '@/hooks/useDebounce';
 
 export default function GuestProductsPage() {
   const [selectedCategory, setSelectedCategory] = useState('All Products');
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState('featured');
-  const [products, setProducts] = useState<any[]>([]);
-  const [categories, setCategories] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const debouncedSearch = useDebounce(searchQuery, 500);
 
-  // Load categories and products from API
+  // React Query hooks
+  const { data: productsData, isLoading: isLoadingProducts } = usePublicProducts({
+    category: selectedCategoryId || undefined,
+    search: debouncedSearch || undefined
+  });
+  const { data: categoriesData, isLoading: isLoadingCategories } = usePublicCategories();
+
+  const products = productsData?.data?.products || [];
+  const categories = categoriesData?.data?.categories || [];
+  const isLoading = isLoadingProducts || isLoadingCategories;
+
+  // Initialize search and category from URL on mount
   useEffect(() => {
-    loadCategories();
-    loadProducts();
-  }, [selectedCategory, sortBy]);
-
-  const loadCategories = async () => {
-    try {
-      const response = await publicProductService.getCategories();
-      if (response.success && response.data?.categories) {
-        setCategories(response.data.categories);
-      }
-    } catch (error) {
-      console.error('Failed to load categories:', error);
+    const urlParams = new URLSearchParams(window.location.search);
+    const searchParam = urlParams.get('search');
+    const categoryParam = urlParams.get('category');
+    if (searchParam) {
+      setSearchQuery(searchParam);
     }
-  };
-
-  const loadProducts = async () => {
-    try {
-      setIsLoading(true);
-      const response = await publicProductService.getProducts({
-        category: selectedCategoryId || undefined
-      });
-
-      if (response.success && response.data?.products) {
-        setProducts(response.data.products);
+    if (categoryParam && categories.length > 0) {
+      const category = categories.find((cat: any) => cat.name.toLowerCase() === categoryParam.toLowerCase());
+      if (category) {
+        setSelectedCategory(category.name);
+        setSelectedCategoryId(category._id);
       }
-    } catch (error) {
-      console.error('Failed to load products:', error);
-    } finally {
-      setIsLoading(false);
     }
-  };
+  }, [categories]);
+
+  // Update URL when search query changes
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    if (searchQuery) {
+      url.searchParams.set('search', searchQuery);
+    } else {
+      url.searchParams.delete('search');
+    }
+    window.history.replaceState({}, '', url.toString());
+  }, [searchQuery]);
 
   const filteredProducts = products.filter(product => {
     if (selectedCategory === 'All Products') {
@@ -66,6 +72,10 @@ export default function GuestProductsPage() {
         return 0;
     }
   });
+
+  const handleSearch = (query: string) => {
+    setSearchQuery(query);
+  };
 
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-b from-gray-50 to-white">
@@ -92,6 +102,15 @@ export default function GuestProductsPage() {
               <p className="text-xl text-gray-600 max-w-2xl mx-auto">
                 Browse our curated collection of premium products
               </p>
+              <div className="mt-8 max-w-md mx-auto">
+                <SearchBar 
+                  value={searchQuery} 
+                  onChange={setSearchQuery} 
+                  onSearch={handleSearch} 
+                  realTime={true} 
+                  debounceMs={300} 
+                />
+              </div>
             </div>
           </div>
         </div>

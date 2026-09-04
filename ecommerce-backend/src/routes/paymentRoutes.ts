@@ -402,7 +402,7 @@ router.get('/razorpay/:razorpayPaymentId', authenticate, async (req: Request, re
  *                 default: INR
  *               paymentMethod:
  *                 type: string
- *                 enum: [razorpay, stripe, paypal, cash_on_delivery]
+ *                 enum: [razorpay, stripe, paypal, cash_on_delivery, credit_card, debit_card]
  *               orderId:
  *                 type: string
  *               status:

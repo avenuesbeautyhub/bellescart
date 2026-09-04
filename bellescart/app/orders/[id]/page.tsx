@@ -9,70 +9,33 @@ import Footer from '@/components/Footer/Footer';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 import Loader from '@/components/ui/Loader';
-import { orderService } from '@/services/orderService';
+import { useOrder, useTrackOrderById, useCancelOrder } from '@/hooks/user/useOrderQueries';
 import { globalToast } from '@/utils/globalToast';
 
 export default function OrderDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter();
   const { loaded, isAuthenticated } = useRequireUserAuth();
-  const [isLoading, setIsLoading] = useState(true);
-  const [order, setOrder] = useState<any>(null);
-  const [trackingData, setTrackingData] = useState<any>(null);
-  const [isLoadingTracking, setIsLoadingTracking] = useState(false);
   const { id } = React.use(params);
 
-  useEffect(() => {
-    if (loaded && isAuthenticated && id) {
-      loadOrderDetails();
-    }
-  }, [loaded, isAuthenticated, id]);
+  // React Query hooks
+  const { data: orderData, isLoading: isLoadingOrder, refetch: refetchOrder } = useOrder(id);
+  const { data: trackingData, isLoading: isLoadingTracking } = useTrackOrderById(id);
+  const cancelOrderMutation = useCancelOrder();
 
-  const loadOrderDetails = async () => {
-    try {
-      setIsLoading(true);
-      const response = await orderService.getOrderById(id);
-      if (response.success && response.data?.order) {
-        setOrder(response.data.order);
-        
-        // Load tracking data if order has tracking number
-        if (response.data.order.trackingNumber) {
-          loadTrackingData(response.data.order.trackingNumber);
-        }
-      } else {
-        globalToast.order.loadFailed();
-        router.push('/orders');
-      }
-    } catch (error) {
-      console.error('Failed to load order details:', error);
-      globalToast.order.loadFailed();
-      router.push('/orders');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const loadTrackingData = async (trackingNumber: string) => {
-    try {
-      setIsLoadingTracking(true);
-      const response = await orderService.trackOrderByOrderId(id);
-      if (response.success && response.data) {
-        setTrackingData(response.data);
-      }
-    } catch (error) {
-      console.error('Failed to load tracking data:', error);
-    } finally {
-      setIsLoadingTracking(false);
-    }
-  };
+  // Process order data from React Query
+  const order = React.useMemo(() => {
+    if (!orderData?.data) return null;
+    return orderData.data.order || null;
+  }, [orderData]);
 
   const handleCancelOrder = async () => {
     if (!confirm('Are you sure you want to cancel this order?')) return;
 
     try {
-      const response = await orderService.cancelOrder(id);
+      const response = await cancelOrderMutation.mutateAsync(id);
       if (response.success) {
         globalToast.order.cancelSuccess();
-        loadOrderDetails();
+        refetchOrder();
       } else {
         globalToast.order.cancelFailed();
       }
@@ -128,7 +91,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
 
   if (!isAuthenticated) return null;
 
-  if (isLoading) {
+  if (isLoadingOrder) {
     return (
       <div className="min-h-screen flex flex-col">
         <Navbar />
@@ -353,7 +316,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
                       variant="secondary"
                       size="sm"
                       className="w-full mt-4"
-                      onClick={() => loadTrackingData(order.trackingNumber)}
+                      onClick={() => refetchOrder()}
                     >
                       Refresh Tracking
                     </Button>

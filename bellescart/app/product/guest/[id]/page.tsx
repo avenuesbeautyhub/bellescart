@@ -7,7 +7,7 @@ import Footer from '@/components/Footer/Footer';
 import Button from '@/components/ui/Button';
 import Loader from '@/components/ui/Loader';
 import Badge from '@/components/ui/Badge';
-import { publicProductService } from '@/services/publicProductService';
+import { usePublicProduct } from '@/hooks/user/usePublicProductQueries';
 import { Product, ProductImage, ProductCategory } from '@/utils/types';
 import Link from 'next/link';
 import { toastMessages } from '@/utils/toastHelpers';
@@ -16,36 +16,20 @@ export default function GuestProductPage({ params }: { params: Promise<{ id: str
   const router = useRouter();
   const { id: productId } = React.use(params);
 
-  const [product, setProduct] = useState<Product | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [selectedImage, setSelectedImage] = useState<string>('');
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [quantity, setQuantity] = useState<number>(1);
 
-  useEffect(() => {
-    if (productId) {
-      loadProduct();
-    }
-  }, [productId]);
+  // React Query hook
+  const { data: productData, isLoading, error } = usePublicProduct(productId);
+  const product = productData?.data?.product || productData?.data?.products?.[0] || null;
 
-  const loadProduct = async () => {
-    try {
-      setLoading(true);
-      const response = await publicProductService.getProductById(productId!);
-      if (response.success && response.data) {
-        const productData = response.data.product || response.data.products?.[0];
-        if (productData) {
-          setProduct(productData);
-          // Set main image as selected
-          const mainImage = productData.images?.find((img: ProductImage) => img.isMain)?.url || productData.images?.[0]?.url || '';
-          setSelectedImage(mainImage);
-        }
-      }
-    } catch (error) {
-      console.error('Failed to load product:', error);
-    } finally {
-      setLoading(false);
+  // Set main image as selected when product loads
+  useEffect(() => {
+    if (product) {
+      const mainImage = product.images?.find((img: ProductImage) => img.isMain)?.url || product.images?.[0]?.url || '';
+      setSelectedImage(mainImage);
     }
-  };
+  }, [product]);
 
   const handleAddToCart = () => {
     if (product) {
@@ -61,7 +45,7 @@ export default function GuestProductPage({ params }: { params: Promise<{ id: str
     }
   };
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="min-h-screen flex flex-col">
         <Navbar />
@@ -73,7 +57,7 @@ export default function GuestProductPage({ params }: { params: Promise<{ id: str
     );
   }
 
-  if (!product) {
+  if (error || !product) {
     return (
       <div className="min-h-screen flex flex-col">
         <Navbar />

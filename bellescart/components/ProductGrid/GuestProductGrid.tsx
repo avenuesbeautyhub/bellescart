@@ -16,6 +16,8 @@ export default function GuestProductGrid({
   onAddToCart,
   onAddToWishlist,
 }: GuestProductGridProps) {
+  const { isAuthenticated } = useAuth();
+
   if (products.length === 0) {
     return (
       <div className="col-span-full py-12 text-center">
@@ -32,6 +34,7 @@ export default function GuestProductGrid({
           product={product}
           onAddToCart={onAddToCart}
           onAddToWishlist={onAddToWishlist}
+          isLoggedIn={isAuthenticated}
         />
       ))}
     </div>

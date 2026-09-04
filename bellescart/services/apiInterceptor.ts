@@ -21,11 +21,13 @@ const notifyRefreshSubscribers = (token: string) => {
 export const apiFetch = async (url: string, options: RequestInit = {}): Promise<Response> => {
   // Get current access token - using same keys as auth context
   const getAccessToken = (): string | null => {
+    if (typeof window === 'undefined') return null;
     return localStorage.getItem('bellescart_token');
   };
 
   // Get current refresh token - using same keys as auth context
   const getRefreshToken = (): string | null => {
+    if (typeof window === 'undefined') return null;
     return localStorage.getItem('bellescart_refresh_token');
   };
 
@@ -35,15 +37,22 @@ export const apiFetch = async (url: string, options: RequestInit = {}): Promise<
 
   // Handle different token scenarios
   if (!token && !refreshToken) {
-    // Both tokens missing - redirect to login immediately
-    // Prevent redirect loops by checking current path
-    if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
-      globalToast.auth.tokenRefreshFailed();
-      window.location.href = '/login';
+    // Both tokens missing - log warning but continue with request in development
+    if (process.env.NODE_ENV === 'development') {
+      console.warn('No authentication tokens found. Request may fail.');
+    } else {
+      // In production, redirect to login immediately
+      // Prevent redirect loops by checking current path
+      if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
+        console.warn('No authentication tokens found. Redirecting to login.');
+        globalToast.auth.tokenRefreshFailed();
+        window.location.href = '/login';
+      }
+      return Promise.reject(new Error('No authentication tokens found. Please login.'));
     }
-    return Promise.reject(new Error('No authentication tokens found. Please login.'));
   } else if (!token && refreshToken) {
     // Access token missing but refresh token exists - attempt auto refresh
+    console.log('Access token missing but refresh token exists. Will attempt refresh on 401.');
     globalToast.auth.tokenExpired();
     // Continue with normal flow - will trigger refresh on 401
   }
@@ -60,7 +69,9 @@ export const apiFetch = async (url: string, options: RequestInit = {}): Promise<
   try {
     // Make initial request
     const fullUrl = url.startsWith('http') ? url : appConfig.apiBaseUrl + url;
+    console.log(`API Request: ${fullUrl}`);
     const response = await fetch(fullUrl, authOptions);
+    console.log(`API Response: ${response.status} ${response.statusText}`);
 
     // If response is successful, return it
     if (response.ok) {

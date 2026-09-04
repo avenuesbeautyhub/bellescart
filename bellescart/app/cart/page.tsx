@@ -9,48 +9,32 @@ import Button from '@/components/ui/Button';
 import Loader from '@/components/ui/Loader';
 import CartItem from '@/components/CartItem/CartItem';
 import { CartItem as CartItemType } from '@/utils/types';
-import { cartService } from '@/services/cartService';
+import { useCart, useUpdateCartItem, useRemoveFromCart, useClearCart } from '@/hooks/user/useCartQueries';
 import { globalToast } from '@/utils/globalToast';
-import { useCart } from '@/contexts/CartContext';
 
 export default function CartPage() {
   const { loaded, isAuthenticated } = useRequireUserAuth();
-  const [isLoading, setIsLoading] = useState(true);
-  const [cartItems, setCartItems] = useState<CartItemType[]>([]);
   const [updatingItemId, setUpdatingItemId] = useState<string | null>(null);
-  const { refreshCartCount } = useCart();
 
-  // Load cart data when authenticated
-  useEffect(() => {
-    if (loaded && isAuthenticated) {
-      loadCart();
-    }
-  }, [loaded, isAuthenticated]);
+  // React Query hooks
+  const { data: cartData, isLoading } = useCart();
+  const updateCartItem = useUpdateCartItem();
+  const removeFromCart = useRemoveFromCart();
+  const clearCartMutation = useClearCart();
 
-  const loadCart = async () => {
-    try {
-      setIsLoading(true);
-      const response = await cartService.getCart();
-      console.log(response);
-      if (response.success && response.data?.items) {
-        // Flatten product data from nested structure
-        // Explicitly handle field names to avoid collision between cart quantity and stock
-        const flattenedItems = response.data.items.map((item: any) => ({
-          ...item,
-          ...(item.product || {}),
-          _id: item._id,
-          cartQuantity: item.quantity, // Preserve cart item quantity
-          stock: item.product?.quantity || 0 // Product's available stock
-        }));
-        setCartItems(flattenedItems);
-      }
-    } catch (error) {
-      console.error('Failed to load cart:', error);
-      globalToast.cart.loadFailed();
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  // Process cart data
+  const cartItems = React.useMemo(() => {
+    if (!cartData?.data?.items) return [];
+    
+    // Flatten product data from nested structure
+    return cartData.data.items.map((item: any) => ({
+      ...item,
+      ...(item.product || {}),
+      _id: item._id,
+      cartQuantity: item.quantity, // Preserve cart item quantity
+      stock: item.product?.quantity || 0 // Product's available stock
+    }));
+  }, [cartData]);
 
   // Show loader while checking authentication
   if (!loaded) {
@@ -59,7 +43,8 @@ export default function CartPage() {
 
   if (!isAuthenticated) return null;
 
-  if (isLoading) {
+  // Show skeleton loader only when first loading with no data
+  if (isLoading && !cartData) {
     return (
       <div className="min-h-screen flex flex-col">
         <Navbar />
@@ -117,25 +102,12 @@ export default function CartPage() {
   const handleUpdateQuantity = async (id: string, quantity: number) => {
     if (updatingItemId) return; // Prevent multiple simultaneous updates
 
-    // Optimistic update - update UI immediately
-    const previousItems = [...cartItems];
-    setCartItems(items =>
-      items.map(item => (item._id === id ? { ...item, cartQuantity: quantity } : item))
-    );
-
     try {
       setUpdatingItemId(id);
-      const response = await cartService.updateCartItem(id, { quantity });
-      if (response.success) {
-        refreshCartCount(); // Update navbar cart count
-      } else {
-        // Revert on failure
-        setCartItems(previousItems);
-      }
+      await updateCartItem.mutateAsync({ itemId: id, request: { quantity } });
     } catch (error) {
       console.error('Failed to update quantity:', error);
-      // Revert on error
-      setCartItems(previousItems);
+      globalToast.cart.updateFailed();
     } finally {
       setUpdatingItemId(null);
     }
@@ -143,14 +115,8 @@ export default function CartPage() {
 
   const handleRemove = async (id: string) => {
     try {
-      const response = await cartService.removeFromCart(id);
-      if (response.success) {
-        setCartItems(items => items.filter(item => item._id !== id));
-        refreshCartCount(); // Update navbar cart count
-        globalToast.cart.itemRemoved();
-      } else {
-        globalToast.cart.removeFailed();
-      }
+      await removeFromCart.mutateAsync(id);
+      globalToast.cart.itemRemoved();
     } catch (error) {
       console.error('Failed to remove item:', error);
       globalToast.cart.removeFailed();
@@ -167,29 +133,29 @@ export default function CartPage() {
 
       <main className="flex-1 bg-gradient-to-b from-gray-50 to-white">
         <div className="max-w-7xl mx-auto px-4 py-8">
-          {/* Progress Steps */}
+          {/* Enhanced Progress Steps */}
           <div className="mb-8">
             {/* Desktop Progress */}
             <div className="hidden sm:block">
               <div className="flex items-center justify-center max-w-2xl mx-auto">
                 <div className="flex items-center w-full">
                   <div className="flex flex-col items-center flex-1">
-                    <div className="w-10 h-10 rounded-full bg-pink-500 text-white flex items-center justify-center font-semibold mb-2">1</div>
-                    <span className="text-sm font-medium text-pink-600">Cart</span>
+                    <div className="w-12 h-12 rounded-full bg-gradient-to-r from-pink-500 to-pink-600 text-white flex items-center justify-center font-bold mb-2 shadow-lg">1</div>
+                    <span className="text-sm font-semibold text-pink-600">Cart</span>
                   </div>
-                  <div className="flex-1 h-1 bg-gray-200 mx-2"></div>
+                  <div className="flex-1 h-1 bg-gradient-to-r from-pink-500 to-pink-300 mx-2"></div>
                   <div className="flex flex-col items-center flex-1">
-                    <div className="w-10 h-10 rounded-full bg-gray-200 text-gray-500 flex items-center justify-center font-semibold mb-2">2</div>
+                    <div className="w-12 h-12 rounded-full bg-gray-200 text-gray-500 flex items-center justify-center font-semibold mb-2">2</div>
                     <span className="text-sm font-medium text-gray-500">Checkout</span>
                   </div>
                   <div className="flex-1 h-1 bg-gray-200 mx-2"></div>
                   <div className="flex flex-col items-center flex-1">
-                    <div className="w-10 h-10 rounded-full bg-gray-200 text-gray-500 flex items-center justify-center font-semibold mb-2">3</div>
+                    <div className="w-12 h-12 rounded-full bg-gray-200 text-gray-500 flex items-center justify-center font-semibold mb-2">3</div>
                     <span className="text-sm font-medium text-gray-500">Payment</span>
                   </div>
                   <div className="flex-1 h-1 bg-gray-200 mx-2"></div>
                   <div className="flex flex-col items-center flex-1">
-                    <div className="w-10 h-10 rounded-full bg-gray-200 text-gray-500 flex items-center justify-center font-semibold mb-2">4</div>
+                    <div className="w-12 h-12 rounded-full bg-gray-200 text-gray-500 flex items-center justify-center font-semibold mb-2">4</div>
                     <span className="text-sm font-medium text-gray-500">Complete</span>
                   </div>
                 </div>
@@ -197,13 +163,13 @@ export default function CartPage() {
             </div>
             {/* Mobile Progress */}
             <div className="sm:hidden">
-              <div className="bg-white rounded-xl p-4 border border-gray-200">
+              <div className="bg-white rounded-2xl p-4 border border-gray-200 shadow-sm">
                 <div className="flex items-center justify-between mb-3">
                   <span className="text-sm font-medium text-gray-600">Step 1 of 4</span>
-                  <span className="text-sm font-semibold text-pink-600">Cart</span>
+                  <span className="text-sm font-bold text-pink-600">Cart</span>
                 </div>
                 <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div className="bg-pink-500 h-2 rounded-full" style={{ width: '25%' }}></div>
+                  <div className="bg-gradient-to-r from-pink-500 to-pink-600 h-2 rounded-full" style={{ width: '25%' }}></div>
                 </div>
                 <div className="flex justify-between mt-2 text-xs text-gray-500">
                   <span>Cart</span>
@@ -216,25 +182,25 @@ export default function CartPage() {
           </div>
 
           <div className="mb-8">
-            <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-2">Shopping Cart</h1>
-            <p className="text-gray-600">{cartItems.length > 0 ? `You have ${cartItems.length} item${cartItems.length > 1 ? 's' : ''} in your cart` : 'Review your items before checkout'}</p>
+            <h1 className="text-4xl sm:text-5xl font-bold text-gray-900 mb-2">Shopping Cart</h1>
+            <p className="text-gray-600 text-lg">{cartItems.length > 0 ? `You have ${cartItems.length} item${cartItems.length > 1 ? 's' : ''} in your cart` : 'Review your items before checkout'}</p>
           </div>
 
           {cartItems.length === 0 ? (
-            <div className="text-center py-20 bg-white rounded-2xl shadow-lg border border-gray-100">
-              <div className="mb-6">
-                <div className="w-32 h-32 mx-auto bg-gradient-to-br from-pink-50 to-rose-50 rounded-full flex items-center justify-center">
-                  <svg className="w-16 h-16 text-pink-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="text-center py-24 bg-white rounded-3xl shadow-xl border border-gray-100">
+              <div className="mb-8">
+                <div className="w-40 h-40 mx-auto bg-gradient-to-br from-pink-50 to-rose-50 rounded-full flex items-center justify-center">
+                  <svg className="w-20 h-20 text-pink-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
                   </svg>
                 </div>
               </div>
-              <h2 className="text-2xl font-bold text-gray-800 mb-2">Your cart is empty</h2>
-              <p className="text-gray-500 text-lg mb-4">Looks like you haven't added any items yet</p>
-              <p className="text-gray-400 text-sm mb-8">Start shopping to add items to your cart</p>
+              <h2 className="text-3xl font-bold text-gray-800 mb-3">Your cart is empty</h2>
+              <p className="text-gray-500 text-lg mb-6">Looks like you haven't added any items yet</p>
+              <p className="text-gray-400 text-sm mb-10">Start shopping to add items to your cart</p>
               <Link href="/products">
-                <Button size="lg" className="shadow-lg shadow-pink-500/30 hover:shadow-pink-500/40 transition-shadow">
-                  <span className="flex items-center gap-2">
+                <Button size="lg" className="shadow-xl shadow-pink-500/30 hover:shadow-pink-500/40 transition-all">
+                  <span className="flex items-center justify-center gap-2">
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
                     </svg>
@@ -247,24 +213,23 @@ export default function CartPage() {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
               {/* Cart Items */}
               <div className="lg:col-span-2">
-                <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-6 mb-6">
+                <div className="bg-white rounded-3xl shadow-lg border border-gray-100 p-6 mb-6">
                   <div className="flex items-center justify-between mb-6">
-                    <h2 className="text-xl font-semibold text-gray-800 flex items-center gap-2">
-                      <svg className="w-5 h-5 text-pink-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
-                      </svg>
+                    <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-3">
+                      <div className="w-10 h-10 bg-gradient-to-r from-pink-500 to-pink-600 rounded-xl flex items-center justify-center">
+                        <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                        </svg>
+                      </div>
                       Cart Items ({cartItems.length})
                     </h2>
                     <button
                       onClick={() => {
                         if (confirm('Are you sure you want to clear your cart?')) {
-                          cartService.clearCart().then(() => {
-                            setCartItems([]);
-                            refreshCartCount();
-                          });
+                          clearCartMutation.mutateAsync();
                         }
                       }}
-                      className="text-sm text-red-600 hover:text-red-700 font-medium flex items-center gap-1 transition-colors"
+                      className="text-sm text-red-500 hover:text-red-600 font-medium flex items-center gap-2 transition-colors px-3 py-2 rounded-lg hover:bg-red-50"
                     >
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -286,10 +251,10 @@ export default function CartPage() {
                 </div>
 
                 {/* Continue Shopping */}
-                <div className="bg-gradient-to-r from-pink-50 to-rose-50 rounded-2xl p-6 border border-pink-100">
+                <div className="bg-gradient-to-r from-pink-50 via-rose-50 to-pink-50 rounded-3xl p-6 border border-pink-100">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div>
-                      <h3 className="font-semibold text-gray-800 mb-1">Continue Shopping</h3>
+                      <h3 className="font-bold text-gray-800 mb-1 text-lg">Continue Shopping</h3>
                       <p className="text-sm text-gray-600">Add more items to your cart</p>
                     </div>
                     <Link href="/products">
@@ -308,11 +273,13 @@ export default function CartPage() {
 
               {/* Order Summary */}
               <div className="lg:col-span-1 order-first lg:order-last">
-                <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 sticky top-4">
-                  <h2 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
-                    <svg className="w-5 h-5 text-pink-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                    </svg>
+                <div className="bg-white rounded-3xl shadow-xl border border-gray-100 p-6 sticky top-4">
+                  <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-3">
+                    <div className="w-10 h-10 bg-gradient-to-r from-pink-500 to-pink-600 rounded-xl flex items-center justify-center">
+                      <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                      </svg>
+                    </div>
                     Order Summary
                   </h2>
 
@@ -322,10 +289,10 @@ export default function CartPage() {
                       {cartItems.map(item => (
                         <div key={item._id} className="flex justify-between items-start pb-3 border-b border-gray-200 last:border-0 last:pb-0">
                           <div className="flex-1">
-                            <p className="text-sm font-medium text-gray-800">{item.name}</p>
+                            <p className="text-sm font-semibold text-gray-800">{item.name}</p>
                             <p className="text-xs text-gray-500 mt-1">Qty: {item.cartQuantity || item.quantity}</p>
                           </div>
-                          <span className="text-sm font-semibold text-gray-900">
+                          <span className="text-sm font-bold text-gray-900">
                             ₹{((item.price || 0) * (item.cartQuantity || item.quantity || 0)).toFixed(2)}
                           </span>
                         </div>
@@ -333,10 +300,10 @@ export default function CartPage() {
                     </div>
                   </div>
 
-                  <div className="space-y-3 mb-6">
+                  <div className="space-y-4 mb-6">
                     <div className="flex justify-between text-sm">
                       <span className="text-gray-600">Subtotal</span>
-                      <span className="text-gray-900 font-semibold">₹{total.toFixed(2)}</span>
+                      <span className="text-gray-900 font-bold">₹{total.toFixed(2)}</span>
                     </div>
                     {/* <div className="flex justify-between text-sm">
                       <span className="text-gray-600">Shipping</span>
@@ -346,23 +313,24 @@ export default function CartPage() {
                       </span>
                     </div> */}
                     <div className="border-t-2 border-gray-200 pt-4 flex justify-between items-center">
-                      <span className="font-semibold text-gray-800 text-lg">Total</span>
-                      <span className="text-3xl font-bold text-pink-600">₹{grandTotal.toFixed(2)}</span>
+                      <span className="font-bold text-gray-800 text-xl">Total</span>
+                      <span className="text-4xl font-bold text-pink-600">₹{grandTotal.toFixed(2)}</span>
                     </div>
                   </div>
 
                   {/* Promo Code Section */}
                   <div className="mb-6">
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">Promo Code</label>
                     <div className="flex flex-col sm:flex-row gap-2">
                       <input
                         type="text"
-                        placeholder="Promo code"
-                        className="flex-1 px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-pink-500 focus:border-transparent text-sm"
+                        placeholder="Enter promo code"
+                        className="flex-1 px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-pink-500 focus:border-transparent text-sm focus:outline-none"
                       />
                       <Button
                         variant="outline"
-                        size="sm"
-                        className="w-full sm:w-auto px-4"
+                        size="md"
+                        className="w-full sm:w-auto px-6"
                       >
                         Apply
                       </Button>
@@ -371,10 +339,10 @@ export default function CartPage() {
 
                   <div className="space-y-3">
                     <Link href="/checkout">
-                      <Button className="w-full shadow-lg shadow-pink-500/30 hover:shadow-pink-500/40 transition-all" size="lg">
+                      <Button className="w-full shadow-xl shadow-pink-500/30 hover:shadow-pink-500/40 transition-all" size="lg">
                         <span className="flex items-center justify-center gap-2">
                           Proceed to Checkout
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
                           </svg>
                         </span>

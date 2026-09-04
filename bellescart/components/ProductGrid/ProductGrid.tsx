@@ -1,7 +1,7 @@
 import React from 'react';
 import { Product } from '@/utils/types';
 import ProductCard from '@/components/ProductCard/ProductCard';
-import { useRequireUserAuth } from '@/auth/user';
+import { useAuth } from '@/auth/user';
 
 interface ProductGridProps {
   products: Product[];
@@ -14,22 +14,8 @@ export default function ProductGrid({
   onAddToCart,
   onAddToWishlist,
 }: ProductGridProps) {
-  const { user, loaded, isAuthenticated } = useRequireUserAuth();
+  const { isAuthenticated } = useAuth();
 
-  // Show loader while checking authentication
-  if (!loaded) {
-    return (
-      <div className="col-span-full py-12 text-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-pink-500 mx-auto"></div>
-        <p className="text-gray-500 text-lg mt-2">Loading...</p>
-      </div>
-    );
-  }
-
-  // Don't render if not authenticated (should be handled by useRequireUserAuth redirect)
-  if (!isAuthenticated) {
-    return null;
-  }
   if (products.length === 0) {
     return (
       <div className="col-span-full py-12 text-center">
@@ -46,7 +32,7 @@ export default function ProductGrid({
           product={product}
           onAddToCart={onAddToCart}
           onAddToWishlist={onAddToWishlist}
-          isLoggedIn={true}
+          isLoggedIn={isAuthenticated}
         />
       ))}
     </div>

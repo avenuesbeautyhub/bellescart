@@ -4,34 +4,21 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
-import { adminCategoryService, CategoryData } from '@/services/admin/categoryService';
+import { useAdminCategories, useCreateCategory, useDeleteCategory } from '@/hooks/user/useAdminQueries';
+import { CategoryData } from '@/services/admin/categoryService';
 import { globalToast } from '@/utils/globalToast';
 
 export default function CategoryManagementPage() {
   const router = useRouter();
-  const [categories, setCategories] = useState<any[]>([]);
-  const [loading, setLoading] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [newCategory, setNewCategory] = useState<CategoryData>({ name: '', description: '' });
 
-  useEffect(() => {
-    loadCategories();
-  }, []);
+  // React Query hooks
+  const { data: categoriesData, isLoading } = useAdminCategories();
+  const createCategory = useCreateCategory();
+  const deleteCategory = useDeleteCategory();
 
-  const loadCategories = async () => {
-    setLoading(true);
-    try {
-      const response = await adminCategoryService.getAllCategories();
-      if (response.success && response.data?.categories) {
-        setCategories(response.data.categories);
-      }
-    } catch (error: any) {
-      console.error('Failed to load categories:', error);
-      globalToast.admin.error('Load Failed', 'Failed to load categories');
-    } finally {
-      setLoading(false);
-    }
-  };
+  const categories = categoriesData?.data?.categories || [];
 
   const handleAddCategory = async () => {
     if (!newCategory.name.trim()) {
@@ -40,15 +27,10 @@ export default function CategoryManagementPage() {
     }
 
     try {
-      const response = await adminCategoryService.createCategory(newCategory);
-      if (response.success) {
-        globalToast.admin.success('Category Created', 'Category has been created successfully');
-        setNewCategory({ name: '', description: '' });
-        setShowForm(false);
-        loadCategories(); // Refresh the list
-      } else {
-        globalToast.admin.error('Creation Failed', response.message || 'Failed to create category');
-      }
+      await createCategory.mutateAsync(newCategory);
+      globalToast.admin.success('Category Created', 'Category has been created successfully');
+      setNewCategory({ name: '', description: '' });
+      setShowForm(false);
     } catch (error: any) {
       console.error('Failed to create category:', error.message);
       globalToast.admin.error('Network Error', error.message || 'Network error occurred');
@@ -61,21 +43,8 @@ export default function CategoryManagementPage() {
     }
 
     try {
-      const response = await adminCategoryService.deleteCategory(id);
-      if (response.success) {
-        globalToast.admin.success('Category Deleted', `Category "${name}" has been deleted`);
-        loadCategories(); // Refresh the list
-      } else {
-        // Handle specific error for category being used by products
-        if (response.message?.includes('being used by one or more products')) {
-          globalToast.admin.error(
-            'Cannot Delete Category',
-            `Category "${name}" is being used by products. Please reassign or delete those products first.`
-          );
-        } else {
-          globalToast.admin.error('Deletion Failed', response.message || 'Failed to delete category');
-        }
-      }
+      await deleteCategory.mutateAsync(id);
+      globalToast.admin.success('Category Deleted', `Category "${name}" has been deleted`);
     } catch (error: any) {
       console.error('Failed to delete category:', error);
       // Handle specific error for category being used by products
@@ -132,7 +101,11 @@ export default function CategoryManagementPage() {
         )}
 
         {/* Categories Grid */}
-        {categories.length === 0 ? (
+        {isLoading ? (
+          <div className="bg-white p-8 rounded-lg shadow text-center">
+            <div className="text-gray-500">Loading categories...</div>
+          </div>
+        ) : categories.length === 0 ? (
           <div className="bg-white p-8 rounded-lg shadow text-center">
             <div className="text-gray-500">
               <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 48 48">

@@ -1,16 +1,17 @@
 @import "tailwindcss";
 
 :root {
-  --background: #0b0b0d;
-  --foreground: #f5f2f8;
-  --surface: #121117;
-  --card: #16151b;
-  --border: #27232d;
+  --background: #ffffff;
+  --foreground: #1a1a1a;
+  --surface: #f8f9fa;
+  --card: #ffffff;
+  --border: #e5e7eb;
   --brand-pink: #ff4da6;
   --brand-dark: #0b0b0d;
-  --brand-muted: #1f1d22;
+  --brand-muted: #f3f4f6;
 }
 
+/* eslint-disable-next-line css-unknown-at-rule -- Tailwind CSS v4 @theme rule */
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -29,4 +30,5 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+  transition: background-color 0.3s ease, color 0.3s ease;
 }

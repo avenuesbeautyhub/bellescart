@@ -1,9 +1,13 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { User } from '@/utils/types';
 import { UserProfile } from '@/types/auth';
 import { authService } from '@/services/authService';
+
+// Export React Query hooks
+export { useAuthWithQuery } from '@/hooks/user/useAuthWithQuery';
+export { useCurrentUser, useLogin, useLogout, useVerifyOtp } from '@/hooks/user/useAuthQuery';
 
 // User authentication keys - only tokens needed
 const AUTH_TOKEN_KEY = 'bellescart_token';
@@ -44,14 +48,27 @@ export const clearUserSession = () => {
   window.localStorage.removeItem(AUTH_REFRESH_TOKEN_KEY);
 };
 
+export const getCachedUserData = (): User | null => {
+  // User data is no longer cached locally - fetched from API via React Query
+  return null;
+};
+
 export const useUserAuth = () => {
   const [user, setUser] = useState<User | null>(null);
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
-    // User data will be fetched from API when needed
-    // For now, just set loaded to true
-    setLoaded(true);
+    // Check for tokens first
+    const token = getUserToken();
+    const refreshToken = getUserRefreshToken();
+    
+    // Only set loaded to true if we have tokens or have tried to load user data
+    if (token || refreshToken) {
+      setLoaded(true);
+    } else {
+      // No tokens, set loaded to true to allow redirect
+      setLoaded(true);
+    }
   }, []);
 
   // Get authentication status from tokens only
@@ -80,44 +97,62 @@ export const useRequireUserAuth = () => {
 export const useAuth = () => {
   const [user, setUser] = useState<User | null>(null);
   const [loaded, setLoaded] = useState(false);
+  const hasFetched = useRef(false);
 
   useEffect(() => {
     const updateAuthState = async () => {
       const token = getUserToken();
       const refreshToken = getUserRefreshToken();
 
-      // Fetch current user data if we have a token
-      if (token) {
+      // Always set loaded to true immediately to prevent infinite loading
+      setLoaded(true);
+
+      // Only fetch if we have a token and haven't fetched yet
+      if (token && !hasFetched.current) {
+        hasFetched.current = true;
         try {
           const response = await authService.getCurrentUser();
           if (response.success && response.data) {
-            setUser(response.data as User);
+            // Map backend _id to frontend id
+            const userData = {
+              ...response.data,
+              id: response.data._id || response.data.id
+            };
+            setUser(userData as User);
           } else {
             // If token is invalid, clear it
             setUser(null);
           }
         } catch (error) {
           console.error('Failed to fetch current user:', error);
-          setUser(null);
+          // Don't set user to null on error during development
+          // This prevents redirect to login on API errors
+          if (process.env.NODE_ENV === 'development') {
+            console.warn('Development mode: Keeping auth state on API error');
+          } else {
+            setUser(null);
+          }
         }
-      } else {
+      } else if (!token) {
         // No token, clear user
         setUser(null);
+        hasFetched.current = false; // Reset for when user logs in
       }
-
-      // Only set loaded to true after checking tokens and fetching user
-      setLoaded(true);
     };
 
     updateAuthState();
 
     // Listen for storage changes to update auth state
     const handleStorageChange = () => {
+      setUser(null); // Reset user on storage change, will refetch
+      hasFetched.current = false; // Allow refetch
       updateAuthState();
     };
 
     // Listen for auth state changes (login/logout)
     const handleAuthStateChange = () => {
+      setUser(null); // Reset user on auth change, will refetch
+      hasFetched.current = false; // Allow refetch
       updateAuthState();
     };
 
@@ -128,7 +163,7 @@ export const useAuth = () => {
       window.removeEventListener('storage', handleStorageChange);
       window.removeEventListener('auth-state-changed', handleAuthStateChange);
     };
-  }, []);
+  }, []); // Empty dependency array - only run on mount
 
   // Get current tokens for validation
   const token = getUserToken();
@@ -158,7 +193,10 @@ export const useAuthActions = () => {
         // Set welcome flag to show welcome overlay
         if (typeof window !== 'undefined') {
           localStorage.setItem('welcomeShown', 'false');
+          localStorage.setItem('justLoggedIn', 'true');
+          // Force immediate auth state update
           window.dispatchEvent(new Event('auth-state-changed'));
+          window.dispatchEvent(new Event('storage'));
         }
       }
 
@@ -194,7 +232,10 @@ export const useAuthActions = () => {
 
         // Trigger auth state change event to update UI
         if (typeof window !== 'undefined') {
+          localStorage.setItem('welcomeShown', 'false');
+          localStorage.setItem('justLoggedIn', 'true');
           window.dispatchEvent(new Event('auth-state-changed'));
+          window.dispatchEvent(new Event('storage'));
         }
       }
 
@@ -218,9 +259,12 @@ export const useAuthActions = () => {
   const logout = () => {
     clearUserSession();
 
-    // Trigger auth state change event to update UI
+    // Clear login-related flags
     if (typeof window !== 'undefined') {
+      localStorage.removeItem('justLoggedIn');
+      localStorage.removeItem('welcomeShown');
       window.dispatchEvent(new Event('auth-state-changed'));
+      window.dispatchEvent(new Event('storage'));
     }
 
     window.location.href = '/login';

@@ -7,22 +7,24 @@ import Navbar from '@/components/Navbar/Navbar';
 import Footer from '@/components/Footer/Footer';
 import Button from '@/components/ui/Button';
 import Loader from '@/components/ui/Loader';
-import { orderService } from '@/services/orderService';
+import { useRequireUserAuth } from '@/auth/user';
+import { globalToast } from '@/utils/globalToast';
+import { useOrder } from '@/hooks/user/useOrderQueries';
 
 function OrderConfirmationContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const orderId = searchParams.get('orderId');
-  const [isLoading, setIsLoading] = useState(true);
-  const [order, setOrder] = useState<any>(null);
+  
+  // React Query hook
+  const { data: orderData, isLoading } = useOrder(orderId || '');
+  
   const [showConfetti, setShowConfetti] = useState(true);
   const [countdown, setCountdown] = useState(6);
 
+  // Redirect if no order ID
   useEffect(() => {
-    if (orderId) {
-      loadOrderDetails();
-    } else {
-      // If no order ID, redirect to orders page
+    if (!orderId) {
       router.push('/orders');
     }
   }, [orderId, router]);
@@ -51,23 +53,11 @@ function OrderConfirmationContent() {
     }
   }, [countdown, router]);
 
-  const loadOrderDetails = async () => {
-    try {
-      setIsLoading(true);
-      const response = await orderService.getOrderById(orderId!);
-      if (response.success && response.data?.order) {
-        setOrder(response.data.order);
-      } else {
-        // If order not found, redirect to orders page
-        router.push('/orders');
-      }
-    } catch (error) {
-      console.error('Failed to load order details:', error);
-      router.push('/orders');
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  // Process order data from React Query
+  const order = React.useMemo(() => {
+    if (!orderData?.data) return null;
+    return orderData.data.order || null;
+  }, [orderData]);
 
   if (isLoading) {
     return (

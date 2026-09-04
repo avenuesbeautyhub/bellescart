@@ -7,7 +7,7 @@ export interface IPayment extends Document {
   amount: number;
   currency: string;
   status: 'pending' | 'completed' | 'failed' | 'refunded';
-  paymentMethod: 'razorpay' | 'stripe' | 'paypal' | 'cash_on_delivery';
+  paymentMethod: 'razorpay' | 'stripe' | 'paypal' | 'cash_on_delivery' | 'credit_card' | 'debit_card';
   user: mongoose.Types.ObjectId;
   order?: mongoose.Types.ObjectId; // Reference to Order
   paymentSignature?: string; // Razorpay signature for verification
@@ -53,7 +53,7 @@ const paymentSchema = new Schema<IPayment>({
   },
   paymentMethod: {
     type: String,
-    enum: ['razorpay', 'stripe', 'paypal', 'cash_on_delivery'],
+    enum: ['razorpay', 'stripe', 'paypal', 'cash_on_delivery', 'credit_card', 'debit_card'],
     required: true
   },
   user: {

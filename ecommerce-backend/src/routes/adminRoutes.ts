@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { adminRateLimiter } from '../middleware/rateLimiter';
 import { AdminRepository } from '../repositories/AdminRepository';
 import { ProductRepository } from '../repositories/ProductRepository';
 
@@ -23,6 +24,9 @@ import { authenticateAdmin } from '../middleware/auth';
 import { upload } from '../services/cloudinaryService';
 
 const router = Router();
+
+// Apply admin-specific rate limiter to all admin routes
+router.use(adminRateLimiter);
 
 // Creating instances for repositories
 const adminRepository = new AdminRepository();

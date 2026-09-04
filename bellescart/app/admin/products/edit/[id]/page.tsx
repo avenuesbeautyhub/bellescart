@@ -4,8 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
-import { adminProductService } from '@/services/admin/productService';
-import { adminCategoryService } from '@/services/admin/categoryService';
+import { useAdminProduct, useAdminCategories, useUpdateProduct } from '@/hooks/user/useAdminQueries';
 import { globalToast } from '@/utils/globalToast';
 
 interface EditProductData {
@@ -31,6 +30,11 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
   const { id } = React.use(params);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // React Query hooks
+  const { data: productData, isLoading: isLoadingProduct } = useAdminProduct(id);
+  const { data: categoriesData } = useAdminCategories();
+  const updateProductMutation = useUpdateProduct();
+
   const [formData, setFormData] = useState<EditProductData>({
     name: '',
     description: '',
@@ -45,57 +49,27 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
 
   const [existingImages, setExistingImages] = useState<any[]>([]);
   const [newImages, setNewImages] = useState<ImagePreview[]>([]);
-  const [categories, setCategories] = useState<any[]>([]);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [loading, setLoading] = useState(true);
 
+  const product = productData?.data?.product || null;
+  const categories = categoriesData?.data?.categories || [];
+
+  // Load product data into form when product loads
   useEffect(() => {
-    loadProduct();
-    loadCategories();
-  }, [id]);
-
-  const loadProduct = async () => {
-    try {
-      console.log('Loading product with ID:', id); // Debug log
-      if (!id) {
-        throw new Error('Product ID is required');
-      }
-
-      const response = await adminProductService.getProductById(id);
-      if (response.success && response.data?.product) {
-        const product = response.data.product;
-        setFormData({
-          name: product.name || '',
-          description: product.description || '',
-          price: product.price?.toString() || '',
-          category: product.category?._id || product.category || '',
-          brand: product.brand || '',
-          quantity: product.quantity?.toString() || '',
-          tags: product.tags?.join(', ') || '',
-          status: product.status || 'active',
-          featured: product.featured || false
-        });
-        setExistingImages(product.images || []);
-      }
-    } catch (error: any) {
-      console.error('Failed to load product:', error);
-      globalToast.admin.error('Load Failed', 'Failed to load product details');
-      router.push('/admin/products');
-    } finally {
-      setLoading(false);
+    if (product) {
+      setFormData({
+        name: product.name || '',
+        description: product.description || '',
+        price: product.price?.toString() || '',
+        category: product.category?._id || product.category || '',
+        brand: product.brand || '',
+        quantity: product.quantity?.toString() || '',
+        tags: product.tags?.join(', ') || '',
+        status: product.status || 'active',
+        featured: product.featured || false
+      });
+      setExistingImages(product.images || []);
     }
-  };
-
-  const loadCategories = async () => {
-    try {
-      const response = await adminCategoryService.getAllCategories();
-      if (response.success && response.data?.categories) {
-        setCategories(response.data.categories);
-      }
-    } catch (error) {
-      console.error('Failed to load categories:', error);
-    }
-  };
+  }, [product]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
@@ -128,7 +102,6 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsSubmitting(true);
 
     try {
       const formDataToSend = new FormData();
@@ -152,7 +125,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
         formDataToSend.append(`images`, image.file);
       });
 
-      const response = await adminProductService.updateProduct(id, formDataToSend);
+      const response = await updateProductMutation.mutateAsync({ id, formData: formDataToSend });
 
       if (response.success) {
         globalToast.admin.success('Product Updated', 'Product has been updated successfully');
@@ -163,12 +136,10 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
     } catch (error: any) {
       console.error('Failed to update product:', error);
       globalToast.admin.error('Network Error', error.message || 'Network error occurred');
-    } finally {
-      setIsSubmitting(false);
     }
   };
 
-  if (loading) {
+  if (isLoadingProduct) {
     return (
       <div className="min-h-screen bg-gray-100 flex items-center justify-center">
         <div className="text-gray-500">Loading product details...</div>
@@ -406,9 +377,9 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
             </Button>
             <Button
               type="submit"
-              disabled={isSubmitting}
+              disabled={updateProductMutation.isPending}
             >
-              {isSubmitting ? 'Updating...' : 'Update Product'}
+              {updateProductMutation.isPending ? 'Updating...' : 'Update Product'}
             </Button>
           </div>
         </form>

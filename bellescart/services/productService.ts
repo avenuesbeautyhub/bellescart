@@ -1,6 +1,6 @@
 'use client';
 
-import { apiGet, publicApiGet } from './apiInterceptor';
+import { apiGet } from './apiInterceptor';
 
 export interface ProductImage {
   url: string;
@@ -117,7 +117,7 @@ class ProductService {
 
   async getCategories(): Promise<{ success: boolean; data?: { categories: ProductCategory[] } }> {
     try {
-      const response = await apiGet('/public/categories');
+      const response = await apiGet('/categories');
       const result = await response.json();
       return result;
     } catch (error) {

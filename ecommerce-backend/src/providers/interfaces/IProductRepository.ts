@@ -8,6 +8,7 @@ export interface IProductRepository {
   find(filter: any, options?: { limit?: number; skip?: number; sort?: any; populate?: string | any }): Promise<IProduct[]>;
   findActive(filter: any, options?: { limit?: number; skip?: number; sort?: any }): Promise<IProduct[]>;
   searchProducts(query: string, options?: { limit?: number; skip?: number; sort?: any }): Promise<IProduct[]>;
+  countSearchResults(query: string): Promise<number>;
   findByCategory(category: string, options?: { limit?: number; skip?: number; sort?: any }): Promise<IProduct[]>;
   findByBrand(brand: string, options?: { limit?: number; skip?: number; sort?: any }): Promise<IProduct[]>;
   findByPriceRange(minPrice: number, maxPrice: number, options?: { limit?: number; skip?: number; sort?: any }): Promise<IProduct[]>;

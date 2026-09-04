@@ -11,27 +11,40 @@ import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
 import Loader from '@/components/ui/Loader';
 import Badge from '@/components/ui/Badge';
-import { cartService } from '@/services/cartService';
 import { orderService, CreateOrderRequest, ShippingAddress } from '@/services/orderService';
 import { paymentService } from '@/services/paymentService';
-import { authService } from '@/services/authService';
 import { globalToast } from '@/utils/globalToast';
 import { Address } from '@/types/auth';
-import { useCart } from '@/contexts/CartContext';
+import { useCart as useCartQuery, useClearCart } from '@/hooks/user/useCartQueries';
+import { useCreateOrder } from '@/hooks/user/useOrderQueries';
+import { useCurrentUser } from '@/hooks/user/useAuthQuery';
 
 export default function CheckoutPage() {
   const router = useRouter();
   const { loaded, isAuthenticated } = useRequireUserAuth();
-  const { refreshCartCount } = useCart();
-  const [isLoading, setIsLoading] = useState(true);
+  
+  // React Query hooks
+  const { data: cartData, isLoading: isLoadingCart } = useCartQuery();
+  const { data: currentUserData } = useCurrentUser();
+  const createOrderMutation = useCreateOrder();
+  const clearCartMutation = useClearCart();
+  
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [processingStep, setProcessingStep] = useState<string>('');
-  const [cartItems, setCartItems] = useState<any[]>([]);
-  const [savedAddresses, setSavedAddresses] = useState<Address[]>([]);
   const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
   const [showNewAddressForm, setShowNewAddressForm] = useState(false);
-  const [isRefreshingCart, setIsRefreshingCart] = useState(false);
   const [calculatedShippingFee, setCalculatedShippingFee] = useState<number>(0);
+  
+  // Process cart data from React Query
+  const cartItems = React.useMemo(() => {
+    return cartData?.data?.items || [];
+  }, [cartData]);
+  
+  // Process user data from React Query
+  const savedAddresses = React.useMemo(() => {
+    return currentUserData?.addresses || [];
+  }, [currentUserData]);
+  
   const [formData, setFormData] = useState<{
     fullName: string;
     email: string;
@@ -56,25 +69,32 @@ export default function CheckoutPage() {
     notes: '',
   });
 
-  // Load cart data and user profile when authenticated
+  // Initialize form data when user data loads
   useEffect(() => {
-    if (loaded && isAuthenticated) {
-      loadCart();
-      loadUserProfile();
-    }
-  }, [loaded, isAuthenticated]);
-
-  // Reload cart when page gains focus (in case user updated cart in another tab)
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible' && loaded && isAuthenticated) {
-        loadCart();
+    if (currentUserData) {
+      setFormData(prev => ({
+        ...prev,
+        fullName: currentUserData.name || '',
+        email: currentUserData.email || '',
+        phone: currentUserData.phone || '',
+      }));
+      
+      if (currentUserData.addresses && currentUserData.addresses.length > 0) {
+        const defaultAddress = currentUserData.addresses.find((addr: Address) => addr.isDefault);
+        if (defaultAddress) {
+          setSelectedAddressId(defaultAddress._id || null);
+          setFormData(prev => ({
+            ...prev,
+            address: defaultAddress.address || '',
+            city: defaultAddress.city || '',
+            state: defaultAddress.state || '',
+            zipCode: defaultAddress.zipCode || '',
+            country: defaultAddress.country || 'IN',
+          }));
+        }
       }
-    };
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-  }, [loaded, isAuthenticated]);
+    }
+  }, [currentUserData]);
 
   // Load Razorpay script
   useEffect(() => {
@@ -87,73 +107,11 @@ export default function CheckoutPage() {
     };
   }, []);
 
-  const loadCart = async () => {
-    try {
-      setIsLoading(true);
-      const response = await cartService.getCart();
-      if (response.success && response.data?.items) {
-        setCartItems(response.data.items);
-      }
-    } catch (error) {
-      console.error('Failed to load cart:', error);
-      globalToast.cart.loadFailed();
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   // Calculate shipping fee based on subtotal
   const calculateShippingFee = (subtotal: number): number => {
     if (subtotal >= 999) return 0; // Free shipping
     if (subtotal > 499) return 40; // ₹40 shipping
     return 60; // ₹60 shipping (default for orders < ₹250)
-  };
-
-  const refreshCart = async () => {
-    try {
-      setIsRefreshingCart(true);
-      const response = await cartService.getCart();
-      if (response.success && response.data?.items) {
-        setCartItems(response.data.items);
-      }
-    } catch (error) {
-      console.error('Failed to refresh cart:', error);
-      globalToast.cart.loadFailed();
-    } finally {
-      setIsRefreshingCart(false);
-    }
-  };
-
-  const loadUserProfile = async () => {
-    try {
-      const response = await authService.getCurrentUser();
-      if (response.success && response.data) {
-        const userData = response.data;
-        setFormData(prev => ({
-          ...prev,
-          fullName: userData.name || '',
-          email: userData.email || '',
-          phone: userData.phone || '',
-        }));
-        if (userData.addresses && userData.addresses.length > 0) {
-          setSavedAddresses(userData.addresses);
-          const defaultAddress = userData.addresses.find((addr: Address) => addr.isDefault);
-          if (defaultAddress) {
-            setSelectedAddressId(defaultAddress._id || null);
-            setFormData(prev => ({
-              ...prev,
-              address: defaultAddress.address || '',
-              city: defaultAddress.city || '',
-              state: defaultAddress.state || '',
-              zipCode: defaultAddress.zipCode || '',
-              country: defaultAddress.country || 'IN',
-            }));
-          }
-        }
-      }
-    } catch (error) {
-      console.error('Failed to load user profile:', error);
-    }
   };
 
   // Show loader while checking authentication
@@ -163,7 +121,7 @@ export default function CheckoutPage() {
 
   if (!isAuthenticated) return null;
 
-  if (isLoading) {
+  if (isLoadingCart) {
     return <Loader size="lg" text="Loading checkout..." fullScreen />;
   }
 
@@ -279,12 +237,11 @@ export default function CheckoutPage() {
                   processNimbus: orderRequest.processNimbus
                 });
 
-                const orderResponse = await orderService.createOrder(orderRequest);
+                const orderResponse = await createOrderMutation.mutateAsync(orderRequest);
 
                 if (orderResponse.success) {
                   setProcessingStep('Finalizing order...');
-                  await cartService.clearCart();
-                  await refreshCartCount();
+                  await clearCartMutation.mutateAsync();
                   const orderId = orderResponse.data?.order?._id || orderResponse.data?.order?.id;
                   // Immediate redirect without toast to avoid delay
                   router.push(`/order-confirmation?orderId=${orderId}`);
@@ -404,57 +361,59 @@ export default function CheckoutPage() {
             </div>
           </div>
 
-          <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-2">Checkout</h1>
-          <p className="text-gray-600 mb-8">Complete your order details below</p>
+          <h1 className="text-4xl sm:text-5xl font-bold text-gray-900 mb-2">Checkout</h1>
+          <p className="text-gray-600 text-lg mb-8">Complete your order details below</p>
 
           <form onSubmit={handleSubmit}>
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
               {/* Shipping & Billing Form */}
               <div className="lg:col-span-2 space-y-6 order-1 lg:order-1">
                 {/* Contact Information */}
-                <div className="bg-white p-6 rounded-xl shadow-md border border-gray-100">
-                  <div className="flex items-center justify-between mb-4">
-                    <h2 className="text-xl font-semibold text-gray-800 flex items-center gap-2">
-                      <svg className="w-5 h-5 text-pink-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                      </svg>
+                <div className="bg-white p-6 rounded-2xl shadow-md border border-gray-100">
+                  <div className="flex items-center justify-between mb-6">
+                    <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-3">
+                      <div className="w-10 h-10 bg-gradient-to-r from-pink-500 to-pink-600 rounded-xl flex items-center justify-center">
+                        <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                        </svg>
+                      </div>
                       Contact Information
                     </h2>
                     <Badge variant="success" className="text-xs">Verified</Badge>
                   </div>
 
-                  <div className="bg-gray-50 rounded-lg p-4 space-y-3">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 bg-pink-100 rounded-full flex items-center justify-center">
-                        <svg className="w-4 h-4 text-pink-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <div className="bg-gradient-to-r from-gray-50 to-gray-100 rounded-2xl p-6 space-y-4">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 bg-gradient-to-br from-pink-100 to-pink-200 rounded-xl flex items-center justify-center">
+                        <svg className="w-6 h-6 text-pink-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                         </svg>
                       </div>
                       <div>
-                        <p className="text-xs text-gray-500">Full Name</p>
-                        <p className="text-sm font-medium text-gray-900">{formData.fullName}</p>
+                        <p className="text-xs text-gray-500 uppercase tracking-wider">Full Name</p>
+                        <p className="text-base font-semibold text-gray-900">{formData.fullName}</p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                        <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 bg-gradient-to-br from-blue-100 to-blue-200 rounded-xl flex items-center justify-center">
+                        <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                         </svg>
                       </div>
                       <div>
-                        <p className="text-xs text-gray-500">Email</p>
-                        <p className="text-sm font-medium text-gray-900">{formData.email}</p>
+                        <p className="text-xs text-gray-500 uppercase tracking-wider">Email</p>
+                        <p className="text-base font-semibold text-gray-900">{formData.email}</p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
-                        <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 bg-gradient-to-br from-green-100 to-green-200 rounded-xl flex items-center justify-center">
+                        <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
                         </svg>
                       </div>
                       <div>
-                        <p className="text-xs text-gray-500">Phone</p>
-                        <p className="text-sm font-medium text-gray-900">{formData.phone}</p>
+                        <p className="text-xs text-gray-500 uppercase tracking-wider">Phone</p>
+                        <p className="text-base font-semibold text-gray-900">{formData.phone}</p>
                       </div>
                     </div>
                   </div>
@@ -711,15 +670,17 @@ export default function CheckoutPage() {
               </div>
 
               {/* Order Summary */}
-              <div className="bg-white p-6 rounded-xl shadow-lg border border-gray-100 h-fit lg:sticky lg:top-4 order-2 lg:order-last z-10">
-                <h2 className="text-xl font-semibold text-gray-800 mb-6 flex items-center gap-2">
-                  <svg className="w-5 h-5 text-pink-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                  </svg>
+              <div className="bg-white p-6 rounded-3xl shadow-xl border border-gray-100 h-fit lg:sticky lg:top-4 order-2 lg:order-last z-10">
+                <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-3">
+                  <div className="w-10 h-10 bg-gradient-to-r from-pink-500 to-pink-600 rounded-xl flex items-center justify-center">
+                    <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                    </svg>
+                  </div>
                   Order Summary
                 </h2>
 
-                <div className="bg-gradient-to-br from-gray-50 to-gray-100 p-4 rounded-xl mb-6 max-h-64 overflow-y-auto">
+                <div className="bg-gradient-to-br from-gray-50 to-gray-100 p-5 rounded-2xl mb-6 max-h-64 overflow-y-auto">
                   <div className="space-y-4">
                     {cartItems.map(item => (
                       <div key={item._id} className="flex justify-between items-start pb-3 border-b border-gray-200 last:border-0 last:pb-0">
@@ -735,21 +696,21 @@ export default function CheckoutPage() {
                   </div>
                 </div>
 
-                <div className="space-y-3 mb-6">
+                <div className="space-y-4 mb-6">
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-600">Subtotal</span>
-                    <span className="text-gray-900 font-semibold">₹{subtotal.toFixed(2)}</span>
+                    <span className="text-gray-900 font-bold">₹{subtotal.toFixed(2)}</span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-600">Shipping</span>
                     <span className="text-gray-900 font-semibold">
                       ₹{shipping.toFixed(2)}
-                      {shipping === 0 && <span className="text-green-600 ml-2 font-medium">(Free)</span>}
+                      {shipping === 0 && <span className="text-green-600 ml-2 font-bold">(Free)</span>}
                     </span>
                   </div>
                   <div className="border-t-2 border-gray-200 pt-4 flex justify-between items-center">
-                    <span className="font-semibold text-gray-800 text-lg">Total</span>
-                    <span className="text-3xl font-bold text-pink-600">₹{grandTotal.toFixed(2)}</span>
+                    <span className="font-bold text-gray-800 text-xl">Total</span>
+                    <span className="text-4xl font-bold text-pink-600">₹{grandTotal.toFixed(2)}</span>
                   </div>
                 </div>
 
@@ -776,7 +737,7 @@ export default function CheckoutPage() {
                   type="submit"
                   variant="primary"
                   size="lg"
-                  className="w-full shadow-lg shadow-pink-500/30 hover:shadow-pink-500/40 transition-all"
+                  className="w-full shadow-xl shadow-pink-500/30 hover:shadow-pink-500/40 transition-all"
                   disabled={isSubmitting}
                 >
                   {isSubmitting ? (

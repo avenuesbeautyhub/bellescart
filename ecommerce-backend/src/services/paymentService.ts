@@ -31,7 +31,7 @@ export interface CreatePaymentRecordRequest {
   amount: number;
   currency: string;
   status: 'pending' | 'completed' | 'failed' | 'refunded';
-  paymentMethod: 'razorpay' | 'stripe' | 'paypal' | 'cash_on_delivery';
+  paymentMethod: 'razorpay' | 'stripe' | 'paypal' | 'cash_on_delivery' | 'credit_card' | 'debit_card';
   userId: string;
   orderId?: string;
   paymentSignature?: string;

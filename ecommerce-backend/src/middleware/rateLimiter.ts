@@ -19,11 +19,11 @@ export const apiRateLimiter = rateLimit({
 
 // Stricter rate limiter for authentication endpoints
 export const authRateLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 5, // Limit each IP to 5 login/register attempts per windowMs
+  windowMs: 10 * 60 * 1000, // 10 minutes
+  max: 7, // Limit each IP to 5 login/register attempts per windowMs
   message: {
     success: false,
-    error: 'Too many authentication attempts, please try again after 15 minutes'
+    error: 'Too many authentication attempts, please try again after 10 minutes'
   },
   standardHeaders: true,
   legacyHeaders: false
@@ -72,6 +72,18 @@ export const publicRateLimiter = rateLimit({
   message: {
     success: false,
     error: 'Too many requests, please try again after 15 minutes'
+  },
+  standardHeaders: true,
+  legacyHeaders: false
+});
+
+// Rate limiter for admin endpoints (authenticated admin users)
+export const adminRateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 500, // Higher limit for authenticated admin operations
+  message: {
+    success: false,
+    error: 'Too many admin requests, please try again after 15 minutes'
   },
   standardHeaders: true,
   legacyHeaders: false

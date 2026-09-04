@@ -336,6 +336,10 @@ export class OrderInteractor implements IOrderInteractor {
     return this._orderRepository.findByIdWithUserAndPopulate(userId, orderId);
   }
 
+  async getOrderByIdForAdmin(orderId: string): Promise<IOrder | null> {
+    return this._orderRepository.findByIdWithPopulate(orderId);
+  }
+
   async updateOrderStatus(orderId: string, status: IOrder['status'], additionalData?: {
     trackingNumber?: string;
     estimatedDelivery?: Date;
@@ -361,7 +365,7 @@ export class OrderInteractor implements IOrderInteractor {
     }
 
     // Check if order can be cancelled
-    if (!['pending', 'confirmed'].includes(order.status)) {
+    if (!['delivered', 'shipped'].includes(order.status)) {
       throw new Error('Order cannot be cancelled at this stage');
     }
 
