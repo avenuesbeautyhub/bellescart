@@ -16,14 +16,14 @@ export class OrderRepository extends BaseRepository<IOrder> implements IOrderRep
   }
 
   async findByIdWithPopulate(id: string): Promise<IOrder | null> {
-    return this.model.findById(id).populate('items.product');
+    return this.model.findById(id).populate('user').populate('items.product').populate('coupon');
   }
 
   async findByIdWithUserAndPopulate(userId: string, orderId: string): Promise<IOrder | null> {
     return this.model.findOne({
       _id: orderId,
       user: userId
-    }).populate('items.product');
+    }).populate('items.product').populate('coupon');
   }
 
   async findByStatus(status: string, options?: { limit?: number; skip?: number; sort?: any }): Promise<IOrder[]> {
@@ -31,7 +31,7 @@ export class OrderRepository extends BaseRepository<IOrder> implements IOrderRep
   }
 
   async findAll(options?: { limit?: number; skip?: number; sort?: any }): Promise<IOrder[]> {
-    return this.model.find({}, null, options).populate('user').populate('items.product');
+    return this.model.find({}, null, options).populate('user').populate('items.product').populate('coupon');
   }
 
   async updateStatus(orderId: string, status: IOrder['status'], additionalData?: any): Promise<IOrder | null> {

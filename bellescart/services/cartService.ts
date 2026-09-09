@@ -80,4 +80,24 @@ export const cartService = {
       throw error;
     }
   },
+
+  // Validate stock for cart items
+  validateStock: async (): Promise<{
+    success: boolean;
+    data?: {
+      valid: boolean;
+      outOfStockItems: Array<{ productId: string; productName: string; requestedQuantity: number; availableQuantity: number }>;
+      message: string;
+    };
+    message?: string;
+  }> => {
+    try {
+      const response = await apiPost('/cart/validate-stock', {});
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error('Error validating stock:', error);
+      throw error;
+    }
+  },
 };

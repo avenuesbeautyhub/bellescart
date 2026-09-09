@@ -57,6 +57,8 @@ export const globalToast = {
     loadFailed: () => globalToast.show(toastMessages.order.loadFailed()),
     cancelSuccess: () => globalToast.show(toastMessages.order.cancelSuccess()),
     cancelFailed: () => globalToast.show(toastMessages.order.cancelFailed()),
+    returnSuccess: () => globalToast.show(toastMessages.order.returnSuccess()),
+    returnFailed: (error?: string) => globalToast.show(toastMessages.order.returnFailed(error)),
   },
 
   // Admin toast functions - flexible functions that accept custom messages

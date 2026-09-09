@@ -9,14 +9,12 @@ import Footer from '@/components/Footer/Footer';
 import OrderCard from '@/components/OrderCard/OrderCard';
 import Button from '@/components/ui/Button';
 import Loader from '@/components/ui/Loader';
-import { orderService } from '@/services/orderService';
+import { useOrders, useCancelOrder } from '@/hooks/user/useOrderQueries';
 import { globalToast } from '@/utils/globalToast';
 
 export default function OrdersPage() {
   const router = useRouter();
   const { loaded, isAuthenticated } = useRequireUserAuth();
-  const [isLoading, setIsLoading] = useState(true);
-  const [orders, setOrders] = useState<any[]>([]);
 
   // Search state
   const [searchQuery, setSearchQuery] = useState('');
@@ -35,38 +33,16 @@ export default function OrdersPage() {
   // UI state
   const [showMobileFilters, setShowMobileFilters] = useState(false);
 
-  // Load orders when authenticated
-  useEffect(() => {
-    if (loaded && isAuthenticated) {
-      loadOrders();
-    }
-  }, [loaded, isAuthenticated]);
+  // React Query hooks
+  const { data: ordersData, isLoading, error } = useOrders();
+  const cancelOrder = useCancelOrder();
 
-  const loadOrders = async () => {
-    try {
-      setIsLoading(true);
-      const response = await orderService.getOrders();
-      if (response.success && response.data?.orders) {
-        setOrders(response.data.orders);
-      }
-    } catch (error) {
-      console.error('Failed to load orders:', error);
-      globalToast.order.loadFailed();
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const orders = ordersData?.data?.orders || [];
 
   const handleCancelOrder = async (orderId: string) => {
     try {
-      const response = await orderService.cancelOrder(orderId);
-      if (response.success) {
-        globalToast.order.cancelSuccess();
-        // Reload orders to reflect the cancellation
-        await loadOrders();
-      } else {
-        globalToast.order.cancelFailed();
-      }
+      await cancelOrder.mutateAsync(orderId);
+      globalToast.order.cancelSuccess();
     } catch (error) {
       console.error('Failed to cancel order:', error);
       globalToast.order.cancelFailed();
@@ -172,6 +148,21 @@ export default function OrdersPage() {
         <Navbar />
         <div className="flex-1 flex items-center justify-center">
           <Loader size="lg" text="Loading orders..." />
+        </div>
+        <Footer />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen flex flex-col">
+        <Navbar />
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <p className="text-red-500 mb-4">Failed to load orders</p>
+            <Button onClick={() => window.location.reload()}>Retry</Button>
+          </div>
         </div>
         <Footer />
       </div>

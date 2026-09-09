@@ -1,30 +1,69 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import Button from '@/components/ui/Button';
 import { useAuth, useAuthActions } from '@/auth/user';
-import { useCart } from '@/contexts/CartContext';
+import { useCart as useCartQuery } from '@/hooks/user/useCartQueries';
+import { useProfile } from '@/hooks/user/useProfileQueries';
+import { useWalletBalance } from '@/hooks/user/useWalletQueries';
+import { SearchBar } from '@/components';
+import Badge from '@/components/ui/Badge';
 
 export default function Navbar() {
   const router = useRouter();
+
   const [isOpen, setIsOpen] = useState(false);
-  const { cartCount } = useCart();
+
   const { user, isAuthenticated, loaded } = useAuth();
   const { logout } = useAuthActions();
 
+  const { data: profileData } = useProfile({
+    enabled: isAuthenticated && loaded,
+  });
+
+  const { data: cartData } = useCartQuery({
+    enabled: isAuthenticated && loaded,
+  });
+
+  const { data: walletBalanceData } = useWalletBalance({
+    enabled: isAuthenticated && loaded,
+  });
+
+  const cartCount = useMemo(() => {
+    if (!cartData?.data?.items) return 0;
+
+    return cartData.data.items.reduce(
+      (sum: number, item: any) => sum + (item.quantity || 1),
+      0
+    );
+  }, [cartData]);
+
+  const profileAvatar = profileData?.data?.avatar;
+  const walletBalance = walletBalanceData?.data?.balance ?? 0;
+
+  const isLoggedIn = isAuthenticated && loaded;
+
   const handleLogout = () => {
+    setIsOpen(false);
     logout();
     router.push('/login');
   };
 
-  // Close drawer when clicking outside or on escape key
+  const handleSearch = (query: string) => {
+    router.push(
+      `${isLoggedIn ? '/products' : '/products/guest'}?search=${encodeURIComponent(query)}`
+    );
+  };
+
+  // Lock body scroll while mobile drawer is open
   useEffect(() => {
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setIsOpen(false);
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsOpen(false);
+      }
     };
-    
+
     if (isOpen) {
       document.addEventListener('keydown', handleEscape);
       document.body.style.overflow = 'hidden';
@@ -38,316 +77,829 @@ export default function Navbar() {
     };
   }, [isOpen]);
 
-  const isLoggedIn = isAuthenticated && loaded;
+  const closeMobileMenu = () => {
+    setIsOpen(false);
+  };
 
   return (
     <>
-      <nav className="bg-gradient-to-r from-gray-900 via-black to-gray-900 text-white shadow-xl border-b border-gray-800 relative z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between h-16">
-            {/* Logo */}
-            <div className="flex items-center">
-              <Link href="/" className="group flex items-center space-x-2">
-                <div className="w-8 h-8 bg-gradient-to-r from-pink-500 to-pink-600 rounded-lg flex items-center justify-center transform group-hover:scale-110 transition-transform">
-                  <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
-                    <path d="M10.394 2.08a1 1 0 00-.788 0l-7 3a1 1 0 000 1.84L5.25 8.051a.999.999 0 01.226.1l7 3a1 1 0 00.788 0l7-3a1 1 0 000-1.84l-5.38-2.31z" />
-                  </svg>
-                </div>
-                <span className="text-2xl font-bold bg-gradient-to-r from-pink-500 to-pink-600 bg-clip-text text-transparent">
-                  BellesCart
-                </span>
-              </Link>
-            </div>
+      {/* =========================================================
+          MAIN NAVBAR
+      ========================================================== */}
+      <nav className="sticky top-0 z-50 border-b border-gray-100/80 bg-white/95 backdrop-blur-xl">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="flex h-[72px] items-center justify-between gap-4">
 
-            {/* Desktop Menu */}
-            <div className="hidden md:flex items-center space-x-1">
-              <Link href="/products" className="px-4 py-2 rounded-lg text-gray-300 hover:text-white hover:bg-gray-800 transition-all duration-200 font-medium">
-                Products
-              </Link>
+            {/* ---------------------------------------------------
+                LOGO
+            ---------------------------------------------------- */}
+            <Link
+              href={isLoggedIn ? '/dashboard' : '/'}
+              className="group flex shrink-0 items-center gap-2.5"
+              aria-label="BellesCart Home"
+            >
+              <div
+                className="
+                  flex h-10 w-10 items-center justify-center
+                  rounded-xl
+                  bg-gradient-to-br from-pink-500 via-pink-500 to-purple-600
+                  shadow-[0_6px_18px_rgba(236,72,153,0.22)]
+                  transition-all duration-300
+                  group-hover:-translate-y-0.5
+                  group-hover:shadow-[0_8px_22px_rgba(236,72,153,0.3)]
+                "
+              >
+                <svg
+                  className="h-5.5 w-5.5 text-white"
+                  fill="currentColor"
+                  viewBox="0 0 20 20"
+                  aria-hidden="true"
+                >
+                  <path d="M10.394 2.08a1 1 0 00-.788 0l-7 3a1 1 0 000 1.84L5.25 8.051a.999.999 0 01.226.1l7 3a1 1 0 00.788 0l7-3a1 1 0 000-1.84l-5.38-2.31z" />
+                </svg>
+              </div>
+
+              <span
+                className="
+                  hidden text-[22px] font-extrabold tracking-tight
+                  bg-gradient-to-r from-pink-600 to-purple-600
+                  bg-clip-text text-transparent
+                  sm:block
+                "
+              >
+                BellesCart
+              </span>
+            </Link>
+
+            {/* ---------------------------------------------------
+                DESKTOP CENTER AREA
+            ---------------------------------------------------- */}
+            <div className="hidden min-w-0 flex-1 items-center justify-center gap-5 md:flex">
+
+              {/* Search */}
+              <div className="w-full max-w-md">
+                <SearchBar
+                  className="w-full"
+                  onSearch={handleSearch}
+                />
+              </div>
+
+              {/* Navigation */}
               {isLoggedIn && (
-                <>
-                  <Link href="/wishlist" className="px-4 py-2 rounded-lg text-gray-300 hover:text-white hover:bg-gray-800 transition-all duration-200 font-medium">
+                <div className="flex shrink-0 items-center gap-0.5">
+
+                  <Link
+                    href="/products"
+                    className="
+                      rounded-lg px-3 py-2
+                      text-sm font-medium text-gray-600
+                      transition-all duration-200
+                      hover:bg-pink-50 hover:text-pink-600
+                    "
+                  >
+                    Products
+                  </Link>
+
+                  <Link
+                    href="/wishlist"
+                    className="
+                      rounded-lg px-3 py-2
+                      text-sm font-medium text-gray-600
+                      transition-all duration-200
+                      hover:bg-pink-50 hover:text-pink-600
+                    "
+                  >
                     Wishlist
                   </Link>
-                  <Link href="/orders" className="px-4 py-2 rounded-lg text-gray-300 hover:text-white hover:bg-gray-800 transition-all duration-200 font-medium">
+
+                  <Link
+                    href="/orders"
+                    className="
+                      rounded-lg px-3 py-2
+                      text-sm font-medium text-gray-600
+                      transition-all duration-200
+                      hover:bg-pink-50 hover:text-pink-600
+                    "
+                  >
                     Orders
                   </Link>
-                  <Link href="/profile" className="px-4 py-2 rounded-lg text-gray-300 hover:text-white hover:bg-gray-800 transition-all duration-200 font-medium">
-                    Profile
+
+                  <Link
+                    href="/payments"
+                    className="
+                      rounded-lg px-3 py-2
+                      text-sm font-medium text-gray-600
+                      transition-all duration-200
+                      hover:bg-pink-50 hover:text-pink-600
+                    "
+                  >
+                    Payments
                   </Link>
-                </>
+
+                  <Link
+                    href="/wallet"
+                    className="
+                      flex items-center gap-1.5
+                      rounded-lg px-3 py-2
+                      text-sm font-medium text-gray-600
+                      transition-all duration-200
+                      hover:bg-pink-50 hover:text-pink-600
+                    "
+                  >
+                    Wallet
+
+                    {walletBalance > 0 && (
+                      <Badge
+                        variant="success"
+                        className="rounded-full px-2 py-0.5 text-[10px] font-semibold"
+                      >
+                        ₹{walletBalance.toFixed(0)}
+                      </Badge>
+                    )}
+                  </Link>
+                </div>
               )}
             </div>
 
-            {/* Right Side */}
-            <div className="flex items-center space-x-3">
+            {/* ---------------------------------------------------
+                RIGHT ACTIONS
+            ---------------------------------------------------- */}
+            <div className="flex shrink-0 items-center gap-2">
+
+              {/* Cart */}
               {isLoggedIn && (
-                <Link href="/cart" className="relative group">
-                  <div className="p-2 rounded-lg bg-gray-800 hover:bg-gray-700 transition-all duration-200">
-                    <svg
-                      className="w-5 h-5 text-gray-300 group-hover:text-pink-400 transition-colors"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                      xmlns="http://www.w3.org/2000/svg"
+                <Link
+                  href="/cart"
+                  className="
+                    group relative flex h-10 w-10 items-center justify-center
+                    rounded-xl
+                    text-gray-600
+                    transition-all duration-200
+                    hover:bg-pink-50 hover:text-pink-600
+                    focus:outline-none focus:ring-2 focus:ring-pink-500/30
+                  "
+                  aria-label={`Shopping cart${cartCount > 0 ? `, ${cartCount} items` : ''}`}
+                >
+                  <svg
+                    className="h-5 w-5 transition-transform duration-200 group-hover:scale-105"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={1.8}
+                      d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"
+                    />
+                  </svg>
+
+                  {cartCount > 0 && (
+                    <span
+                      className="
+                        absolute -right-0.5 -top-0.5
+                        flex h-[19px] min-w-[19px] items-center justify-center
+                        rounded-full
+                        bg-gradient-to-r from-pink-500 to-purple-600
+                        px-1
+                        text-[10px] font-bold text-white
+                        shadow-[0_3px_8px_rgba(236,72,153,0.35)]
+                        ring-2 ring-white
+                      "
                     >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 12 0 11-4 0 2 2 0 014 0z"
-                      />
-                    </svg>
-                  </div>
-                  <span className="absolute -top-1 -right-1 bg-gradient-to-r from-pink-500 to-pink-600 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-semibold shadow-lg">
-                    {cartCount}
-                  </span>
+                      {cartCount > 99 ? '99+' : cartCount}
+                    </span>
+                  )}
                 </Link>
               )}
 
-              <div className="hidden md:flex items-center space-x-2">
+              {/* -------------------------------------------------
+                  DESKTOP PROFILE / AUTH
+              -------------------------------------------------- */}
+              <div className="hidden items-center md:flex">
                 {isLoggedIn ? (
-                  <Link href="/profile">
-                  <div className="flex items-center space-x-3 pl-3 border-l border-gray-700">
-                    <div className="flex items-center space-x-2">
-                      <div className="w-8 h-8 bg-gradient-to-r from-pink-500 to-pink-600 rounded-full flex items-center justify-center">
-                        <span className="text-white text-sm font-semibold">
-                          {user?.name?.charAt(0)?.toUpperCase() || 'U'}
-                        </span>
-                      </div>
+                  <div className="ml-1 flex items-center border-l border-gray-200 pl-3">
+
+                    {/* Profile */}
+                    <Link
+                      href="/profile"
+                      className="
+                        group flex items-center gap-2.5
+                        rounded-xl px-2 py-1.5
+                        transition-all duration-200
+                        hover:bg-gray-50
+                      "
+                    >
+                      {profileAvatar ? (
+                        <img
+                          src={profileAvatar}
+                          alt="Profile"
+                          className="
+                            h-9 w-9 rounded-full object-cover
+                            shadow-sm ring-2 ring-white
+                            transition-transform duration-200
+                            group-hover:scale-105
+                          "
+                        />
+                      ) : (
+                        <div
+                          className="
+                            flex h-9 w-9 items-center justify-center
+                            rounded-full
+                            bg-gradient-to-br from-pink-500 to-purple-600
+                            shadow-sm ring-2 ring-white
+                          "
+                        >
+                          <span className="text-sm font-bold text-white">
+                            {user?.name?.charAt(0)?.toUpperCase() || 'U'}
+                          </span>
+                        </div>
+                      )}
+
                       <div className="hidden lg:block">
-                        <p className="text-sm text-gray-300">Welcome back</p>
-                        <p className="text-xs text-gray-400 font-medium">{user?.name || 'User'}</p>
+                        <p className="text-[10px] font-medium uppercase tracking-wide text-gray-400">
+                          Welcome back
+                        </p>
+
+                        <p className="max-w-[110px] truncate text-sm font-semibold text-gray-800">
+                          {user?.name || 'User'}
+                        </p>
                       </div>
-                    </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
+                    </Link>
+
+                    {/* Logout */}
+                    <button
                       onClick={handleLogout}
-                      className="border-gray-600 text-gray-300 hover:border-pink-500 hover:text-pink-400 transition-all duration-200"
+                      className="
+                        ml-1 rounded-lg px-3 py-2
+                        text-sm font-medium text-gray-500
+                        transition-all duration-200
+                        hover:bg-red-50 hover:text-red-500
+                        focus:outline-none focus:ring-2 focus:ring-red-500/20
+                      "
                     >
                       Logout
-                    </Button>
+                    </button>
                   </div>
-                  </Link>
                 ) : (
-                  <>
-                    <Link href="/login">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="border-gray-600 text-gray-300 hover:border-pink-500 hover:text-pink-400 transition-all duration-200"
-                      >
-                        Login
-                      </Button>
+                  <div className="ml-1 flex items-center gap-1 border-l border-gray-200 pl-3">
+
+                    <Link
+                      href="/login"
+                      className="
+                        rounded-lg px-3.5 py-2
+                        text-sm font-medium text-gray-600
+                        transition-all duration-200
+                        hover:bg-gray-50 hover:text-gray-900
+                      "
+                    >
+                      Login
                     </Link>
-                    <Link href="/signup">
-                      <Button
-                        size="sm"
-                        className="bg-gradient-to-r from-pink-500 to-pink-600 hover:from-pink-600 hover:to-pink-700 transition-all duration-200"
-                      >
-                        Sign Up
-                      </Button>
+
+                    <Link
+                      href="/signup"
+                      className="
+                        rounded-xl
+                        bg-gradient-to-r from-pink-500 to-purple-600
+                        px-4 py-2.5
+                        text-sm font-semibold text-white
+                        shadow-[0_5px_15px_rgba(236,72,153,0.22)]
+                        transition-all duration-200
+                        hover:-translate-y-0.5
+                        hover:shadow-[0_7px_20px_rgba(236,72,153,0.3)]
+                      "
+                    >
+                      Sign Up
                     </Link>
-                  </>
+                  </div>
                 )}
               </div>
 
-              {/* Mobile menu button */}
+              {/* -------------------------------------------------
+                  MOBILE MENU BUTTON
+              -------------------------------------------------- */}
               <button
+                type="button"
                 onClick={() => setIsOpen(!isOpen)}
-                className="md:hidden p-2 rounded-lg bg-gray-800 hover:bg-gray-700 transition-all duration-200"
-                aria-label="Toggle menu"
+                className="
+                  flex h-10 w-10 items-center justify-center
+                  rounded-xl
+                  bg-gray-50 text-gray-600
+                  transition-all duration-200
+                  hover:bg-pink-50 hover:text-pink-600
+                  focus:outline-none focus:ring-2 focus:ring-pink-500/30
+                  md:hidden
+                "
+                aria-label={isOpen ? 'Close menu' : 'Open menu'}
+                aria-expanded={isOpen}
               >
                 <svg
-                  className="w-6 h-6 text-gray-300"
+                  className="h-5.5 w-5.5"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
-                  xmlns="http://www.w3.org/2000/svg"
+                  aria-hidden="true"
                 >
                   <path
                     strokeLinecap="round"
                     strokeLinejoin="round"
-                    strokeWidth={2}
-                    d={isOpen ? "M6 18L18 6M6 6l12 12" : "M4 6h16M4 12h16M4 18h16"}
+                    strokeWidth={1.8}
+                    d={
+                      isOpen
+                        ? 'M6 18L18 6M6 6l12 12'
+                        : 'M4 6h16M4 12h16M4 18h16'
+                    }
                   />
                 </svg>
+                
               </button>
             </div>
           </div>
         </div>
       </nav>
 
-      {/* Mobile Drawer Overlay */}
+      {/* =========================================================
+          MOBILE OVERLAY
+      ========================================================== */}
       {isOpen && (
-        <div 
-          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 md:hidden"
-          onClick={() => setIsOpen(false)}
+        <div
+          className="
+            fixed inset-0 z-40
+            bg-black/35
+            backdrop-blur-[2px]
+            md:hidden
+          "
+          onClick={closeMobileMenu}
+          aria-hidden="true"
         />
       )}
 
-      {/* Mobile Drawer */}
-      <div className={`fixed inset-y-0 right-0 w-80 max-w-[85vw] bg-gradient-to-b from-gray-900 via-black to-gray-900 shadow-2xl z-50 transform transition-transform duration-300 ease-in-out md:hidden ${
-        isOpen ? 'translate-x-0' : 'translate-x-full'
-      }`}>
-        <div className="flex flex-col h-full">
-          {/* Drawer Header */}
-          <div className="flex items-center justify-between p-4 border-b border-gray-800">
-            <div className="flex items-center space-x-3">
-              {/* <div className="w-8 h-8 bg-gradient-to-r from-pink-500 to-pink-600 rounded-lg flex items-center justify-center">
-                <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
-                  <path d="M10.394 2.08a1 1 0 00-.788 0l-7 3a1 1 0 000 1.84L5.25 8.051a.999.999 0 01.226.1l7 3a1 1 0 00.788 0l7-3a1 1 0 000-1.84l-5.38-2.31z" />
-                </svg>
-              </div> */}
-              <span className="text-xl font-bold bg-gradient-to-r from-pink-500 to-pink-600 bg-clip-text text-transparent">
-                BellesCart
-              </span>
+      {/* =========================================================
+          MOBILE DRAWER
+      ========================================================== */}
+      <aside
+        className={`
+          fixed inset-y-0 right-0 z-50
+          flex w-[330px] max-w-[88vw] flex-col
+          bg-white
+          shadow-[-15px_0_50px_rgba(0,0,0,0.12)]
+          transition-transform duration-300 ease-out
+          md:hidden
+          ${isOpen ? 'translate-x-0' : 'translate-x-full'}
+        `}
+        aria-hidden={!isOpen}
+      >
+
+        {/* -------------------------------------------------------
+            DRAWER HEADER
+        -------------------------------------------------------- */}
+        <div className="flex h-[72px] items-center justify-between border-b border-gray-100 px-5">
+
+          <Link
+            href={isLoggedIn ? '/dashboard' : '/'}
+            onClick={closeMobileMenu}
+            className="flex items-center gap-2.5"
+          >
+            <div
+              className="
+                flex h-9 w-9 items-center justify-center
+                rounded-xl
+                bg-gradient-to-br from-pink-500 to-purple-600
+                shadow-sm
+              "
+            >
+              <svg
+                className="h-5 w-5 text-white"
+                fill="currentColor"
+                viewBox="0 0 20 20"
+                aria-hidden="true"
+              >
+                <path d="M10.394 2.08a1 1 0 00-.788 0l-7 3a1 1 0 000 1.84L5.25 8.051a.999.999 0 01.226.1l7 3a1 1 0 00.788 0l7-3a1 1 0 000-1.84l-5.38-2.31z" />
+              </svg>
             </div>
-            
-            <div className="flex items-center space-x-3">
-              {isLoggedIn && (
-                <Link href="/cart" className="relative" onClick={() => setIsOpen(false)}>
-                  <div className="p-2 rounded-lg bg-gray-800">
-                    <svg
-                      className="w-5 h-5 text-gray-300"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"
-                      />
-                    </svg>
-                  </div>
-                  <span className="absolute -top-1 -right-1 bg-gradient-to-r from-pink-500 to-pink-600 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-semibold shadow-lg">
-                    {cartCount}
-                  </span>
-                </Link>
-              )}
-              <button
-                onClick={() => setIsOpen(false)}
-                className="p-2 rounded-lg bg-gray-800 hover:bg-gray-700 transition-all duration-200"
-                aria-label="Close menu"
+
+            <span
+              className="
+                text-xl font-extrabold tracking-tight
+                bg-gradient-to-r from-pink-600 to-purple-600
+                bg-clip-text text-transparent
+              "
+            >
+              BellesCart
+            </span>
+          </Link>
+
+          <div className="flex items-center gap-1">
+
+            {isLoggedIn && (
+              <Link
+                href="/cart"
+                onClick={closeMobileMenu}
+                className="
+                  relative flex h-9 w-9 items-center justify-center
+                  rounded-lg text-gray-600
+                  hover:bg-pink-50 hover:text-pink-600
+                "
+                aria-label="Cart"
               >
                 <svg
-                  className="w-5 h-5 text-gray-300"
+                  className="h-5 w-5"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
+                  aria-hidden="true"
                 >
                   <path
                     strokeLinecap="round"
                     strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M6 18L18 6M6 6l12 12"
+                    strokeWidth={1.8}
+                    d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"
                   />
                 </svg>
-              </button>
-            </div>
-          </div>
 
-          {/* Drawer Content */}
-          <div className="flex-1 overflow-y-auto">
-            <div className="p-4 space-y-1">
-              <Link 
-                href="/products" 
-                className="flex items-center px-4 py-4 text-gray-300 hover:text-white hover:bg-gray-800 rounded-xl transition-all duration-200 font-medium text-lg"
-                onClick={() => setIsOpen(false)}
+                {cartCount > 0 && (
+                  <span
+                    className="
+                      absolute right-0 top-0
+                      flex h-4 min-w-4 items-center justify-center
+                      rounded-full
+                      bg-pink-500 px-1
+                      text-[9px] font-bold text-white
+                      ring-2 ring-white
+                    "
+                  >
+                    {cartCount > 99 ? '99+' : cartCount}
+                  </span>
+                )}
+              </Link>
+            )}
+
+            <button
+              type="button"
+              onClick={closeMobileMenu}
+              className="
+                flex h-9 w-9 items-center justify-center
+                rounded-lg
+                text-gray-500
+                transition-colors
+                hover:bg-gray-100 hover:text-gray-800
+              "
+              aria-label="Close menu"
+            >
+              <svg
+                className="h-5 w-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                aria-hidden="true"
               >
-                <svg className="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
-                </svg>
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={1.8}
+                  d="M6 18L18 6M6 6l12 12"
+                />
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        {/* -------------------------------------------------------
+            DRAWER CONTENT
+        -------------------------------------------------------- */}
+        <div className="flex-1 overflow-y-auto">
+
+          <div className="p-5">
+
+            {/* Mobile Search */}
+            <div className="mb-6">
+              <SearchBar
+                className="w-full"
+                onSearch={(query) => {
+                  closeMobileMenu();
+                  handleSearch(query);
+                }}
+              />
+            </div>
+
+            {/* Main navigation */}
+            <div className="space-y-1">
+
+              <Link
+                href={isLoggedIn ? '/products' : '/products/guest'}
+                onClick={closeMobileMenu}
+                className="
+                  flex items-center gap-3
+                  rounded-xl px-4 py-3
+                  text-sm font-semibold text-gray-700
+                  transition-all duration-200
+                  hover:bg-pink-50 hover:text-pink-600
+                "
+              >
+                <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-gray-50">
+                  <svg
+                    className="h-5 w-5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={1.8}
+                      d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"
+                    />
+                  </svg>
+                </span>
                 Products
               </Link>
+
               {isLoggedIn && (
                 <>
-                  <Link 
-                    href="/wishlist" 
-                    className="flex items-center px-4 py-4 text-gray-300 hover:text-white hover:bg-gray-800 rounded-xl transition-all duration-200 font-medium text-lg"
-                    onClick={() => setIsOpen(false)}
+                  <Link
+                    href="/wishlist"
+                    onClick={closeMobileMenu}
+                    className="
+                      flex items-center gap-3
+                      rounded-xl px-4 py-3
+                      text-sm font-semibold text-gray-700
+                      transition-all duration-200
+                      hover:bg-pink-50 hover:text-pink-600
+                    "
                   >
-                    <svg className="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-                    </svg>
+                    <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-gray-50">
+                      <svg
+                        className="h-5 w-5"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                        aria-hidden="true"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={1.8}
+                          d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
+                        />
+                      </svg>
+                    </span>
                     Wishlist
                   </Link>
-                  <Link 
-                    href="/orders" 
-                    className="flex items-center px-4 py-4 text-gray-300 hover:text-white hover:bg-gray-800 rounded-xl transition-all duration-200 font-medium text-lg"
-                    onClick={() => setIsOpen(false)}
+
+                  <Link
+                    href="/orders"
+                    onClick={closeMobileMenu}
+                    className="
+                      flex items-center gap-3
+                      rounded-xl px-4 py-3
+                      text-sm font-semibold text-gray-700
+                      transition-all duration-200
+                      hover:bg-pink-50 hover:text-pink-600
+                    "
                   >
-                    <svg className="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                    </svg>
+                    <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-gray-50">
+                      <svg
+                        className="h-5 w-5"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                        aria-hidden="true"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={1.8}
+                          d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a3 3 0 016 0M9 5h6"
+                        />
+                      </svg>
+                    </span>
                     Orders
                   </Link>
-                  <Link 
-                    href="/profile" 
-                    className="flex items-center px-4 py-4 text-gray-300 hover:text-white hover:bg-gray-800 rounded-xl transition-all duration-200 font-medium text-lg"
-                    onClick={() => setIsOpen(false)}
+
+                  <Link
+                    href="/payments"
+                    onClick={closeMobileMenu}
+                    className="
+                      flex items-center gap-3
+                      rounded-xl px-4 py-3
+                      text-sm font-semibold text-gray-700
+                      transition-all duration-200
+                      hover:bg-pink-50 hover:text-pink-600
+                    "
                   >
-                    <svg className="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                    </svg>
+                    <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-gray-50">
+                      <svg
+                        className="h-5 w-5"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                        aria-hidden="true"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={1.8}
+                          d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"
+                        />
+                      </svg>
+                    </span>
+                    Payments
+                  </Link>
+
+                  <Link
+                    href="/wallet"
+                    onClick={closeMobileMenu}
+                    className="
+                      flex items-center gap-3
+                      rounded-xl px-4 py-3
+                      text-sm font-semibold text-gray-700
+                      transition-all duration-200
+                      hover:bg-pink-50 hover:text-pink-600
+                    "
+                  >
+                    <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-gray-50">
+                      <svg
+                        className="h-5 w-5"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                        aria-hidden="true"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={1.8}
+                          d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"
+                        />
+                      </svg>
+                    </span>
+
+                    <span className="flex-1">Wallet</span>
+
+                    {walletBalance > 0 && (
+                      <Badge
+                        variant="success"
+                        className="rounded-full px-2 py-0.5 text-[10px]"
+                      >
+                        ₹{walletBalance.toFixed(0)}
+                      </Badge>
+                    )}
+                  </Link>
+
+                  <Link
+                    href="/profile"
+                    onClick={closeMobileMenu}
+                    className="
+                      flex items-center gap-3
+                      rounded-xl px-4 py-3
+                      text-sm font-semibold text-gray-700
+                      transition-all duration-200
+                      hover:bg-pink-50 hover:text-pink-600
+                    "
+                  >
+                    <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-gray-50">
+                      <svg
+                        className="h-5 w-5"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                        aria-hidden="true"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={1.8}
+                          d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                        />
+                      </svg>
+                    </span>
                     Profile
                   </Link>
                 </>
               )}
             </div>
-
-            {/* User Section */}
-            <div className="p-4 border-t border-gray-800 mt-4">
-              {isLoggedIn ? (
-                <div className="space-y-4">
-                  <div className="flex items-center space-x-3 px-4 py-3 bg-gray-800/50 rounded-xl">
-                    <div className="w-12 h-12 bg-gradient-to-r from-pink-500 to-pink-600 rounded-full flex items-center justify-center">
-                      <span className="text-white font-semibold text-lg">
-                        {user?.name?.charAt(0)?.toUpperCase() || 'U'}
-                      </span>
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-400">Welcome back</p>
-                      <p className="text-base text-gray-200 font-medium">{user?.name || 'User'}</p>
-                    </div>
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleLogout}
-                    className="w-full border-gray-600 text-gray-300 hover:border-pink-500 hover:text-pink-400 transition-all duration-200 py-3"
-                  >
-                    Logout
-                  </Button>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  <Link href="/login" className="block" onClick={() => setIsOpen(false)}>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="w-full border-gray-600 text-gray-300 hover:border-pink-500 hover:text-pink-400 transition-all duration-200 py-3"
-                    >
-                      Login
-                    </Button>
-                  </Link>
-                  <Link href="/signup" className="block" onClick={() => setIsOpen(false)}>
-                    <Button
-                      size="sm"
-                      className="w-full bg-gradient-to-r from-pink-500 to-pink-600 hover:from-pink-600 hover:to-pink-700 transition-all duration-200 py-3"
-                    >
-                      Sign Up
-                    </Button>
-                  </Link>
-                </div>
-              )}
-            </div>
           </div>
         </div>
-      </div>
+
+        {/* -------------------------------------------------------
+            MOBILE USER / AUTH SECTION
+        -------------------------------------------------------- */}
+        <div className="border-t border-gray-100 bg-gray-50/70 p-5">
+
+          {isLoggedIn ? (
+            <div className="space-y-3">
+
+              {/* User profile card */}
+              <Link
+                href="/profile"
+                onClick={closeMobileMenu}
+                className="
+                  flex items-center gap-3
+                  rounded-2xl
+                  border border-pink-100
+                  bg-gradient-to-br from-pink-50 via-white to-purple-50
+                  p-3
+                  transition-all duration-200
+                  hover:border-pink-200
+                "
+              >
+                {profileAvatar ? (
+                  <img
+                    src={profileAvatar}
+                    alt="Profile"
+                    className="h-11 w-11 rounded-full object-cover shadow-sm"
+                  />
+                ) : (
+                  <div
+                    className="
+                      flex h-11 w-11 shrink-0 items-center justify-center
+                      rounded-full
+                      bg-gradient-to-br from-pink-500 to-purple-600
+                      shadow-sm
+                    "
+                  >
+                    <span className="text-base font-bold text-white">
+                      {user?.name?.charAt(0)?.toUpperCase() || 'U'}
+                    </span>
+                  </div>
+                )}
+
+                <div className="min-w-0">
+                  <p className="text-[10px] font-medium uppercase tracking-wide text-gray-400">
+                    Signed in as
+                  </p>
+
+                  <p className="truncate text-sm font-semibold text-gray-800">
+                    {user?.name || 'User'}
+                  </p>
+                </div>
+              </Link>
+
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="
+                  flex w-full items-center justify-center
+                  rounded-xl
+                  border border-gray-200
+                  bg-white
+                  px-4 py-3
+                  text-sm font-semibold text-gray-600
+                  transition-all duration-200
+                  hover:border-red-100
+                  hover:bg-red-50
+                  hover:text-red-500
+                "
+              >
+                Logout
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-2.5">
+
+              <Link
+                href="/login"
+                onClick={closeMobileMenu}
+                className="
+                  flex w-full items-center justify-center
+                  rounded-xl
+                  border border-gray-200
+                  bg-white
+                  px-4 py-3
+                  text-sm font-semibold text-gray-700
+                  transition-all duration-200
+                  hover:border-pink-200
+                  hover:bg-pink-50
+                  hover:text-pink-600
+                "
+              >
+                Login
+              </Link>
+
+              <Link
+                href="/signup"
+                onClick={closeMobileMenu}
+                className="
+                  flex w-full items-center justify-center
+                  rounded-xl
+                  bg-gradient-to-r from-pink-500 to-purple-600
+                  px-4 py-3
+                  text-sm font-semibold text-white
+                  shadow-[0_5px_15px_rgba(236,72,153,0.2)]
+                  transition-all duration-200
+                  hover:-translate-y-0.5
+                  hover:shadow-[0_7px_20px_rgba(236,72,153,0.28)]
+                "
+              >
+                Create Account
+              </Link>
+
+            </div>
+          )}
+        </div>
+      </aside>
     </>
   );
 }

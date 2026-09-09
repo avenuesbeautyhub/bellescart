@@ -1,16 +1,19 @@
 import { ICartInteractor } from '../providers/interfaces/ICartInteractor';
 import { ICartRepository } from '../providers/interfaces/ICartRepository';
 import { IProductRepository } from '../providers/interfaces/IProductRepository';
+import { ICouponInteractor } from '../providers/interfaces/ICouponInteractor';
 import { ICart, ICartItem } from '../models/Cart';
 import { IProduct } from '../models/Product';
 
 export class CartInteractor implements ICartInteractor {
   private _cartRepository: ICartRepository;
   private _productRepository: IProductRepository;
+  private _couponInteractor?: ICouponInteractor;
 
-  constructor(cartRepository: ICartRepository, productRepository: IProductRepository) {
+  constructor(cartRepository: ICartRepository, productRepository: IProductRepository, couponInteractor?: ICouponInteractor) {
     this._cartRepository = cartRepository;
     this._productRepository = productRepository;
+    this._couponInteractor = couponInteractor;
   }
 
   async getCart(userId: string): Promise<ICart> {
@@ -122,36 +125,33 @@ export class CartInteractor implements ICartInteractor {
   }
 
   async applyCoupon(userId: string, couponCode: string): Promise<ICart> {
-    // This would integrate with a coupon service
-    // For now, we'll implement a simple discount logic
+    if (!this._couponInteractor) {
+      throw new Error('Coupon service not available');
+    }
 
-    const cart = await this._cartRepository.findByUser(userId);
+    const cart = await this._cartRepository.findByUserWithProducts(userId);
     if (!cart) {
       throw new Error('Cart not found');
     }
 
-    // Simple coupon logic (you can expand this)
-    let discountAmount = 0;
+    // Get cart category if applicable (from first item's category)
+    const cartCategory = cart.items.length > 0 ? (cart.items[0].product as any)?.category?.name : undefined;
 
-    // Example: 10% off for coupon "SAVE10"
-    if (couponCode === 'SAVE10') {
-      discountAmount = cart.subtotal * 0.1;
-    }
-    // Example: $5 off for coupon "SAVE5"
-    else if (couponCode === 'SAVE5') {
-      discountAmount = 5;
-    }
-    // Example: Free shipping for coupon "FREESHIP"
-    else if (couponCode === 'FREESHIP') {
-      discountAmount = cart.shipping;
-    }
-    else {
-      throw new Error('Invalid coupon code');
+    // Apply coupon using the coupon interactor
+    const result = await this._couponInteractor.applyCoupon(
+      couponCode,
+      userId,
+      cart.subtotal,
+      cartCategory
+    );
+
+    if (!result.success) {
+      throw new Error(result.error || 'Failed to apply coupon');
     }
 
-    const updatedCart = await this._cartRepository.applyCoupon(userId, couponCode, discountAmount);
+    const updatedCart = await this._cartRepository.applyCoupon(userId, couponCode, result.discountAmount);
     if (!updatedCart) {
-      throw new Error('Failed to apply coupon');
+      throw new Error('Failed to apply coupon to cart');
     }
 
     return await this._cartRepository.findByUserWithProducts(userId) || updatedCart;
@@ -253,5 +253,61 @@ export class CartInteractor implements ICartInteractor {
       return finalCart;
     }
     return cart;
+  }
+
+  async validateCartStock(userId: string): Promise<{
+    valid: boolean;
+    outOfStockItems: Array<{ productId: string; productName: string; requestedQuantity: number; availableQuantity: number }>;
+    message: string;
+  }> {
+    const cart = await this._cartRepository.findByUserWithProducts(userId);
+    if (!cart || cart.items.length === 0) {
+      return {
+        valid: true,
+        outOfStockItems: [],
+        message: 'Cart is empty'
+      };
+    }
+
+    const outOfStockItems: Array<{ productId: string; productName: string; requestedQuantity: number; availableQuantity: number }> = [];
+
+    for (const item of cart.items) {
+      const product = (item.product as any) as IProduct;
+      
+      // Check if product is still active
+      if (product.status !== 'active') {
+        outOfStockItems.push({
+          productId: product._id.toString(),
+          productName: product.name,
+          requestedQuantity: item.quantity,
+          availableQuantity: 0
+        });
+        continue;
+      }
+
+      // Check stock
+      if (product.quantity < item.quantity) {
+        outOfStockItems.push({
+          productId: product._id.toString(),
+          productName: product.name,
+          requestedQuantity: item.quantity,
+          availableQuantity: product.quantity
+        });
+      }
+    }
+
+    if (outOfStockItems.length > 0) {
+      return {
+        valid: false,
+        outOfStockItems,
+        message: `${outOfStockItems.length} item(s) in your cart are out of stock or have insufficient quantity`
+      };
+    }
+
+    return {
+      valid: true,
+      outOfStockItems: [],
+      message: 'All items are in stock'
+    };
   }
 }

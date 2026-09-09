@@ -26,7 +26,6 @@ const categorySchema = new Schema<ICategory>({
 });
 
 // Index for better performance
-categorySchema.index({ name: 1 });
 categorySchema.index({ isActive: 1 });
 
 export const Category = mongoose.model<ICategory>('Category', categorySchema);

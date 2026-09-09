@@ -1,21 +1,27 @@
 import { IUserInteractor } from '../providers/interfaces/IUserInteractor';
 import { IUserRepository } from '../providers/interfaces/IUserRepository';
 import { IOtpRepository } from '../providers/interfaces/IOtpRepository';
+import { IWalletInteractor } from '../providers/interfaces/IWalletInteractor';
 import { generateToken, generateRefreshToken, verifyToken } from '../utils/jwt';
 import { IUser } from '../models/User';
 import { IAddress } from '../models/Address';
 import { sendOtpEmail } from '../utils/emailService';
 import { AddressRepository } from '../repositories/AddressRepository';
+import { createLogger } from '../utils/logger';
+
+const logger = createLogger('UserInteractor');
 
 export class UserInteractor implements IUserInteractor {
   private _userRepository: IUserRepository;
   private _otpRepository: IOtpRepository;
   private _addressRepository: AddressRepository;
+  private _walletInteractor?: IWalletInteractor;
 
-  constructor(userRepository: IUserRepository, otpRepository: IOtpRepository) {
+  constructor(userRepository: IUserRepository, otpRepository: IOtpRepository, walletInteractor?: IWalletInteractor) {
     this._userRepository = userRepository;
     this._otpRepository = otpRepository;
     this._addressRepository = new AddressRepository();
+    this._walletInteractor = walletInteractor;
   }
 
   async register(userData: {
@@ -32,6 +38,11 @@ export class UserInteractor implements IUserInteractor {
 
     // Create new user
     const user = await this._userRepository.create(userData);
+
+    // Create wallet for the new user
+    if (this._walletInteractor) {
+      await this._walletInteractor.createWalletForUser(user._id.toString());
+    }
 
     // Generate tokens
     const token = generateToken(user);
@@ -333,8 +344,8 @@ export class UserInteractor implements IUserInteractor {
 
     // Send OTP email
     const sendmail = await sendOtpEmail(email, otp);
-    console.log('otp sent', otp);
-    console.log('mail sent', sendmail);
+    logger.debug('OTP sent', { otp });
+    logger.debug('Mail sent', { sendmail });
 
     return { message: 'OTP sent successfully' };
   }
@@ -356,8 +367,8 @@ export class UserInteractor implements IUserInteractor {
 
     // Send new OTP email
     const sendmail = await sendOtpEmail(email, newOtp);
-    console.log('otp resent', newOtp);
-    console.log('mail sent', sendmail);
+    logger.debug('OTP resent', { otp: newOtp });
+    logger.debug('Mail sent', { sendmail });
 
     return { message: 'OTP resent successfully' };
   }

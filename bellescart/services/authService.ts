@@ -150,8 +150,15 @@ class AuthService {
     });
 
     const result = await response.json();
+    
+    // Map backend _id to frontend id
+    if (result.success && result.data) {
+      result.data.id = result.data._id || result.data.id;
+    }
+    
     return result;
   }
+  
 
   private mockGetCurrentUser(): Promise<ApiResponse<UserProfile>> {
     return new Promise((resolve) => {

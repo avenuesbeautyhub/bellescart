@@ -20,13 +20,20 @@ export interface Product {
   name: string;
   description: string;
   price: number;
+  originalPrice?: number;
+  image?: string;
   category: ProductCategory;
+  rating?: number;
+  reviews?: number;
+  inStock?: boolean;
+  sizes?: string[];
+  colors?: string[];
+  images: ProductImage[];
   brand?: string;
   quantity: number;
-  images: ProductImage[];
-  tags: string[];
-  status: 'active' | 'inactive' | 'draft';
   featured: boolean;
+  status: 'active' | 'inactive' | 'draft';
+  tags?: string[];
 }
 
 export interface PublicProductResponse {

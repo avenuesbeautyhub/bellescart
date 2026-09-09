@@ -3,9 +3,12 @@ import { OrderRepository } from '../repositories/OrderRepository';
 import { CartRepository } from '../repositories/CartRepository';
 import { ProductRepository } from '../repositories/ProductRepository';
 import { UserRepository } from '../repositories/UserRepository';
+import { WalletRepository } from '../repositories/WalletRepository';
 import { OrderInteractor } from '../interactors/OrderInteractor';
+import { WalletInteractor } from '../interactors/WalletInteractor';
 import { OrderController } from '../controllers/orderController';
 import { authenticate, authorize } from '../middleware/auth';
+import { orderRateLimiter, shippingRateLimiter } from '../middleware/rateLimiter';
 
 const router = Router();
 
@@ -17,9 +20,13 @@ const cartRepository = new CartRepository();
 const productRepository = new ProductRepository();
 // Creating a new instance of UserRepository to handle data access operations for the User entity.
 const userRepository = new UserRepository();
+// Creating a new instance of WalletRepository to handle data access operations for the Wallet entity.
+const walletRepository = new WalletRepository();
+// Creating a new instance of WalletInteractor to contain wallet-specific business logic.
+const walletInteractor = new WalletInteractor(walletRepository);
 // Creating a new instance of OrderInteractor to contain application-specific business logic and orchestrate data flow.
-// OrderRepository, CartRepository, ProductRepository, and UserRepository instances are injected into OrderInteractor for database interaction.
-const interactor = new OrderInteractor(orderRepository, cartRepository, productRepository, userRepository);
+// OrderRepository, CartRepository, ProductRepository, UserRepository, and WalletInteractor instances are injected into OrderInteractor for database interaction.
+const interactor = new OrderInteractor(orderRepository, cartRepository, productRepository, userRepository, walletInteractor);
 // Creating a new instance of OrderController to handle incoming HTTP requests related to order operations.
 // OrderInteractor and CartRepository instances are injected into OrderController to delegate business logic execution.
 const controller = new OrderController(interactor, cartRepository);
@@ -54,7 +61,7 @@ router.use(authenticate);
  *       401:
  *         description: Unauthorized
  */
-router.post('/', authenticate, controller.createOrder.bind(controller));
+router.post('/', authenticate, orderRateLimiter, controller.createOrder.bind(controller));
 
 /**
  * @swagger
@@ -131,6 +138,44 @@ router.put('/:id/cancel', authenticate,controller.cancelOrder.bind(controller));
 
 /**
  * @swagger
+ * /orders/{id}/return:
+ *   post:
+ *     summary: Return a delivered order
+ *     tags: [Orders]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - returnReason
+ *             properties:
+ *               returnReason:
+ *                 type: string
+ *                 description: Reason for returning the order
+ *     responses:
+ *       200:
+ *         description: Order returned successfully
+ *       401:
+ *         description: Unauthorized
+ *       404:
+ *         description: Order not found
+ *       400:
+ *         description: Bad request
+ */
+router.post('/:id/return', authenticate, controller.returnOrder.bind(controller));
+
+/**
+ * @swagger
  * /orders/{id}/status:
  *   put:
  *     summary: Update order status (admin only)
@@ -171,7 +216,7 @@ router.put('/:id/status', controller.updateOrderStatus.bind(controller));
  * @swagger
  * /orders/shipping/calculate:
  *   post:
- *     summary: Calculate shipping rates using Shiprocket
+ *     summary: Calculate shipping rates using Shypfy
  *     tags: [Orders]
  *     security:
  *       - bearerAuth: []
@@ -206,48 +251,7 @@ router.put('/:id/status', controller.updateOrderStatus.bind(controller));
  *       400:
  *         description: Bad request
  */
-router.post('/shipping/calculate', authenticate, controller.calculateShipping.bind(controller));
-
-/**
- * @swagger
- * /orders/shiprocket/process:
- *   post:
- *     summary: Process complete Shiprocket order flow
- *     tags: [Orders]
- *     security:
- *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - orderId
- *               - orderData
- *               - courierId
- *             properties:
- *               orderId:
- *                 type: string
- *                 description: Database order ID
- *               orderData:
- *                 type: object
- *                 description: Shiprocket order data
- *               shippingRequest:
- *                 type: object
- *                 description: Shipping calculation request
- *               courierId:
- *                 type: number
- *                 description: Selected courier ID
- *     responses:
- *       200:
- *         description: Shiprocket order processed successfully
- *       401:
- *         description: Unauthorized
- *       400:
- *         description: Bad request
- */
-router.post('/shiprocket/process', authenticate, controller.processShiprocketOrder.bind(controller));
+router.post('/shipping/calculate', authenticate, shippingRateLimiter, controller.calculateShipping.bind(controller));
 
 /**
  * @swagger
@@ -303,9 +307,9 @@ router.get('/:id/track', authenticate, controller.trackOrderByOrderId.bind(contr
 
 /**
  * @swagger
- * /orders/{orderId}/shiprocket/retry:
+ * /orders/{orderId}/nimbus/retry:
  *   post:
- *     summary: Retry Shiprocket integration for an existing order
+ *     summary: Retry NimbusPost integration for an existing order
  *     tags: [Orders]
  *     security:
  *       - bearerAuth: []
@@ -326,34 +330,16 @@ router.get('/:id/track', authenticate, controller.trackOrderByOrderId.bind(contr
  *               - courierId
  *             properties:
  *               courierId:
- *                 type: number
+ *                 type: string
  *                 description: Courier ID to assign
  *     responses:
  *       200:
- *         description: Shiprocket integration retried successfully
+ *         description: NimbusPost integration retried successfully
  *       401:
  *         description: Unauthorized
  *       400:
  *         description: Bad request
  */
-router.post('/:orderId/shiprocket/retry', authenticate, controller.retryShiprocketIntegration.bind(controller));
-
-/**
- * @swagger
- * /orders/shiprocket/pickup-locations:
- *   get:
- *     summary: Get available Shiprocket pickup locations
- *     tags: [Orders]
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: Pickup locations retrieved successfully
- *       401:
- *         description: Unauthorized
- *       400:
- *         description: Bad request
- */
-router.get('/shiprocket/pickup-locations', authenticate, controller.getPickupLocations.bind(controller));
+router.post('/:orderId/nimbus/retry', authenticate, controller.retryNimbusIntegration.bind(controller));
 
 export default router;

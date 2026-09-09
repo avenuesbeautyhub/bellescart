@@ -67,7 +67,11 @@ class AdminProductService {
     order?: string;
   }): Promise<ProductResponse> {
     try {
-      const queryString = new URLSearchParams(params as any).toString();
+      // Filter out undefined values to avoid "undefined" strings in URL
+      const filteredParams = Object.fromEntries(
+        Object.entries(params || {}).filter(([_, value]) => value !== undefined && value !== null && value !== '')
+      );
+      const queryString = new URLSearchParams(filteredParams as any).toString();
       const url = queryString ? `/admin/products?${queryString}` : '/admin/products';
 
       const response = await adminApi.get(url);

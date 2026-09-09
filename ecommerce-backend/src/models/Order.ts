@@ -15,9 +15,9 @@ export interface IOrder extends Document {
   user: mongoose.Types.ObjectId;
   orderNumber: string;
   items: IOrderItem[];
-  status: 'pending' | 'confirmed' | 'processing' | 'shipped' | 'delivered' | 'cancelled' | 'refunded';
+  status: 'pending' | 'confirmed' | 'processing' | 'shipped' | 'delivered' | 'cancelled' | 'refunded' | 'returned';
   paymentStatus: 'pending' | 'paid' | 'failed' | 'refunded';
-  paymentMethod: 'credit_card' | 'debit_card' | 'paypal' | 'stripe' | 'razorpay' | 'cash_on_delivery';
+  paymentMethod: 'credit_card' | 'debit_card' | 'paypal' | 'stripe' | 'razorpay' | 'cash_on_delivery' | 'wallet';
   shippingAddress: {
     street: string;
     city: string;
@@ -37,16 +37,27 @@ export interface IOrder extends Document {
   shipping: number;
   discount: number;
   total: number;
+  coupon?: mongoose.Types.ObjectId;
   notes?: string;
+  returnReason?: string;
+  returnDate?: Date;
   trackingNumber?: string;
   estimatedDelivery?: Date;
   actualDelivery?: Date;
-  shiprocket?: {
-    orderId?: string;
+  shypfy?: {
     shipmentId?: string;
-    awb?: string;
+    trackingId?: string;
+    airwayBill?: string;
     courier?: string;
-    trackingStatus?: string;
+    shipmentStatus?: string;
+    expectedDelivery?: Date;
+  };
+  nimbus?: {
+    shipmentId?: string;
+    trackingId?: string;
+    airwayBill?: string;
+    courier?: string;
+    shipmentStatus?: string;
     expectedDelivery?: Date;
   };
   createdAt: Date;
@@ -92,7 +103,7 @@ const orderSchema = new Schema<IOrder>({
   }],
   status: {
     type: String,
-    enum: ['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled', 'refunded'],
+    enum: ['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled', 'refunded', 'returned'],
     default: 'pending'
   },
   paymentStatus: {
@@ -102,7 +113,7 @@ const orderSchema = new Schema<IOrder>({
   },
   paymentMethod: {
     type: String,
-    enum: ['credit_card', 'debit_card', 'paypal', 'stripe', 'razorpay', 'cash_on_delivery'],
+    enum: ['credit_card', 'debit_card', 'paypal', 'stripe', 'razorpay', 'cash_on_delivery', 'wallet'],
     required: true
   },
   shippingAddress: {
@@ -162,19 +173,36 @@ const orderSchema = new Schema<IOrder>({
     required: true,
     min: [0, 'Total cannot be negative']
   },
+  coupon: {
+    type: Schema.Types.ObjectId,
+    ref: 'Coupon'
+  },
   notes: {
     type: String,
     maxlength: [500, 'Notes cannot exceed 500 characters']
   },
+  returnReason: {
+    type: String,
+    maxlength: [500, 'Return reason cannot exceed 500 characters']
+  },
+  returnDate: Date,
   trackingNumber: String,
   estimatedDelivery: Date,
   actualDelivery: Date,
-  shiprocket: {
-    orderId: String,
+  shypfy: {
     shipmentId: String,
-    awb: String,
+    trackingId: String,
+    airwayBill: String,
     courier: String,
-    trackingStatus: String,
+    shipmentStatus: String,
+    expectedDelivery: Date
+  },
+  nimbus: {
+    shipmentId: String,
+    trackingId: String,
+    airwayBill: String,
+    courier: String,
+    shipmentStatus: String,
     expectedDelivery: Date
   }
 }, {

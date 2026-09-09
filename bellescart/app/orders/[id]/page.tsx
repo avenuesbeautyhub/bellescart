@@ -9,76 +9,60 @@ import Footer from '@/components/Footer/Footer';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 import Loader from '@/components/ui/Loader';
-import { orderService } from '@/services/orderService';
+import ReturnModal from '@/components/ReturnModal/ReturnModal';
+import { useOrder, useTrackOrderById, useCancelOrder, useReturnOrder } from '@/hooks/user/useOrderQueries';
 import { globalToast } from '@/utils/globalToast';
 
 export default function OrderDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter();
   const { loaded, isAuthenticated } = useRequireUserAuth();
-  const [isLoading, setIsLoading] = useState(true);
-  const [order, setOrder] = useState<any>(null);
-  const [trackingData, setTrackingData] = useState<any>(null);
-  const [isLoadingTracking, setIsLoadingTracking] = useState(false);
   const { id } = React.use(params);
 
-  useEffect(() => {
-    if (loaded && isAuthenticated && id) {
-      loadOrderDetails();
-    }
-  }, [loaded, isAuthenticated, id]);
+  // React Query hooks
+  const { data: orderData, isLoading: isLoadingOrder, refetch: refetchOrder } = useOrder(id);
+  const { data: trackingData, isLoading: isLoadingTracking } = useTrackOrderById(id);
+  const cancelOrderMutation = useCancelOrder();
+  const returnOrderMutation = useReturnOrder();
 
-  const loadOrderDetails = async () => {
-    try {
-      setIsLoading(true);
-      const response = await orderService.getOrderById(id);
-      if (response.success && response.data?.order) {
-        setOrder(response.data.order);
-        
-        // Load tracking data if order has tracking number
-        if (response.data.order.trackingNumber) {
-          loadTrackingData(response.data.order.trackingNumber);
-        }
-      } else {
-        globalToast.order.loadFailed();
-        router.push('/orders');
-      }
-    } catch (error) {
-      console.error('Failed to load order details:', error);
-      globalToast.order.loadFailed();
-      router.push('/orders');
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  // UI state
+  const [showReturnModal, setShowReturnModal] = useState(false);
 
-  const loadTrackingData = async (trackingNumber: string) => {
-    try {
-      setIsLoadingTracking(true);
-      const response = await orderService.trackOrderByOrderId(id);
-      if (response.success && response.data) {
-        setTrackingData(response.data);
-      }
-    } catch (error) {
-      console.error('Failed to load tracking data:', error);
-    } finally {
-      setIsLoadingTracking(false);
-    }
-  };
+  // Process order data from React Query
+  const order = React.useMemo(() => {
+    if (!orderData?.data) return null;
+    return orderData.data.order || null;
+  }, [orderData]);
 
   const handleCancelOrder = async () => {
     if (!confirm('Are you sure you want to cancel this order?')) return;
 
     try {
-      const response = await orderService.cancelOrder(id);
+      const response = await cancelOrderMutation.mutateAsync(id);
       if (response.success) {
         globalToast.order.cancelSuccess();
-        loadOrderDetails();
+        refetchOrder();
       } else {
         globalToast.order.cancelFailed();
       }
     } catch (error) {
       console.error('Failed to cancel order:', error);
       globalToast.order.cancelFailed();
+    }
+  };
+
+  const handleReturnOrder = async (returnReason: string) => {
+    try {
+      const response = await returnOrderMutation.mutateAsync({ orderId: id, returnReason });
+      if (response.success) {
+        globalToast.order.returnSuccess();
+        setShowReturnModal(false);
+        refetchOrder();
+      } else {
+        globalToast.order.returnFailed();
+      }
+    } catch (error) {
+      console.error('Failed to return order:', error);
+      globalToast.order.returnFailed();
     }
   };
 
@@ -94,6 +78,8 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
         return 'warning';
       case 'cancelled':
         return 'danger';
+      case 'returned':
+        return 'secondary';
       default:
         return 'secondary';
     }
@@ -128,7 +114,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
 
   if (!isAuthenticated) return null;
 
-  if (isLoading) {
+  if (isLoadingOrder) {
     return (
       <div className="min-h-screen flex flex-col">
         <Navbar />
@@ -315,17 +301,17 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
                         <p className="font-medium text-gray-900">{formatDate(order.estimatedDelivery)}</p>
                       </div>
                     )}
-                    {order.shiprocket?.courier && (
+                    {order.nimbus?.courier && (
                       <div>
                         <p className="text-sm text-gray-600">Courier</p>
-                        <p className="font-medium text-gray-900">{order.shiprocket.courier}</p>
+                        <p className="font-medium text-gray-900">{order.nimbus.courier}</p>
                       </div>
                     )}
-                    {order.shiprocket?.trackingStatus && (
+                    {order.nimbus?.shipmentStatus && (
                       <div>
                         <p className="text-sm text-gray-600">Tracking Status</p>
-                        <Badge variant={getStatusColor(order.shiprocket.trackingStatus.toLowerCase())}>
-                          {order.shiprocket.trackingStatus}
+                        <Badge variant={getStatusColor(order.nimbus.shipmentStatus.toLowerCase())}>
+                          {order.nimbus.shipmentStatus}
                         </Badge>
                       </div>
                     )}
@@ -353,7 +339,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
                       variant="secondary"
                       size="sm"
                       className="w-full mt-4"
-                      onClick={() => loadTrackingData(order.trackingNumber)}
+                      onClick={() => refetchOrder()}
                     >
                       Refresh Tracking
                     </Button>
@@ -363,10 +349,10 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
                 <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                   <h2 className="text-xl font-semibold text-gray-900 mb-4">Shipping Information</h2>
                   <div className="space-y-3">
-                    {order.shiprocket?.awb ? (
+                    {order.nimbus?.airwayBill ? (
                       <div>
-                        <p className="text-sm text-gray-600">AWB Number</p>
-                        <p className="font-medium text-gray-900">{order.shiprocket.awb}</p>
+                        <p className="text-sm text-gray-600">Airway Bill Number</p>
+                        <p className="font-medium text-gray-900">{order.nimbus.airwayBill}</p>
                       </div>
                     ) : (
                       <div className="p-3 bg-yellow-50 rounded-lg border border-yellow-100">
@@ -377,17 +363,17 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
                         </p>
                       </div>
                     )}
-                    {order.shiprocket?.courier && (
+                    {order.nimbus?.courier && (
                       <div>
                         <p className="text-sm text-gray-600">Courier</p>
-                        <p className="font-medium text-gray-900">{order.shiprocket.courier}</p>
+                        <p className="font-medium text-gray-900">{order.nimbus.courier}</p>
                       </div>
                     )}
-                    {order.shiprocket?.trackingStatus && (
+                    {order.nimbus?.shipmentStatus && (
                       <div>
                         <p className="text-sm text-gray-600">Status</p>
-                        <Badge variant={getStatusColor(order.shiprocket.trackingStatus.toLowerCase())}>
-                          {order.shiprocket.trackingStatus}
+                        <Badge variant={getStatusColor(order.nimbus.shipmentStatus.toLowerCase())}>
+                          {order.nimbus.shipmentStatus}
                         </Badge>
                       </div>
                     )}
@@ -399,7 +385,16 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
               <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                 <h2 className="text-xl font-semibold text-gray-900 mb-4">Actions</h2>
                 <div className="space-y-3">
-                  {order.status !== 'cancelled' && order.status !== 'delivered' && (
+                  {order.status === 'delivered' && (
+                    <Button
+                      variant="primary"
+                      className="w-full"
+                      onClick={() => setShowReturnModal(true)}
+                    >
+                      Return Order
+                    </Button>
+                  )}
+                  {order.status !== 'cancelled' && order.status !== 'delivered' && order.status !== 'returned' && (
                     <Button
                       variant="danger"
                       className="w-full"
@@ -421,6 +416,14 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
       </main>
 
       <Footer />
+
+      {/* Return Modal */}
+      <ReturnModal
+        isOpen={showReturnModal}
+        onClose={() => setShowReturnModal(false)}
+        onReturn={handleReturnOrder}
+        isLoading={returnOrderMutation.isPending}
+      />
     </div>
   );
 }

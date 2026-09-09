@@ -9,7 +9,7 @@ A comprehensive, scalable e-commerce backend built with Node.js, Express, TypeSc
 - **Product Catalog**: Product CRUD, categories, search, filtering, inventory management
 - **Shopping Cart**: Add/remove items, quantity management, coupon support
 - **Order Management**: Order processing, status tracking, payment integration ready
-- **Shipping Integration**: Shiprocket API integration for shipping rates, courier assignment, and order tracking
+- **Shipping Integration**: NimbusPost API integration for shipping rates, courier assignment, and order tracking
 - **Admin Features**: Product management, order management, analytics dashboard
 
 ### Technical Features
@@ -89,11 +89,21 @@ src/
    RAZORPAY_KEY_ID=your-razorpay-key-id
    RAZORPAY_KEY_SECRET=your-razorpay-key-secret
 
-   # Shiprocket Configuration
-   SHIPROCKET_BASE_URL=https://apiv2.shiprocket.in/v1/external
-   SHIPROCKET_EMAIL=your-shiprocket-email@example.com
-   SHIPROCKET_PASSWORD=your-shiprocket-password
-   SHIPROCKET_PICKUP_PINCODE=691305
+   # NimbusPost Configuration
+   NIMBUS_BASE_URL=https://api.nimbuspost.com
+   NIMBUS_API_KEY=your-nimbuspost-api-key
+   PICKUP_PINCODE=691305
+   SELLER_NAME=BellesCart
+   SELLER_PHONE=0000000000
+   SELLER_EMAIL=support@bellescart.com
+   PICKUP_ADDRESS=Belles Avenue Fashion Hub, Post office junction
+   PICKUP_CITY=Punlalur
+   PICKUP_STATE=Kerala
+   RETURN_ADDRESS=Returns Center
+   RETURN_CITY=Mumbai
+   RETURN_STATE=Maharashtra
+   RETURN_PINCODE=400001
+   DEFAULT_PRODUCT_WEIGHT=0.070
    ```
 
 ### Running the Application
@@ -149,9 +159,9 @@ Once the server is running, visit:
 - `PUT /api/orders/:id/cancel` - Cancel order
 - `PUT /api/orders/:id/status` - Update order status (admin only)
 - `POST /api/orders/shipping/calculate` - Calculate shipping rates (weight auto-calculated from cart)
-- `POST /api/orders/shiprocket/process` - Process complete Shiprocket order flow
 - `GET /api/orders/track/:awb` - Track order by AWB number
 - `GET /api/orders/:id/track` - Track order by order ID
+- `POST /api/orders/:orderId/nimbus/retry` - Retry NimbusPost integration for an existing order
 
 ## Architecture Patterns
 
@@ -166,7 +176,7 @@ Business logic is encapsulated in service classes:
 - `ProductService`: Product catalog operations
 - `CartService`: Shopping cart operations
 - `OrderService`: Order processing and management
-- `ShiprocketService`: Shipping integration with Shiprocket API
+- `NimbusPostService`: Shipping integration with NimbusPost API
 - `PaymentService`: Payment processing with Razorpay
 
 ### Controllers
@@ -176,17 +186,20 @@ Controllers handle HTTP requests and responses:
 - Format responses
 - Handle errors
 
-## Shiprocket Integration
+## NimbusPost Integration
 
-The backend includes comprehensive Shiprocket API integration for shipping management:
+The backend includes comprehensive NimbusPost API integration for shipping management:
 
 ### Features
-- **Authentication**: Automatic token management with 10-day refresh cycle
+- **Authentication**: API key-based authentication with persistent tokens
 - **Shipping Rate Calculation**: Get real-time courier rates and delivery estimates
-- **Order Creation**: Create orders in Shiprocket system after payment success
-- **Courier Assignment**: Assign couriers and generate AWB numbers
-- **Pickup Scheduling**: Schedule courier pickups automatically
+- **Order Creation**: Create shipments in NimbusPost system after payment success
+- **Courier Assignment**: Automatic courier assignment and AWB generation
 - **Order Tracking**: Real-time shipment tracking with status updates
+- **Address Management**: Manage pickup and return addresses
+- **Warehouse Management**: Manage pickup/return warehouses
+- **Label Generation**: Download shipping labels for shipments
+- **Manifest Generation**: Generate manifests for multiple shipments
 
 ### Pickup Location
 - **Belles Avenue Fashion Hub**
@@ -197,24 +210,24 @@ The backend includes comprehensive Shiprocket API integration for shipping manag
 1. **Calculate Shipping**: User enters delivery pincode, system calculates shipping rates
 2. **Select Courier**: User selects courier from available options
 3. **Create Order**: Order is created with calculated shipping fee
-4. **Process Shiprocket**: Complete flow creates order, assigns courier, schedules pickup
+4. **Process NimbusPost**: Complete flow creates shipment, assigns courier, generates tracking
 5. **Track Shipments**: Provide real-time tracking to customers
 
 ### Database Schema
-Orders now include Shiprocket fields:
+Orders now include NimbusPost fields:
 ```typescript
-shiprocket?: {
-  orderId?: string;        // Shiprocket order ID
-  shipmentId?: string;     // Shipment ID
-  awb?: string;           // Air Way Bill number
-  courier?: string;       // Courier name
-  trackingStatus?: string; // Current tracking status
+nimbus?: {
+  shipmentId?: string;      // Shipment ID
+  trackingId?: string;     // Tracking ID
+  airwayBill?: string;     // Air Way Bill number
+  courier?: string;        // Courier name
+  shipmentStatus?: string; // Current shipment status
   expectedDelivery?: Date; // Expected delivery date
 }
 ```
 
 ### Setup Instructions
-See `SHIPROCKET_SETUP.md` for detailed setup instructions and API examples.
+See `NIMBUSPOST_SETUP.md` for detailed setup instructions and API examples.
 
 ## Security Features
 

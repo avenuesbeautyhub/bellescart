@@ -6,160 +6,157 @@ import Navbar from '@/components/Navbar/Navbar';
 import Footer from '@/components/Footer/Footer';
 import ProductGrid from '@/components/ProductGrid/ProductGrid';
 import Loader from '@/components/ui/Loader';
+import { SearchBar } from '@/components';
 import { useAuth } from '@/auth/user';
-import { productService } from '@/services/productService';
-import { useCart } from '@/contexts/CartContext';
+import { useProducts, useCategories, useBackendSearch } from '@/hooks/user/useProductQueries';
+import { useDebounce } from '@/hooks/useDebounce';
 
 export default function ProductsPage() {
   const router = useRouter();
   const [selectedCategory, setSelectedCategory] = useState('All Products');
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState('featured');
-  const [products, setProducts] = useState<any[]>([]);
-  const [categories, setCategories] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const { user, loaded } = useAuth();
-  const { refreshCartCount } = useCart();
-  
-  // Search state
+  const [mounted, setMounted] = useState(false);
+  const { user, loaded, isAuthenticated } = useAuth();
+
+  // Prevent hydration issues
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Search state with debouncing
   const [searchQuery, setSearchQuery] = useState('');
-  const [debouncedSearch, setDebouncedSearch] = useState('');
-  
-  // Pagination state
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(12);
-  
+  const debouncedSearch = useDebounce(searchQuery, 500); // Increased to 500ms for better performance
+
+  // Initialize search from URL on mount
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const searchParam = urlParams.get('search');
+    if (searchParam) {
+      setSearchQuery(searchParam);
+    }
+  }, []);
+
+  // Update URL when search query changes
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    if (searchQuery) {
+      url.searchParams.set('search', searchQuery);
+    } else {
+      url.searchParams.delete('search');
+    }
+    window.history.replaceState({}, '', url.toString());
+  }, [searchQuery]);
+
   // Advanced filters
   const [priceRange, setPriceRange] = useState({ min: '', max: '' });
   const [selectedBrands, setSelectedBrands] = useState<string[]>([]);
   const [inStockOnly, setInStockOnly] = useState(false);
-  
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(12);
+
   // UI state
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [showMobileFilters, setShowMobileFilters] = useState(false);
 
-  // Redirect guests to guest products page
-  useEffect(() => {
-    if (loaded && !user) {
-      router.replace('/products/guest');
-    }
-  }, [loaded, user, router]);
+  // Use backend search when there's a search query, otherwise use regular products
+  const searchParams = debouncedSearch ? {
+    search: debouncedSearch,
+    category: selectedCategoryId || undefined,
+    minPrice: priceRange.min ? parseFloat(priceRange.min) : undefined,
+    maxPrice: priceRange.max ? parseFloat(priceRange.max) : undefined,
+    sort: sortBy === 'featured' ? 'createdAt' : sortBy === 'price-low' ? 'price' : sortBy === 'price-high' ? 'price' : sortBy === 'name-asc' ? 'name' : sortBy === 'name-desc' ? 'name' : 'createdAt',
+    order: sortBy === 'price-high' || sortBy === 'name-desc' ? 'desc' : 'asc',
+    page: currentPage,
+    limit: itemsPerPage
+  } : undefined;
 
-  // Debounce search query
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedSearch(searchQuery);
-      setCurrentPage(1);
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [searchQuery]);
+  const { data: searchResults, isLoading: isSearchLoading } = useBackendSearch(searchParams);
 
-  // Load categories and products from API
-  useEffect(() => {
-    if (user) {
-      loadCategories();
-      loadProducts();
-    }
-  }, [selectedCategory, sortBy, user]);
+  const { data: productsData, isLoading: isLoadingProducts } = useProducts({
+    category: selectedCategoryId || undefined,
+    sort: sortBy === 'featured' ? 'createdAt' : sortBy === 'price-low' ? 'price' : sortBy === 'price-high' ? 'price' : sortBy === 'name-asc' ? 'name' : sortBy === 'name-desc' ? 'name' : 'createdAt',
+    order: sortBy === 'price-high' || sortBy === 'name-desc' ? 'desc' : 'asc',
+    page: currentPage,
+    limit: itemsPerPage
+  });
 
-  const loadCategories = async () => {
-    try {
-      const response = await productService.getCategories();
-      if (response.success && response.data?.categories) {
-        setCategories(response.data.categories);
+  const { data: categoriesData, isLoading: isLoadingCategories } = useCategories();
+
+  // Use search results when searching, otherwise use regular products
+  const products = debouncedSearch ? (searchResults?.data?.products || []) : (productsData?.data?.products || []);
+  const pagination = debouncedSearch ? (searchResults?.data?.pagination) : (productsData?.data?.pagination);
+  const categories = categoriesData?.data?.categories || [];
+  const isLoading = (debouncedSearch ? isSearchLoading : isLoadingProducts) || isLoadingCategories;
+
+  // Initialize category from URL when categories are loaded
+  useEffect(() => {
+    if (categories.length > 0) {
+      const urlParams = new URLSearchParams(window.location.search);
+      const categoryParam = urlParams.get('category');
+
+      if (categoryParam) {
+        const category = categories.find((cat: any) => cat.name.toLowerCase() === categoryParam.toLowerCase());
+        if (category) {
+          setSelectedCategory(category.name);
+          setSelectedCategoryId(category._id);
+        }
       }
-    } catch (error) {
-      console.error('Failed to load categories:', error);
     }
-  };
+  }, [categories]);
 
-  const loadProducts = async () => {
-    try {
-      setIsLoading(true);
-      const response = await productService.getProducts({
-        category: selectedCategoryId || undefined
-      });
-
-      if (response.success && response.data?.products) {
-        setProducts(response.data.products);
+  // Redirect guests to guest products page with preserved search params
+  useEffect(() => {
+    if (loaded && !isAuthenticated) {
+      const urlParams = new URLSearchParams(window.location.search);
+      const searchParam = urlParams.get('search');
+      const categoryParam = urlParams.get('category');
+      
+      let redirectUrl = '/products/guest';
+      const params = new URLSearchParams();
+      if (searchParam) params.set('search', searchParam);
+      if (categoryParam) params.set('category', categoryParam);
+      
+      if (params.toString()) {
+        redirectUrl += `?${params.toString()}`;
       }
-    } catch (error) {
-      console.error('Failed to load products:', error);
-    } finally {
-      setIsLoading(false);
+      
+      router.replace(redirectUrl);
     }
-  };
+  }, [loaded, isAuthenticated, router]);
 
-  // Extract unique brands from products
+  // Reset page when search changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [debouncedSearch, selectedCategoryId, sortBy]);
+
+
+  // Update URL when category changes
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    if (selectedCategoryId && selectedCategory !== 'All Products') {
+      url.searchParams.set('category', selectedCategory.toLowerCase());
+    } else {
+      url.searchParams.delete('category');
+    }
+    window.history.replaceState({}, '', url.toString());
+  }, [selectedCategory, selectedCategoryId]);
+
+  // Extract unique brands from products (only when not searching to get all available brands)
   const brands = React.useMemo(() => {
+    if (debouncedSearch) return []; // Don't show brands when searching
     const brandSet = new Set<string>();
     products.forEach(product => {
       if (product.brand) brandSet.add(product.brand);
     });
     return Array.from(brandSet).sort();
-  }, [products]);
+  }, [products, debouncedSearch]);
 
-  const filteredProducts = products.filter(product => {
-    // Category filter
-    if (selectedCategory !== 'All Products' && product.category?._id !== selectedCategoryId) {
-      return false;
-    }
-    
-    // Search filter
-    if (debouncedSearch) {
-      const searchLower = debouncedSearch.toLowerCase();
-      const matchesName = product.name?.toLowerCase().includes(searchLower);
-      const matchesDesc = product.description?.toLowerCase().includes(searchLower);
-      const matchesBrand = product.brand?.toLowerCase().includes(searchLower);
-      if (!matchesName && !matchesDesc && !matchesBrand) {
-        return false;
-      }
-    }
-    
-    // Price range filter
-    if (priceRange.min && product.price < parseFloat(priceRange.min)) {
-      return false;
-    }
-    if (priceRange.max && product.price > parseFloat(priceRange.max)) {
-      return false;
-    }
-    
-    // Brand filter
-    if (selectedBrands.length > 0 && !selectedBrands.includes(product.brand)) {
-      return false;
-    }
-    
-    // In-stock filter
-    if (inStockOnly && (!product.quantity || product.quantity <= 0)) {
-      return false;
-    }
-    
-    return true;
-  });
-
-  const sortedProducts = [...filteredProducts].sort((a, b) => {
-    switch (sortBy) {
-      case 'price-low':
-        return a.price - b.price;
-      case 'price-high':
-        return b.price - a.price;
-      case 'name-asc':
-        return a.name?.localeCompare(b.name) || 0;
-      case 'name-desc':
-        return b.name?.localeCompare(a.name) || 0;
-      case 'newest':
-        return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
-      default:
-        return 0;
-    }
-  });
-
-  // Pagination
-  const totalPages = Math.ceil(sortedProducts.length / itemsPerPage);
-  const paginatedProducts = sortedProducts.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
-  );
+  // Pagination from backend
+  const totalPages = pagination?.totalPages || 1;
+  const paginatedProducts = products; // Backend already handles pagination
 
   const clearFilters = () => {
     setSelectedCategory('All Products');
@@ -170,13 +167,23 @@ export default function ProductsPage() {
     setSelectedBrands([]);
     setInStockOnly(false);
     setCurrentPage(1);
+
+    // Clear URL parameters
+    const url = new URL(window.location.href);
+    url.searchParams.delete('search');
+    url.searchParams.delete('category');
+    window.history.replaceState({}, '', url.toString());
   };
 
-  const hasActiveFilters = selectedCategory !== 'All Products' || 
-    searchQuery || 
-    priceRange.min || 
-    priceRange.max || 
-    selectedBrands.length > 0 || 
+  const handleSearch = (query: string) => {
+    setSearchQuery(query);
+  };
+
+  const hasActiveFilters = selectedCategory !== 'All Products' ||
+    searchQuery ||
+    priceRange.min ||
+    priceRange.max ||
+    selectedBrands.length > 0 ||
     inStockOnly;
 
   // Show loader while checking authentication
@@ -193,17 +200,35 @@ export default function ProductsPage() {
   }
 
   // Don't render if not authenticated (redirecting)
-  if (!user) {
-    return null;
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen flex flex-col">
+        <Navbar />
+        <div className="flex-1 flex items-center justify-center">
+          <Loader size="lg" text="Redirecting..." />
+        </div>
+        <Footer />
+      </div>
+    );
+  }
+
+  if (!mounted) {
+    return (
+      <div className="min-h-screen flex flex-col">
+        <Navbar />
+        <div className="flex-1" />
+        <Footer />
+      </div>
+    );
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50">
+    <div className="min-h-screen flex flex-col bg-gradient-to-b from-gray-50 to-white">
       <Navbar />
 
       <main className="flex-1">
-        {/* Loading State - Only show loader overlay when no products exist */}
-        {isLoading && products.length === 0 && (
+        {/* Loading State - Only show loader overlay when no products exist and not searching */}
+        {isLoading && products.length === 0 && !debouncedSearch && (
           <div className="fixed inset-0 bg-white bg-opacity-90 flex items-center justify-center z-50">
             <Loader size="lg" text="Loading products..." />
           </div>
@@ -211,34 +236,18 @@ export default function ProductsPage() {
 
         <div className="max-w-7xl mx-auto px-4 py-8">
           {/* Header */}
-          <div className="mb-6">
-            <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-2">Products</h1>
-            <p className="text-gray-600">Discover our curated collection of premium items</p>
-          </div>
-
-          {/* Search Bar */}
-          <div className="mb-6">
-            <div className="relative">
-              <input
-                type="text"
-                placeholder="Search products by name, brand, or description..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full px-5 py-4 pl-12 bg-white border border-gray-200 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent text-gray-900 placeholder-gray-400 transition-all duration-200"
+          <div className="mb-8">
+            <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-2">Products</h1>
+            <p className="text-gray-600 text-lg">Discover our curated collection of premium items</p>
+            <div className="mt-6">
+              <SearchBar 
+                value={searchQuery} 
+                onChange={setSearchQuery} 
+                onSearch={handleSearch} 
+                className="max-w-md" 
+                realTime={true} 
+                debounceMs={300} 
               />
-              <svg className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
-              {searchQuery && (
-                <button
-                  onClick={() => setSearchQuery('')}
-                  className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              )}
             </div>
           </div>
 
@@ -261,12 +270,12 @@ export default function ProductsPage() {
 
             {/* Sidebar */}
             <div className={`lg:col-span-1 ${showMobileFilters ? 'block' : 'hidden lg:block'}`}>
-              <div className="lg:sticky lg:top-8 space-y-4">
+              <div className="lg:sticky lg:top-8 space-y-5">
                 {/* Clear Filters Button */}
                 {hasActiveFilters && (
                   <button
                     onClick={clearFilters}
-                    className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-pink-50 text-pink-600 rounded-xl hover:bg-pink-100 transition-colors duration-200 font-medium"
+                    className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-pink-50 to-rose-50 text-pink-600 rounded-2xl hover:from-pink-100 hover:to-rose-100 transition-all duration-200 font-semibold border border-pink-200"
                   >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -275,26 +284,26 @@ export default function ProductsPage() {
                   </button>
                 )}
                 {/* Categories */}
-                <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                  <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
-                    <h3 className="text-lg font-semibold text-gray-900">Categories</h3>
+                <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
+                  <div className="px-6 py-4 bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200">
+                    <h3 className="text-lg font-bold text-gray-900">Categories</h3>
                   </div>
-                  <div className="p-4 space-y-1">
+                  <div className="p-4 space-y-2">
                     <button
                       key="all"
                       onClick={() => {
                         setSelectedCategory('All Products');
                         setSelectedCategoryId(null);
                       }}
-                      className={`block w-full text-left px-4 py-3 rounded-lg transition-all duration-200 ${selectedCategory === 'All Products'
-                        ? 'bg-pink-500 text-white shadow-sm'
+                      className={`block w-full text-left px-4 py-3 rounded-xl transition-all duration-200 ${selectedCategory === 'All Products'
+                        ? 'bg-gradient-to-r from-pink-500 to-pink-600 text-white shadow-md'
                         : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
                         }`}
                     >
                       <div className="flex items-center justify-between">
-                        <span className="font-medium">All Products</span>
+                        <span className="font-semibold">All Products</span>
                         {selectedCategory === 'All Products' && (
-                          <span className="text-white text-xs">Active</span>
+                          <span className="text-white text-xs font-medium">Active</span>
                         )}
                       </div>
                     </button>
@@ -305,15 +314,15 @@ export default function ProductsPage() {
                           setSelectedCategory(category.name);
                           setSelectedCategoryId(category._id);
                         }}
-                        className={`block w-full text-left px-4 py-3 rounded-lg transition-all duration-200 ${selectedCategory === category.name
-                          ? 'bg-pink-500 text-white shadow-sm'
+                        className={`block w-full text-left px-4 py-3 rounded-xl transition-all duration-200 ${selectedCategory === category.name
+                          ? 'bg-gradient-to-r from-pink-500 to-pink-600 text-white shadow-md'
                           : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
                           }`}
                       >
                         <div className="flex items-center justify-between">
-                          <span className="font-medium">{category.name}</span>
+                          <span className="font-semibold">{category.name}</span>
                           {selectedCategory === category.name && (
-                            <span className="text-white text-xs">Active</span>
+                            <span className="text-white text-xs font-medium">Active</span>
                           )}
                         </div>
                       </button>
@@ -322,11 +331,11 @@ export default function ProductsPage() {
                 </div>
 
                 {/* Sort Options */}
-                <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                  <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
-                    <h3 className="text-lg font-semibold text-gray-900">Sort By</h3>
+                <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
+                  <div className="px-6 py-4 bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200">
+                    <h3 className="text-lg font-bold text-gray-900">Sort By</h3>
                   </div>
-                  <div className="p-4 space-y-1">
+                  <div className="p-4 space-y-2">
                     {[
                       { value: 'featured', label: 'Featured' },
                       { value: 'price-low', label: 'Price: Low to High' },
@@ -338,15 +347,15 @@ export default function ProductsPage() {
                       <button
                         key={option.value}
                         onClick={() => setSortBy(option.value)}
-                        className={`block w-full text-left px-4 py-3 rounded-lg transition-all duration-200 ${sortBy === option.value
-                          ? 'bg-blue-500 text-white shadow-sm'
+                        className={`block w-full text-left px-4 py-3 rounded-xl transition-all duration-200 ${sortBy === option.value
+                          ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-md'
                           : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
                           }`}
                       >
                         <div className="flex items-center justify-between">
-                          <span className="font-medium">{option.label}</span>
+                          <span className="font-semibold">{option.label}</span>
                           {sortBy === option.value && (
-                            <span className="text-white text-xs">Active</span>
+                            <span className="text-white text-xs font-medium">Active</span>
                           )}
                         </div>
                       </button>
@@ -355,31 +364,31 @@ export default function ProductsPage() {
                 </div>
 
                 {/* Price Range Filter */}
-                <div className="bg-white text-black rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                  <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
-                    <h3 className="text-lg font-semibold text-gray-900">Price Range</h3>
+                <div className="bg-white text-black rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
+                  <div className="px-6 py-4 bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200">
+                    <h3 className="text-lg font-bold text-gray-900">Price Range</h3>
                   </div>
-                  <div className="p-4 space-y-3">
-                    <div className="flex items-center gap-2">
+                  <div className="p-4 space-y-4">
+                    <div className="flex items-center gap-3">
                       <div className="relative flex-1">
-                        <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 text-sm">₹</span>
+                        <span className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 text-sm font-medium">₹</span>
                         <input
                           type="number"
                           placeholder="Min"
                           value={priceRange.min}
                           onChange={(e) => setPriceRange({ ...priceRange, min: e.target.value })}
-                          className="w-full pl-8 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent"
+                          className="w-full pl-10 pr-4 py-3 border-2 border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent"
                         />
                       </div>
-                      <span className="text-gray-400">-</span>
+                      <span className="text-gray-400 font-medium">-</span>
                       <div className="relative flex-1">
-                        <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 text-sm">₹</span>
+                        <span className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 text-sm font-medium">₹</span>
                         <input
                           type="number"
                           placeholder="Max"
                           value={priceRange.max}
                           onChange={(e) => setPriceRange({ ...priceRange, max: e.target.value })}
-                          className="w-full pl-8 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent"
+                          className="w-full pl-10 pr-4 py-3 border-2 border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent"
                         />
                       </div>
                     </div>
@@ -388,11 +397,11 @@ export default function ProductsPage() {
 
                 {/* Brand Filter */}
                 {brands.length > 0 && (
-                  <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                    <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
-                      <h3 className="text-lg font-semibold text-gray-900">Brand</h3>
+                  <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
+                    <div className="px-6 py-4 bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200">
+                      <h3 className="text-lg font-bold text-gray-900">Brand</h3>
                     </div>
-                    <div className="p-4 space-y-2 max-h-48 overflow-y-auto">
+                    <div className="p-4 space-y-3 max-h-48 overflow-y-auto">
                       {brands.map((brand) => (
                         <label key={brand} className="flex items-center gap-3 cursor-pointer group">
                           <input
@@ -405,9 +414,9 @@ export default function ProductsPage() {
                                 setSelectedBrands(selectedBrands.filter(b => b !== brand));
                               }
                             }}
-                            className="w-4 h-4 text-pink-500 border-gray-300 rounded focus:ring-pink-500 focus:ring-offset-0"
+                            className="w-5 h-5 text-pink-500 border-gray-300 rounded focus:ring-pink-500 focus:ring-offset-0"
                           />
-                          <span className={`text-sm ${selectedBrands.includes(brand) ? 'text-gray-900 font-medium' : 'text-gray-600 group-hover:text-gray-900'}`}>
+                          <span className={`text-sm ${selectedBrands.includes(brand) ? 'text-gray-900 font-semibold' : 'text-gray-600 group-hover:text-gray-900'}`}>
                             {brand}
                           </span>
                         </label>
@@ -417,9 +426,9 @@ export default function ProductsPage() {
                 )}
 
                 {/* In Stock Filter */}
-                <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                  <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
-                    <h3 className="text-lg font-semibold text-gray-900">Availability</h3>
+                <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
+                  <div className="px-6 py-4 bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200">
+                    <h3 className="text-lg font-bold text-gray-900">Availability</h3>
                   </div>
                   <div className="p-4">
                     <label className="flex items-center gap-3 cursor-pointer group">
@@ -427,9 +436,9 @@ export default function ProductsPage() {
                         type="checkbox"
                         checked={inStockOnly}
                         onChange={(e) => setInStockOnly(e.target.checked)}
-                        className="w-4 h-4 text-pink-500 border-gray-300 rounded focus:ring-pink-500 focus:ring-offset-0"
+                        className="w-5 h-5 text-pink-500 border-gray-300 rounded focus:ring-pink-500 focus:ring-offset-0"
                       />
-                      <span className={`text-sm ${inStockOnly ? 'text-gray-900 font-medium' : 'text-gray-600 group-hover:text-gray-900'}`}>
+                      <span className={`text-sm ${inStockOnly ? 'text-gray-900 font-semibold' : 'text-gray-600 group-hover:text-gray-900'}`}>
                         In Stock Only
                       </span>
                     </label>
@@ -437,10 +446,10 @@ export default function ProductsPage() {
                 </div>
 
                 {/* Product Count */}
-                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+                <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
                   <div className="text-center">
-                    <p className="text-sm text-gray-500 mb-1">Products Found</p>
-                    <p className="text-3xl font-bold text-gray-900">{sortedProducts.length}</p>
+                    <p className="text-sm text-gray-500 mb-2">Products Found</p>
+                    <p className="text-4xl font-bold text-gray-900">{pagination?.total || products.length}</p>
                   </div>
                 </div>
               </div>
@@ -448,20 +457,28 @@ export default function ProductsPage() {
 
             {/* Products Grid */}
             <div className="lg:col-span-3">
-              {/* Loading Indicator */}
-              {isLoading && products.length > 0 && (
+              {/* Loading Indicator - Only show during initial load, not during search */}
+              {isLoading && !debouncedSearch && products.length > 0 && (
                 <div className="flex items-center justify-center py-8 mb-6">
                   <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-pink-500 mr-3"></div>
                   <span className="text-gray-600 text-sm">Updating...</span>
                 </div>
               )}
 
+              {/* Search Loading Indicator - Subtle loading during search */}
+              {debouncedSearch && isSearchLoading && (
+                <div className="flex items-center justify-center py-4 mb-4">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-orange-500 mr-2"></div>
+                  <span className="text-sm text-gray-500">Searching...</span>
+                </div>
+              )}
+
               {/* Results Header */}
-              <div className="mb-6 p-4 bg-white rounded-xl shadow-sm border border-gray-200">
+              <div className="mb-6 p-5 bg-white rounded-2xl shadow-md border border-gray-100">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <div>
                     <p className="text-sm text-gray-500">
-                      Showing <span className="font-semibold text-gray-900">{sortedProducts.length}</span> products
+                      Showing <span className="font-bold text-gray-900">{products.length}</span> products
                       {hasActiveFilters && (
                         <span className="text-gray-400 ml-2">(filtered)</span>
                       )}
@@ -472,10 +489,10 @@ export default function ProductsPage() {
                   </div>
                   <div className="flex items-center gap-3">
                     {/* View Mode Toggle */}
-                    <div className="flex items-center bg-gray-100 rounded-lg p-1">
+                    <div className="flex items-center bg-gray-100 rounded-xl p-1">
                       <button
                         onClick={() => setViewMode('grid')}
-                        className={`p-2 rounded-md transition-colors duration-200 ${viewMode === 'grid' ? 'bg-white shadow-sm text-pink-500' : 'text-gray-500 hover:text-gray-700'}`}
+                        className={`p-2.5 rounded-lg transition-colors duration-200 ${viewMode === 'grid' ? 'bg-white shadow-md text-pink-500' : 'text-gray-500 hover:text-gray-700'}`}
                       >
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
@@ -483,7 +500,7 @@ export default function ProductsPage() {
                       </button>
                       <button
                         onClick={() => setViewMode('list')}
-                        className={`p-2 rounded-md transition-colors duration-200 ${viewMode === 'list' ? 'bg-white shadow-sm text-pink-500' : 'text-gray-500 hover:text-gray-700'}`}
+                        className={`p-2.5 rounded-lg transition-colors duration-200 ${viewMode === 'list' ? 'bg-white shadow-md text-pink-500' : 'text-gray-500 hover:text-gray-700'}`}
                       >
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
@@ -497,7 +514,7 @@ export default function ProductsPage() {
                         setItemsPerPage(parseInt(e.target.value));
                         setCurrentPage(1);
                       }}
-                      className="text-black px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent bg-white"
+                      className="text-black px-4 py-2.5 border-2 border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent bg-white"
                     >
                       <option value={12}>12 per page</option>
                       <option value={24}>24 per page</option>
@@ -512,7 +529,7 @@ export default function ProductsPage() {
                 <>
                   <ProductGrid
                     products={paginatedProducts}
-                    onAddToCart={() => refreshCartCount()}
+                    onAddToCart={() => console.log('Add to cart clicked')}
                     onAddToWishlist={() => console.log('Add to wishlist clicked')}
                   />
                   
@@ -520,7 +537,7 @@ export default function ProductsPage() {
                   {totalPages > 1 && (
                     <div className="mt-8 flex flex-col sm:flex-row items-center justify-between gap-4 p-4 bg-white rounded-xl shadow-sm border border-gray-200">
                       <div className="text-sm text-gray-600">
-                        Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, sortedProducts.length)} of {sortedProducts.length} products
+                        Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, pagination?.total || 0)} of {pagination?.total || 0} products
                       </div>
                       <div className="flex items-center gap-2">
                         <button

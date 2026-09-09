@@ -32,6 +32,13 @@ export interface OrderData {
   createdAt: string;
   updatedAt: string;
   notes?: string;
+  coupon?: {
+    _id: string;
+    code: string;
+    discountType: string;
+    discountValue: number;
+  };
+  discountAmount?: number;
 }
 
 export interface OrderResponse {

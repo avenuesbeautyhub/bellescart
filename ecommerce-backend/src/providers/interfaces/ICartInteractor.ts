@@ -20,5 +20,10 @@ export interface ICartInteractor {
     invalidItems: Array<{ itemId: string; reason: string }>;
     updatedCart?: ICart;
   }>;
+  validateCartStock(userId: string): Promise<{
+    valid: boolean;
+    outOfStockItems: Array<{ productId: string; productName: string; requestedQuantity: number; availableQuantity: number }>;
+    message: string;
+  }>;
   mergeGuestCart(userId: string, guestCartItems: ICartItem[]): Promise<ICart>;
 }

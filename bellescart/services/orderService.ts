@@ -19,13 +19,15 @@ export interface BillingAddress {
 export interface CreateOrderRequest {
   shippingAddress: ShippingAddress;
   billingAddress?: BillingAddress;
-  paymentMethod: 'credit_card' | 'debit_card' | 'paypal' | 'razorpay' | 'cash_on_delivery';
+  paymentMethod: 'credit_card' | 'debit_card' | 'paypal' | 'razorpay' | 'cash_on_delivery' | 'wallet';
   notes?: string;
   paymentId?: string;
   calculatedShippingFee?: number;
-  processShiprocket?: boolean;
-  shiprocketCourierId?: number;
-  shiprocketAllRates?: any[];
+  couponCode?: string;
+  discountAmount?: number;
+  processNimbus?: boolean;
+  nimbusCourierId?: string;
+  nimbusAllRates?: any[];
 }
 
 export interface OrderResponse {
@@ -132,18 +134,18 @@ export const orderService = {
     }
   },
 
-  // Process Shiprocket order
-  processShiprocketOrder: async (request: {
+  // Process NimbusPost order
+  processNimbusOrder: async (request: {
     orderId: string;
     orderData: any;
-    courierId: number;
+    courierId: string;
   }): Promise<any> => {
     try {
-      const response = await apiPost('/orders/shiprocket/process', request);
+      const response = await apiPost('/orders/nimbus/process', request);
       const data = await response.json();
       return data;
     } catch (error) {
-      console.error('Error processing Shiprocket order:', error);
+      console.error('Error processing NimbusPost order:', error);
       throw error;
     }
   },
@@ -168,6 +170,18 @@ export const orderService = {
       return data;
     } catch (error) {
       console.error('Error tracking order by ID:', error);
+      throw error;
+    }
+  },
+
+  // Return order
+  returnOrder: async (orderId: string, returnReason: string): Promise<OrderResponse> => {
+    try {
+      const response = await apiPost(`/orders/${orderId}/return`, { returnReason });
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error('Error returning order:', error);
       throw error;
     }
   },

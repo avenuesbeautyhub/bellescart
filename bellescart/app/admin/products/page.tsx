@@ -5,73 +5,56 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
-import { adminProductService } from '@/services/admin/productService';
-import { adminCategoryService } from '@/services/admin/categoryService';
+import { useAdminProducts, useDeleteProduct, useAdminCategories } from '@/hooks/user/useAdminQueries';
 import { globalToast } from '@/utils/globalToast';
+
+interface Product {
+  _id: string;
+  id?: string;
+  name: string;
+  description: string;
+  price: number;
+  category?: {
+    _id: string;
+    name: string;
+  };
+  quantity: number;
+  status: 'active' | 'inactive' | 'draft';
+  featured?: boolean;
+  images?: {
+    url: string;
+    alt: string;
+    isMain: boolean;
+  }[];
+  tags?: string[];
+  brand?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
 
 export default function ProductManagementPage() {
   const router = useRouter();
-  const [products, setProducts] = useState<any[]>([]);
-  const [categories, setCategories] = useState<any[]>([]);
-  const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
-  const [totalProducts, setTotalProducts] = useState(0);
-  const [selectedProduct, setSelectedProduct] = useState<any | null>(null);
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [showModal, setShowModal] = useState(false);
 
-  useEffect(() => {
-    loadProducts();
-    loadCategories();
-  }, [searchTerm, selectedCategory, selectedStatus, currentPage]);
+  // React Query hooks
+  const { data: productsData, isLoading } = useAdminProducts({
+    page: currentPage,
+    limit: 10,
+    search: searchTerm.trim() || undefined,
+    category: selectedCategory || undefined,
+    status: selectedStatus || undefined,
+  });
+  const { data: categoriesData } = useAdminCategories();
+  const deleteProduct = useDeleteProduct();
 
-  const loadProducts = async () => {
-    setLoading(true);
-    try {
-      // Filter out undefined and empty values
-      const params: any = {
-        page: currentPage,
-        limit: 10
-      };
-
-      if (searchTerm && searchTerm.trim()) {
-        params.search = searchTerm.trim();
-      }
-
-      if (selectedCategory) {
-        params.category = selectedCategory;
-      }
-
-      if (selectedStatus) {
-        params.status = selectedStatus;
-      }
-
-      const response = await adminProductService.getProducts(params);
-
-      if (response.success && response.data?.products) {
-        setProducts(response.data.products);
-        setTotalProducts(response.data.products.length);
-      }
-    } catch (error: any) {
-      console.error('Failed to load products:', error);
-      globalToast.admin.error('Load Failed', 'Failed to load products');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const loadCategories = async () => {
-    try {
-      const response = await adminCategoryService.getAllCategories();
-      if (response.success && response.data?.categories) {
-        setCategories(response.data.categories);
-      }
-    } catch (error) {
-      console.error('Failed to load categories:', error);
-    }
-  };
+  const products: Product[] = productsData?.data?.products || [];
+  const categories = categoriesData?.data?.categories || [];
+  const totalProducts = products.length;
 
   const handleDelete = async (id: string, name: string) => {
     if (!confirm(`Are you sure you want to delete "${name}"?`)) {
@@ -79,20 +62,15 @@ export default function ProductManagementPage() {
     }
 
     try {
-      const response = await adminProductService.deleteProduct(id);
-      if (response.success) {
-        globalToast.admin.success('Product Deleted', `Product "${name}" has been deleted`);
-        loadProducts();
-      } else {
-        globalToast.admin.error('Deletion Failed', response.message || 'Failed to delete product');
-      }
+      await deleteProduct.mutateAsync(id);
+      globalToast.admin.success('Product Deleted', `Product "${name}" has been deleted`);
     } catch (error: any) {
       console.error('Failed to delete product:', error);
       globalToast.admin.error('Network Error', error.message || 'Network error occurred');
     }
   };
 
-  const handleProductClick = (product: any) => {
+  const handleProductClick = (product: Product) => {
     setSelectedProduct(product);
     setShowModal(true);
   };
@@ -151,7 +129,7 @@ export default function ProductManagementPage() {
         {/* Products Table */}
         <div className="bg-white rounded-lg shadow overflow-hidden">
           <div className="overflow-x-auto">
-            {loading ? (
+            {isLoading ? (
               <div className="flex justify-center items-center py-12">
                 <div className="text-gray-500">Loading products...</div>
               </div>
@@ -173,6 +151,9 @@ export default function ProductManagementPage() {
                 <thead className="bg-gray-50 border-b border-gray-200">
                   <tr>
                     <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700">
+                      #
+                    </th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700">
                       Product Name
                     </th>
                     <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700">
@@ -191,12 +172,15 @@ export default function ProductManagementPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {products.map(product => (
+                  {products.map((product: Product, index: number) => (
                     <tr
                       key={product._id}
                       className="border-b border-gray-200 hover:bg-gray-50 cursor-pointer"
                       onClick={() => handleProductClick(product)}
                     >
+                      <td className="px-6 py-4 text-sm font-semibold text-gray-800">
+                        {(currentPage - 1) * 10 + index + 1}
+                      </td>
                       <td className="px-6 py-4 text-sm font-semibold text-gray-800">
                         {product.name}
                       </td>
@@ -355,13 +339,13 @@ export default function ProductManagementPage() {
                       <div>
                         <label className="block font-medium text-gray-700">Created</label>
                         <p className="mt-1">
-                          {new Date(selectedProduct.createdAt).toLocaleDateString()}
+                          {selectedProduct.createdAt ? new Date(selectedProduct.createdAt).toLocaleDateString() : 'N/A'}
                         </p>
                       </div>
                       <div>
                         <label className="block font-medium text-gray-700">Updated</label>
                         <p className="mt-1">
-                          {new Date(selectedProduct.updatedAt).toLocaleDateString()}
+                          {selectedProduct.updatedAt ? new Date(selectedProduct.updatedAt).toLocaleDateString() : 'N/A'}
                         </p>
                       </div>
                     </div>

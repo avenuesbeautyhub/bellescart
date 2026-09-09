@@ -62,7 +62,8 @@ export interface Address {
 }
 
 export interface UserProfile {
-  id: string;
+  _id?: string;
+  id?: string;
   name: string;
   email: string;
   role: string;

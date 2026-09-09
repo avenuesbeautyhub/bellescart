@@ -5,3 +5,5 @@ export { Category, ICategory } from './Category';
 export { Order, IOrder, IOrderItem } from './Order';
 export { Cart, ICart, ICartItem } from './Cart';
 export { Address, IAddress } from './Address';
+export { Payment, IPayment } from './Payment';
+export { Coupon, ICoupon } from './Coupon';

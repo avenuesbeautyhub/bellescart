@@ -7,22 +7,24 @@ import Navbar from '@/components/Navbar/Navbar';
 import Footer from '@/components/Footer/Footer';
 import Button from '@/components/ui/Button';
 import Loader from '@/components/ui/Loader';
-import { orderService } from '@/services/orderService';
+import { useRequireUserAuth } from '@/auth/user';
+import { globalToast } from '@/utils/globalToast';
+import { useOrder } from '@/hooks/user/useOrderQueries';
 
 function OrderConfirmationContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const orderId = searchParams.get('orderId');
-  const [isLoading, setIsLoading] = useState(true);
-  const [order, setOrder] = useState<any>(null);
+  
+  // React Query hook
+  const { data: orderData, isLoading } = useOrder(orderId || '');
+  
   const [showConfetti, setShowConfetti] = useState(true);
   const [countdown, setCountdown] = useState(6);
 
+  // Redirect if no order ID
   useEffect(() => {
-    if (orderId) {
-      loadOrderDetails();
-    } else {
-      // If no order ID, redirect to orders page
+    if (!orderId) {
       router.push('/orders');
     }
   }, [orderId, router]);
@@ -51,23 +53,11 @@ function OrderConfirmationContent() {
     }
   }, [countdown, router]);
 
-  const loadOrderDetails = async () => {
-    try {
-      setIsLoading(true);
-      const response = await orderService.getOrderById(orderId!);
-      if (response.success && response.data?.order) {
-        setOrder(response.data.order);
-      } else {
-        // If order not found, redirect to orders page
-        router.push('/orders');
-      }
-    } catch (error) {
-      console.error('Failed to load order details:', error);
-      router.push('/orders');
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  // Process order data from React Query
+  const order = React.useMemo(() => {
+    if (!orderData?.data) return null;
+    return orderData.data.order || null;
+  }, [orderData]);
 
   if (isLoading) {
     return (
@@ -251,10 +241,12 @@ function OrderConfirmationContent() {
                     {order.shipping === 0 && <span className="text-green-600 ml-2 font-medium">(Free)</span>}
                   </span>
                 </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Tax</span>
-                  <span className="font-semibold text-gray-800">₹{order.tax?.toFixed(2) || '0.00'}</span>
-                </div>
+                {order.coupon && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Coupon Discount ({order.coupon.code})</span>
+                    <span className="font-semibold text-green-600">-₹{order.discountAmount?.toFixed(2) || '0.00'}</span>
+                  </div>
+                )}
                 <div className="flex justify-between text-xl font-bold pt-4 border-t-2 border-green-200">
                   <span className="bg-gradient-to-r from-gray-800 to-gray-600 bg-clip-text text-transparent">Total</span>
                   <span className="bg-gradient-to-r from-pink-600 to-purple-600 bg-clip-text text-transparent text-2xl">

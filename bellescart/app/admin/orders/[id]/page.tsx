@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useRequireAdminAuth } from '@/auth/admin';
@@ -8,72 +8,27 @@ import AdminHeader from '@/components/AdminHeader/AdminHeader';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 import Loader from '@/components/ui/Loader';
-import { adminOrderService } from '@/services/admin/orderService';
-import { orderService } from '@/services/orderService';
+import { useAdminOrder, useAdminUpdateOrderStatus, useAdminCancelOrder } from '@/hooks/user/useAdminQueries';
+import { useTrackOrderById } from '@/hooks/user/useOrderQueries';
 
-export default function AdminOrderDetailPage({ params }: { params: { id: string } }) {
+export default function AdminOrderDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params);
   const router = useRouter();
   const { loaded, isAuthenticated } = useRequireAdminAuth();
-  const [isLoading, setIsLoading] = useState(true);
-  const [order, setOrder] = useState<any>(null);
-  const [trackingData, setTrackingData] = useState<any>(null);
-  const [isLoadingTracking, setIsLoadingTracking] = useState(false);
-  const [isUpdating, setIsUpdating] = useState(false);
 
-  useEffect(() => {
-    if (loaded && isAuthenticated && params.id) {
-      loadOrderDetails();
-    }
-  }, [loaded, isAuthenticated, params.id]);
+  // React Query hooks
+  const { data: orderData, isLoading: isLoadingOrder, refetch: refetchOrder } = useAdminOrder(id);
+  const { data: trackingData, isLoading: isLoadingTracking } = useTrackOrderById(id);
+  const updateStatusMutation = useAdminUpdateOrderStatus();
+  const cancelOrderMutation = useAdminCancelOrder();
 
-  const loadOrderDetails = async () => {
-    try {
-      setIsLoading(true);
-      const response = await adminOrderService.getOrderById(params.id);
-      if (response.success && response.data?.order) {
-        const orderData = response.data.order as any;
-        setOrder(orderData);
-        
-        // Load tracking data if order has tracking number
-        if (orderData.trackingNumber) {
-          loadTrackingData(orderData.trackingNumber);
-        }
-      } else {
-        router.push('/admin/orders');
-      }
-    } catch (error) {
-      console.error('Failed to load order details:', error);
-      router.push('/admin/orders');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const loadTrackingData = async (trackingNumber: string) => {
-    try {
-      setIsLoadingTracking(true);
-      const response = await orderService.trackOrderByOrderId(params.id);
-      if (response.success && response.data) {
-        setTrackingData(response.data);
-      }
-    } catch (error) {
-      console.error('Failed to load tracking data:', error);
-    } finally {
-      setIsLoadingTracking(false);
-    }
-  };
+  const order = orderData?.data?.order as any || null;
 
   const handleUpdateStatus = async (newStatus: string) => {
     try {
-      setIsUpdating(true);
-      const response = await adminOrderService.updateOrderStatus(params.id, newStatus);
-      if (response.success) {
-        setOrder((prev: any) => ({ ...prev, status: newStatus }));
-      }
+      await updateStatusMutation.mutateAsync({ orderId: id, status: newStatus });
     } catch (error) {
       console.error('Failed to update order status:', error);
-    } finally {
-      setIsUpdating(false);
     }
   };
 
@@ -81,15 +36,9 @@ export default function AdminOrderDetailPage({ params }: { params: { id: string 
     if (!confirm('Are you sure you want to cancel this order?')) return;
 
     try {
-      setIsUpdating(true);
-      const response = await adminOrderService.cancelOrder(params.id);
-      if (response.success) {
-        setOrder((prev: any) => ({ ...prev, status: 'cancelled' }));
-      }
+      await cancelOrderMutation.mutateAsync(id);
     } catch (error) {
       console.error('Failed to cancel order:', error);
-    } finally {
-      setIsUpdating(false);
     }
   };
 
@@ -138,7 +87,7 @@ export default function AdminOrderDetailPage({ params }: { params: { id: string 
 
   if (!isAuthenticated) return null;
 
-  if (isLoading) {
+  if (isLoadingOrder) {
     return (
       <div className="min-h-screen flex flex-col">
         <AdminHeader />
@@ -335,7 +284,7 @@ export default function AdminOrderDetailPage({ params }: { params: { id: string 
                   <select
                     value={order.status}
                     onChange={(e) => handleUpdateStatus(e.target.value)}
-                    disabled={isUpdating}
+                    disabled={updateStatusMutation.isPending}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500"
                   >
                     <option value="pending">Pending</option>
@@ -349,7 +298,7 @@ export default function AdminOrderDetailPage({ params }: { params: { id: string 
                       variant="danger"
                       className="w-full"
                       onClick={handleCancelOrder}
-                      disabled={isUpdating}
+                      disabled={cancelOrderMutation.isPending}
                     >
                       Cancel Order
                     </Button>
@@ -372,10 +321,10 @@ export default function AdminOrderDetailPage({ params }: { params: { id: string 
                         <p className="font-medium text-gray-900">{formatDate(order.estimatedDelivery)}</p>
                       </div>
                     )}
-                    {order.shiprocket?.courier && (
+                    {order.nimbus?.courier && (
                       <div>
                         <p className="text-sm text-gray-600">Courier</p>
-                        <p className="font-medium text-gray-900">{order.shiprocket.courier}</p>
+                        <p className="font-medium text-gray-900">{order.nimbus.courier}</p>
                       </div>
                     )}
                   </div>
@@ -402,7 +351,7 @@ export default function AdminOrderDetailPage({ params }: { params: { id: string 
                       variant="secondary"
                       size="sm"
                       className="w-full mt-4"
-                      onClick={() => loadTrackingData(order.trackingNumber)}
+                      onClick={() => refetchOrder()}
                     >
                       Refresh Tracking
                     </Button>
@@ -410,27 +359,33 @@ export default function AdminOrderDetailPage({ params }: { params: { id: string 
                 </div>
               )}
 
-              {/* Shiprocket Information */}
-              {order.shiprocket && (
+              {/* NimbusPost Information */}
+              {order.nimbus && (
                 <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                  <h2 className="text-xl font-semibold text-gray-900 mb-4">Shiprocket Information</h2>
+                  <h2 className="text-xl font-semibold text-gray-900 mb-4">NimbusPost Information</h2>
                   <div className="space-y-3">
-                    {order.shiprocket.orderId && (
-                      <div>
-                        <p className="text-sm text-gray-600">Shiprocket Order ID</p>
-                        <p className="font-medium text-gray-900">{order.shiprocket.orderId}</p>
-                      </div>
-                    )}
-                    {order.shiprocket.shipmentId && (
+                    {order.nimbus.shipmentId && (
                       <div>
                         <p className="text-sm text-gray-600">Shipment ID</p>
-                        <p className="font-medium text-gray-900">{order.shiprocket.shipmentId}</p>
+                        <p className="font-medium text-gray-900">{order.nimbus.shipmentId}</p>
                       </div>
                     )}
-                    {order.shiprocket.trackingStatus && (
+                    {order.nimbus.trackingId && (
                       <div>
-                        <p className="text-sm text-gray-600">Tracking Status</p>
-                        <p className="font-medium text-gray-900">{order.shiprocket.trackingStatus}</p>
+                        <p className="text-sm text-gray-600">Tracking ID</p>
+                        <p className="font-medium text-gray-900">{order.nimbus.trackingId}</p>
+                      </div>
+                    )}
+                    {order.nimbus.airwayBill && (
+                      <div>
+                        <p className="text-sm text-gray-600">Airway Bill</p>
+                        <p className="font-medium text-gray-900">{order.nimbus.airwayBill}</p>
+                      </div>
+                    )}
+                    {order.nimbus.shipmentStatus && (
+                      <div>
+                        <p className="text-sm text-gray-600">Shipment Status</p>
+                        <p className="font-medium text-gray-900">{order.nimbus.shipmentStatus}</p>
                       </div>
                     )}
                   </div>

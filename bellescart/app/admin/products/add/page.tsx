@@ -4,8 +4,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
-import { useAdminProducts } from '@/hooks/admin/useAdminProducts';
-import { adminCategoryService } from '@/services/admin/categoryService';
+import { useAdminCategories, useCreateProduct } from '@/hooks/user/useAdminQueries';
 
 interface ProductFormData {
   name: string;
@@ -28,7 +27,10 @@ interface ImagePreview {
 export default function AddProductPage() {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const { createProduct, loading } = useAdminProducts();
+  
+  // React Query hooks
+  const { data: categoriesData, isLoading: isLoadingCategories } = useAdminCategories();
+  const createProductMutation = useCreateProduct();
 
   const [formData, setFormData] = useState<ProductFormData>({
     name: '',
@@ -43,31 +45,18 @@ export default function AddProductPage() {
   });
 
   const [images, setImages] = useState<ImagePreview[]>([]);
-  const [categories, setCategories] = useState<any[]>([]);
-  const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const categories = categoriesData?.data?.categories || [];
+
+  // Set default category when categories load
   useEffect(() => {
-    loadCategories();
-  }, []);
-
-  const loadCategories = async () => {
-    try {
-      const response = await adminCategoryService.getAllCategories();
-      if (response.success && response.data?.categories) {
-        const categories = response.data.categories;
-        setCategories(categories);
-        // Set default category to first category if available and no category is selected
-        if (categories.length > 0 && !formData.category) {
-          setFormData(prev => ({
-            ...prev,
-            category: categories[0]._id
-          }));
-        }
-      }
-    } catch (error) {
-      console.error('Failed to load categories:', error);
+    if (categories.length > 0 && !formData.category) {
+      setFormData(prev => ({
+        ...prev,
+        category: categories[0]._id
+      }));
     }
-  };
+  }, [categories, formData.category]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
@@ -132,7 +121,7 @@ export default function AddProductPage() {
       formDataToSend.append('mainImageIndex', '0');
     }
 
-    const result = await createProduct(formDataToSend);
+    const result = await createProductMutation.mutateAsync(formDataToSend);
 
     if (result && result.success) {
       router.push('/admin/products');
@@ -378,9 +367,9 @@ export default function AddProductPage() {
             </Button>
             <Button
               type="submit"
-              disabled={loading}
+              disabled={createProductMutation.isPending}
             >
-              {loading ? 'Creating...' : 'Create Product'}
+              {createProductMutation.isPending ? 'Creating...' : 'Create Product'}
             </Button>
           </div>
         </form>

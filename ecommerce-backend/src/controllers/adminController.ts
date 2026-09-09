@@ -559,7 +559,7 @@ export class AdminController {
       const products = await this._adminInteractor.getProducts({
         page: parseInt(page as string),
         limit: parseInt(limit as string),
-        category: category as string,
+        category: category && category !== 'undefined' ? category as string : undefined,
         search: search as string,
         status: status as string,
         sort: sort as string,
@@ -950,7 +950,7 @@ export class AdminController {
         return;
       }
 
-      const order = await this._orderInteractor.getOrderById('admin', req.params.id);
+      const order = await this._orderInteractor.getOrderByIdForAdmin(req.params.id);
 
       if (!order) {
         res.status(404).json({
@@ -960,9 +960,33 @@ export class AdminController {
         return;
       }
 
+      // Transform order to match frontend expectations
+      const orderObj = order.toObject();
+      const user = orderObj.user as any;
+
+      const transformedOrder = {
+        ...orderObj,
+        id: order._id,
+        totalAmount: order.total,
+        customer: {
+          name: user?.name || 'Unknown',
+          email: user?.email || 'unknown@example.com',
+          phone: user?.phone
+        },
+        userId: user?._id || order.user,
+        items: orderObj.items.map((item: any) => ({
+          ...item,
+          product: {
+            ...item.product,
+            image: item.product.images?.[0]?.url || null,
+            images: item.product.images || []
+          }
+        }))
+      };
+
       res.status(200).json({
         success: true,
-        data: { order }
+        data: { order: transformedOrder }
       });
     } catch (error) {
       next(error);
@@ -1015,7 +1039,7 @@ export class AdminController {
         return;
       }
 
-      const order = await this._orderInteractor.cancelOrder('admin', req.params.id);
+      const order = await this._orderInteractor.updateOrderStatus(req.params.id, 'cancelled');
 
       if (!order) {
         res.status(404).json({

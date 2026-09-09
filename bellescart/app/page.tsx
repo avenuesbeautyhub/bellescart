@@ -5,19 +5,25 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import Navbar from '@/components/Navbar/Navbar';
 import Footer from '@/components/Footer/Footer';
-import ProductGrid from '@/components/ProductGrid/ProductGrid';
 import GuestProductGrid from '@/components/ProductGrid/GuestProductGrid';
 import Button from '@/components/ui/Button';
 import Loader from '@/components/ui/Loader';
+import { SearchBar } from '@/components';
+import { usePublicFeaturedProducts, usePublicCategories } from '@/hooks/user/usePublicProductQueries';
 import { useAuth } from '@/auth/user';
-import { publicProductService } from '@/services/publicProductService';
 
 export default function Home() {
   const router = useRouter();
-  const [featuredProducts, setFeaturedProducts] = useState<any[]>([]);
-  const [categories, setCategories] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
   const { isAuthenticated, loaded } = useAuth();
+  
+  // React Query hooks for public data
+  const { data: featuredProductsData, isLoading: isLoadingProducts } = usePublicFeaturedProducts(8);
+  const { data: categoriesData, isLoading: isLoadingCategories } = usePublicCategories();
+  
+  const featuredProducts = featuredProductsData?.data?.products || [];
+  const categories = categoriesData?.data?.categories || [];
+  
+  const loading = isLoadingProducts || isLoadingCategories;
 
   // Redirect authenticated users to dashboard
   useEffect(() => {
@@ -26,48 +32,8 @@ export default function Home() {
     }
   }, [loaded, isAuthenticated, router]);
 
-  // Load featured products and categories for unauthenticated users (client-side only)
-  useEffect(() => {
-    if (!isAuthenticated && loaded) {
-      loadFeaturedProducts();
-      loadCategories();
-    }
-  }, [isAuthenticated, loaded]);
-
-  const loadFeaturedProducts = async () => {
-    // Only run on client-side to avoid RSC errors
-    if (typeof window === 'undefined') return;
-
-    try {
-      setLoading(true);
-      const response = await publicProductService.getFeaturedProducts(8);
-      if (response.success && response.data?.products) {
-        setFeaturedProducts(response.data.products);
-      }
-    } catch (error) {
-      console.error('Failed to load featured products:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const loadCategories = async () => {
-    try {
-      const response = await publicProductService.getCategories();
-      if (response.success && response.data?.categories) {
-        setCategories(response.data.categories);
-      }
-    } catch (error) {
-      console.error('Failed to load categories:', error);
-    }
-  };
-
-  // Show loader only if not loaded AND not already authenticated
-  if (!loaded && !isAuthenticated) {
-    return <Loader size="lg" text="Loading..." fullScreen />;
-  }
-
-  if (loading) {
+  // Show loader while checking auth or loading content
+  if (!loaded || loading) {
     return <Loader size="lg" text="Loading..." fullScreen />;
   }
 
@@ -108,8 +74,11 @@ export default function Home() {
                 <p className="text-lg text-gray-100 max-w-xl mx-auto leading-relaxed">
                   Discover thousands of quality products from Belles Avenue! Your premium shopping experience starts here.
                 </p>
+                <div className="max-w-md mx-auto">
+                  <SearchBar placeholder="Search for products..." onSearch={(query) => router.push(`/products/guest?search=${encodeURIComponent(query)}`)} />
+                </div>
                 <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-                  <Link href="/products">
+                  <Link href="/products/guest">
                     <Button size="lg" variant="primary" className="bg-pink-900 text-pink-600 hover:bg-gray-100 px-6 sm:px-8 py-3 sm:py-4 text-base sm:text-lg font-semibold shadow-xl hover:shadow-2xl transform hover:scale-105 transition-all duration-300">
                       Shop Now
                     </Button>
@@ -161,7 +130,7 @@ export default function Home() {
               </div>
             </div>
             <div className="text-center mt-12">
-              <Link href="/products">
+              <Link href="/products/guest">
                 <Button variant="outline" className="border-2 border-pink-500 text-pink-600 hover:bg-pink-500 hover:text-white px-8 py-3 font-semibold transition-all duration-300">
                   View All Products
                 </Button>
@@ -210,7 +179,7 @@ export default function Home() {
 
                 return (
                   <React.Fragment key={category._id}>
-                    <Link href={`/products?category=${category.name}`}>
+                    <Link href={`/products/guest?category=${category.name}`}>
                       <div className="group relative bg-white rounded-2xl p-8 text-center hover:shadow-2xl transition-all duration-300 transform hover:scale-105 cursor-pointer overflow-hidden">
                         {/* Background Gradient */}
                         <div className={`absolute inset-0 bg-gradient-to-br ${color} opacity-0 group-hover:opacity-10 transition-opacity duration-300`} />

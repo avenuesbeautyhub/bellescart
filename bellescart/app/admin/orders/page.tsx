@@ -5,12 +5,13 @@ import { useRouter } from 'next/navigation';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 import Loader from '@/components/ui/Loader';
-import { adminOrderService, OrderData } from '@/services/admin/orderService';
+import { useAdminOrders, useAdminUpdateOrderStatus, useAdminCancelOrder } from '@/hooks/user/useAdminQueries';
+import { useQueryClient } from '@tanstack/react-query';
+import { OrderData } from '@/services/admin/orderService';
 
 export default function OrderManagementPage() {
   const router = useRouter();
-  const [orders, setOrders] = useState<OrderData[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [selectedOrder, setSelectedOrder] = useState<OrderData | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [draftStatus, setDraftStatus] = useState<Record<string, string>>({});
@@ -24,26 +25,15 @@ export default function OrderManagementPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
 
-  useEffect(() => {
-    loadOrders();
-  }, []);
+  // React Query hooks
+  const { data: ordersData, isLoading } = useAdminOrders({
+    page: currentPage,
+    limit: itemsPerPage,
+  });
+  const updateOrderStatusMutation = useAdminUpdateOrderStatus();
+  const cancelOrderMutation = useAdminCancelOrder();
 
-  const loadOrders = async () => {
-    try {
-      setIsLoading(true);
-      const response = await adminOrderService.getAllOrders({
-        page: currentPage,
-        limit: itemsPerPage,
-      });
-      if (response.success && response.data?.orders) {
-        setOrders(response.data.orders);
-      }
-    } catch (error) {
-      console.error('Failed to load orders:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const orders = ordersData?.data?.orders || [];
 
   const handleViewOrder = (order: OrderData) => {
     setSelectedOrder(order);
@@ -52,16 +42,8 @@ export default function OrderManagementPage() {
 
   const handleUpdateStatus = async (orderId: string, newStatus: string) => {
     try {
-      const response = await adminOrderService.updateOrderStatus(orderId, newStatus);
-      if (response.success) {
-        // Update local state
-        setOrders(prevOrders =>
-          prevOrders.map(order =>
-            order._id === orderId ? { ...order, status: newStatus as any } : order
-          )
-        );
-        setDraftStatus(prev => ({ ...prev, [orderId]: newStatus }));
-      }
+      await updateOrderStatusMutation.mutateAsync({ orderId, status: newStatus });
+      setDraftStatus(prev => ({ ...prev, [orderId]: newStatus }));
     } catch (error) {
       console.error('Failed to update order status:', error);
     }
@@ -69,15 +51,8 @@ export default function OrderManagementPage() {
 
   const handleCancelOrder = async (orderId: string) => {
     try {
-      const response = await adminOrderService.cancelOrder(orderId);
-      if (response.success) {
-        setOrders(prevOrders =>
-          prevOrders.map(order =>
-            order._id === orderId ? { ...order, status: 'cancelled' } : order
-          )
-        );
-        setShowModal(false);
-      }
+      await cancelOrderMutation.mutateAsync(orderId);
+      setShowModal(false);
     } catch (error) {
       console.error('Failed to cancel order:', error);
     }
@@ -153,7 +128,7 @@ export default function OrderManagementPage() {
     return `₹${amount.toLocaleString('en-IN')}`;
   };
 
-  if (isLoading) {
+  if (isLoading && orders.length === 0) {
     return (
       <div className="min-h-screen bg-gray-100 flex items-center justify-center">
         <Loader size="lg" text="Loading orders..." />
@@ -170,7 +145,7 @@ export default function OrderManagementPage() {
             <h1 className="text-3xl font-bold text-gray-900">Order Management</h1>
             <p className="text-gray-600 text-sm mt-1">Manage and track all customer orders</p>
           </div>
-          <Button variant="secondary" onClick={loadOrders}>
+          <Button variant="secondary" onClick={() => queryClient.invalidateQueries({ queryKey: ['admin', 'orders'] })}>
             Refresh Orders
           </Button>
         </div>
@@ -447,6 +422,12 @@ export default function OrderManagementPage() {
                     <span className="text-gray-600">Subtotal</span>
                     <span className="font-medium text-gray-900">{formatAmount(selectedOrder.totalAmount)}</span>
                   </div>
+                  {selectedOrder.coupon && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Coupon Discount ({selectedOrder.coupon.code})</span>
+                      <span className="font-medium text-green-600">-{formatAmount(selectedOrder.discountAmount || 0)}</span>
+                    </div>
+                  )}
                   <div className="flex justify-between">
                     <span className="text-gray-600">Payment Method</span>
                     <span className="font-medium text-gray-900">{selectedOrder.paymentMethod || 'N/A'}</span>

@@ -194,6 +194,18 @@ export const toastMessages = {
       title: 'Cancellation Failed',
       message: 'Failed to cancel order',
       duration: 5000
+    }),
+    returnSuccess: (): Omit<ToastMessage, 'id'> => ({
+      type: 'success',
+      title: 'Order Returned Successfully',
+      message: 'Refund has been credited to your wallet',
+      duration: 4000
+    }),
+    returnFailed: (error?: string): Omit<ToastMessage, 'id'> => ({
+      type: 'error',
+      title: 'Return Failed',
+      message: error || 'Failed to return order. Please try again.',
+      duration: 5000
     })
   },
 
