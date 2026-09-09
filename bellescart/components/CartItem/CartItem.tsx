@@ -28,17 +28,20 @@ export default function CartItem({
   const itemId = item._id;
 
   // Handle image display - check for images array or single image
-  const imageUrl = item.images && item.images.length > 0
-    ? item.images.find(img => img.isMain)?.url || item.images[0].url
-    : item.image || '';
+  const images = item.product?.images ?? item.images;
+  const image = item.product?.image ?? item.image;
+  const imageUrl = images && images.length > 0
+    ? images.find(img => img.isMain)?.url ?? images[0].url
+    : image ?? '';
 
   // Get available stock and cart quantity
-  const cartQuantity = item.cartQuantity || item.quantity || 0;
-  const availableStock = item.stock || 0;
+  const cartQuantity = item.cartQuantity ?? item.quantity ?? 0;
+  const availableStock = item.stock ?? item.product?.quantity ?? 0;
   
   // Check if this specific item is out of stock based on validation
+  const productId = item.product?._id ?? item._id;
   const stockIssue = stockValidation?.outOfStockItems?.find(
-    issue => issue.productId === item._id
+    issue => issue.productId === productId
   );
   const actualAvailableStock = stockIssue ? stockIssue.availableQuantity : availableStock;
   const isOutOfStock = actualAvailableStock === 0 || actualAvailableStock < cartQuantity;
@@ -51,7 +54,7 @@ export default function CartItem({
         {imageUrl ? (
           <Image
             src={imageUrl}
-            alt={item.name}
+            alt={item.product?.name ?? item.name ?? 'Product'}
             width={120}
             height={120}
             className="object-cover rounded-xl w-full sm:w-[120px] h-auto sm:h-[120px] shadow-sm"
@@ -76,21 +79,21 @@ export default function CartItem({
       <div className="flex-1 flex flex-col">
         <div className="flex-1">
           <h3 className="text-lg font-semibold text-gray-900 hover:text-pink-600 transition-colors cursor-pointer">
-            {item.name}
+            {item.product?.name ?? item.name}
           </h3>
           
           {/* Category if available */}
-          {item.category && (
+          {(item.product?.category ?? item.category) && (
             <p className="text-sm text-pink-500 font-medium mt-1">
-              {item.category.name}
+              {(item.product?.category ?? item.category).name}
             </p>
           )}
           
           <div className="flex items-center gap-3 mt-2">
-            <p className="text-2xl font-bold text-gray-900">₹{(item.price || 0).toFixed(2)}</p>
-            {item.originalPrice && (
+            <p className="text-2xl font-bold text-gray-900">₹{((item.product?.price ?? item.price) ?? 0).toFixed(2)}</p>
+            {(item.product?.originalPrice ?? item.originalPrice) && (
               <p className="text-sm text-gray-400 line-through">
-                ₹{item.originalPrice.toFixed(2)}
+                ₹{((item.product?.originalPrice ?? item.originalPrice) ?? 0).toFixed(2)}
               </p>
             )}
           </div>
@@ -163,7 +166,7 @@ export default function CartItem({
       <div className="text-right sm:text-left sm:min-w-[120px]">
         <p className="text-sm text-gray-500 mb-1">Subtotal</p>
         <p className="text-2xl font-bold text-gray-900">
-          ₹{((item.price || 0) * cartQuantity).toFixed(2)}
+          ₹{(((item.product?.price ?? item.price) ?? 0) * cartQuantity).toFixed(2)}
         </p>
       </div>
     </div>

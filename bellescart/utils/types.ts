@@ -46,6 +46,7 @@ export interface CartItem extends Product {
   quantity: number;
   cartQuantity?: number;
   stock?: number;
+  product?: Product; // Optional nested product for API response structure
 }
 
 export interface Order {

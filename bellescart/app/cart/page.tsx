@@ -33,14 +33,25 @@ export default function CartPage() {
   const cartItems = React.useMemo(() => {
     if (!cartData?.data?.items) return [];
     
-    // Flatten product data from nested structure
-    return cartData.data.items.map((item: any) => ({
-      ...item,
-      ...(item.product || {}),
-      _id: item._id,
-      cartQuantity: item.quantity, // Preserve cart item quantity
-      stock: item.product?.quantity || 0 // Product's available stock
-    }));
+    // Flatten product data from nested structure if present
+    return cartData.data.items.map((item: any) => {
+      // If item has nested product, flatten it; otherwise use as-is
+      if (item.product) {
+        return {
+          ...item,
+          ...item.product,
+          _id: item._id,
+          cartQuantity: item.quantity, // Preserve cart item quantity
+          stock: item.product?.quantity || 0 // Product's available stock
+        };
+      }
+      // Already flattened structure
+      return {
+        ...item,
+        cartQuantity: item.quantity,
+        stock: item.quantity || 0
+      };
+    });
   }, [cartData]);
 
   // Validate stock and show out-of-stock indicators
@@ -170,7 +181,7 @@ export default function CartPage() {
     }
   };
 
-  const total = cartItems.reduce((sum, item) => sum + (item.price || 0) * (item.cartQuantity || item.quantity || 0), 0);
+  const total = cartItems.reduce((sum, item) => sum + ((item.product?.price ?? item.price) ?? 0) * (item.cartQuantity ?? item.quantity ?? 0), 0);
   const shipping = total > 50 ? 0 : 10;
   const grandTotal = total + shipping;
 
@@ -337,11 +348,11 @@ export default function CartPage() {
                       {cartItems.map(item => (
                         <div key={item._id} className="flex justify-between items-start pb-3 border-b border-gray-200 last:border-0 last:pb-0">
                           <div className="flex-1">
-                            <p className="text-sm font-semibold text-gray-800">{item.name}</p>
-                            <p className="text-xs text-gray-500 mt-1">Qty: {item.cartQuantity || item.quantity}</p>
+                            <p className="text-sm font-semibold text-gray-800">{item.product?.name ?? item.name}</p>
+                            <p className="text-xs text-gray-500 mt-1">Qty: {item.cartQuantity ?? item.quantity}</p>
                           </div>
                           <span className="text-sm font-bold text-gray-900">
-                            ₹{((item.price || 0) * (item.cartQuantity || item.quantity || 0)).toFixed(2)}
+                            ₹{(((item.product?.price ?? item.price) ?? 0) * (item.cartQuantity ?? item.quantity ?? 0)).toFixed(2)}
                           </span>
                         </div>
                       ))}

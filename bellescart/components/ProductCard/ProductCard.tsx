@@ -37,7 +37,11 @@ export default function ProductCard({
   // Check if product is in cart using React Query data
   useEffect(() => {
     if (product && cartData?.data?.items) {
-      const cartItem = cartData.data.items.find(item => item.product?._id === product._id);
+      const cartItem = cartData.data.items.find(item => {
+        // Handle both nested and flattened structure
+        const productId = item.product?._id ?? item._id;
+        return productId === product._id;
+      });
       if (cartItem) {
         setIsInCart(true);
         setCartItemId(cartItem._id);
@@ -103,8 +107,8 @@ export default function ProductCard({
     ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)
     : 0;
 
-  // Check stock using both stock and quantity fields for compatibility
-  const stock = product?.stock ?? product?.quantity ?? 0;
+  // Check stock using quantity field
+  const stock = product?.quantity ?? 0;
   const isOutOfStock = stock <= 0;
 
   // Get the main image URL from the images array
