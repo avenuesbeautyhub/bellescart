@@ -38,7 +38,7 @@ export default function CartItem({
   
   // Check if this specific item is out of stock based on validation
   const stockIssue = stockValidation?.outOfStockItems?.find(
-    issue => issue.productId === item._id || issue.productId === item.product?._id
+    issue => issue.productId === item._id
   );
   const actualAvailableStock = stockIssue ? stockIssue.availableQuantity : availableStock;
   const isOutOfStock = actualAvailableStock === 0 || actualAvailableStock < cartQuantity;
