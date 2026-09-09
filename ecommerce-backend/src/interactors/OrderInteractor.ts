@@ -1,31 +1,39 @@
+import mongoose from 'mongoose';
 import { IOrderInteractor } from '../providers/interfaces/IOrderInteractor';
 import { IOrderRepository } from '../providers/interfaces/IOrderRepository';
 import { ICartRepository } from '../providers/interfaces/ICartRepository';
 import { IProductRepository } from '../providers/interfaces/IProductRepository';
 import { IUserRepository } from '../providers/interfaces/IUserRepository';
+import { IWalletInteractor } from '../providers/interfaces/IWalletInteractor';
 import { Order, IOrder } from '../models/Order';
 import { ICart } from '../models/Cart';
 import { sendOrderConfirmationEmail } from '../utils/emailService';
 import { nimbusPostService } from '../services/nimbusPost.service';
 import { paymentService } from '../services/paymentService';
 import { Payment } from '../models/Payment';
+import { createLogger } from '../utils/logger';
+
+const logger = createLogger('OrderInteractor');
 
 export class OrderInteractor implements IOrderInteractor {
   private _orderRepository: IOrderRepository;
   private _cartRepository: ICartRepository;
   private _productRepository: IProductRepository;
   private _userRepository: IUserRepository;
+  private _walletInteractor?: IWalletInteractor;
 
   constructor(
     orderRepository: IOrderRepository,
     cartRepository: ICartRepository,
     productRepository: IProductRepository,
-    userRepository: IUserRepository
+    userRepository: IUserRepository,
+    walletInteractor?: IWalletInteractor
   ) {
     this._orderRepository = orderRepository;
     this._cartRepository = cartRepository;
     this._productRepository = productRepository;
     this._userRepository = userRepository;
+    this._walletInteractor = walletInteractor;
   }
 
   async createOrder(userId: string, orderData: {
@@ -36,8 +44,10 @@ export class OrderInteractor implements IOrderInteractor {
     processNimbus?: boolean;
     nimbusCourierId?: string;
     calculatedShippingFee?: number;
+    couponCode?: string;
+    discountAmount?: number;
   }): Promise<IOrder> {
-    console.log('🛒 createOrder called with data:', {
+    logger.debug('createOrder called with data:', {
       userId,
       processNimbus: orderData.processNimbus,
       nimbusCourierId: orderData.nimbusCourierId,
@@ -80,7 +90,19 @@ export class OrderInteractor implements IOrderInteractor {
     const shipping = orderData.calculatedShippingFee !== undefined
       ? orderData.calculatedShippingFee
       : (subtotal > 100 ? 0 : 10); // Free shipping over $100
-    const discount = cart.couponDiscount || 0; // Apply coupon discount
+    const discount = orderData.discountAmount || 0; // Apply coupon discount from orderData
+
+    // Find coupon by code and get its ObjectId if present
+    let couponObjectId: mongoose.Types.ObjectId | undefined;
+    if (orderData.couponCode) {
+      const { CouponRepository } = await import('../repositories/CouponRepository');
+      const couponRepo = new CouponRepository();
+      const coupon = await couponRepo.findByCode(orderData.couponCode);
+      if (coupon) {
+        couponObjectId = coupon._id;
+      }
+    }
+
     const total = subtotal + tax + shipping - discount;
 
     // Generate order number
@@ -104,6 +126,7 @@ export class OrderInteractor implements IOrderInteractor {
       shipping,
       discount,
       total,
+      coupon: couponObjectId,
       notes: orderData.notes
     });
 
@@ -112,14 +135,43 @@ export class OrderInteractor implements IOrderInteractor {
     // Create or link payment record with order
     try {
       if (orderData.paymentMethod === 'razorpay') {
-        // Link existing payment record (created during payment intent)
-        const payment = await Payment.findOneAndUpdate(
-          { bookingId: orderNumber },
-          { order: order._id },
-          { new: true }
-        );
-        if (payment) {
-          console.log('💳 Payment record linked to order:', payment._id);
+        // Try to find payment record by razorpayPaymentId and link it
+        const razorpayPaymentId = (orderData as any).paymentId;
+        
+        if (razorpayPaymentId) {
+          const payment = await Payment.findOneAndUpdate(
+            { razorpayPaymentId },
+            { 
+              bookingId: orderNumber,
+              order: order._id 
+            },
+            { new: true }
+          );
+          if (payment) {
+            logger.info('Payment record linked to order', { paymentId: payment._id });
+          } else {
+            logger.warn('No payment record found to link for Razorpay payment', { razorpayPaymentId });
+          }
+        } else {
+          logger.warn('No razorpayPaymentId provided in order data');
+        }
+      } else if (orderData.paymentMethod === 'wallet') {
+        // Wallet payment is already debited in frontend, create payment record
+        const payment = await paymentService.createPaymentRecord({
+          bookingId: orderNumber,
+          amount: total,
+          currency: 'INR',
+          status: 'completed',
+          paymentMethod: 'wallet',
+          userId,
+          orderId: order._id.toString(),
+          metadata: {
+            orderNumber,
+            paymentMethod: 'wallet'
+          }
+        });
+        if (payment.success) {
+          logger.info('Payment record created for wallet payment', { paymentId: payment.payment?._id });
         }
       } else {
         // Create payment record for non-razorpay payment methods
@@ -137,11 +189,11 @@ export class OrderInteractor implements IOrderInteractor {
           }
         });
         if (payment.success) {
-          console.log('💳 Payment record created for non-razorpay payment:', payment.payment?._id);
+          logger.info('Payment record created for non-razorpay payment', { paymentId: payment.payment?._id });
         }
       }
     } catch (paymentError) {
-      console.error('Failed to create/link payment record with order:', paymentError);
+      logger.error('Failed to create/link payment record with order', { error: paymentError });
       // Don't fail the order creation if payment record creation fails
     }
 
@@ -162,16 +214,16 @@ export class OrderInteractor implements IOrderInteractor {
     // Process NimbusPost integration if requested
     if (orderData.processNimbus) {
       try {
-        console.log('🚀 Starting NimbusPost integration for order:', orderNumber);
-        console.log('📦 Courier ID provided:', orderData.nimbusCourierId);
-        console.log('🔑 NimbusPost credentials check:', {
+        logger.info('Starting NimbusPost integration for order', { orderNumber });
+        logger.debug('Courier ID provided', { courierId: orderData.nimbusCourierId });
+        logger.debug('NimbusPost credentials check', {
           hasApiKey: !!process.env.NIMBUS_API_KEY,
           hasBaseUrl: !!process.env.NIMBUS_BASE_URL,
         });
 
         // Validate courier ID
         if (!orderData.nimbusCourierId) {
-          console.error('❌ Invalid courier ID provided for NimbusPost:', orderData.nimbusCourierId);
+          logger.error('Invalid courier ID provided for NimbusPost', { courierId: orderData.nimbusCourierId });
           throw new Error('Invalid courier ID for NimbusPost integration');
         }
 
@@ -216,16 +268,16 @@ export class OrderInteractor implements IOrderInteractor {
           cod: orderData.paymentMethod === 'cash_on_delivery' ? total : 0
         };
 
-        console.log('📋 NimbusPost order data:', JSON.stringify(nimbusOrderData, null, 2));
-        console.log('📋 Shipping request:', JSON.stringify(shippingRequest, null, 2));
+        logger.debug('NimbusPost order data', { nimbusOrderData });
+        logger.debug('Shipping request', { shippingRequest });
 
         // Skip NimbusPost processing - orders will be managed by admin
-        console.log('⚠️ Skipping automatic NimbusPost processing - order will be managed by admin');
-        console.log('📋 Order created successfully without external courier integration');
+        logger.info('Skipping automatic NimbusPost processing - order will be managed by admin');
+        logger.info('Order created successfully without external courier integration');
       } catch (nimbusError) {
-        console.error('❌ NimbusPost integration error:', nimbusError);
+        logger.error('NimbusPost integration error', { error: nimbusError });
         // Don't fail the order creation if NimbusPost fails, but log it
-        console.error('Order will be created without NimbusPost integration');
+        logger.warn('Order will be created without NimbusPost integration');
       }
     }
 
@@ -249,7 +301,7 @@ export class OrderInteractor implements IOrderInteractor {
         });
       }
     } catch (emailError) {
-      console.error('Failed to send order confirmation email:', emailError);
+      logger.error('Failed to send order confirmation email', { error: emailError });
       // Don't fail the order creation if email fails
     }
 
@@ -383,6 +435,55 @@ export class OrderInteractor implements IOrderInteractor {
     return this._orderRepository.updateStatus(orderId, 'cancelled');
   }
 
+  async returnOrder(userId: string, orderId: string, returnReason: string): Promise<IOrder | null> {
+    const order = await this._orderRepository.findByIdWithUserAndPopulate(userId, orderId);
+
+    if (!order) {
+      throw new Error('Order not found');
+    }
+
+    // Check if order can be returned (only delivered orders can be returned)
+    if (order.status !== 'delivered') {
+      throw new Error('Only delivered orders can be returned');
+    }
+
+    // Update order status to returned with reason and date
+    const updateData = {
+      status: 'returned' as IOrder['status'],
+      returnReason,
+      returnDate: new Date(),
+      paymentStatus: 'refunded' as IOrder['paymentStatus']
+    };
+
+    const updatedOrder = await this._orderRepository.updateStatus(orderId, 'returned', updateData);
+
+    if (!updatedOrder) {
+      throw new Error('Failed to update order status');
+    }
+
+    // Restore inventory (increase quantity)
+    for (const item of order.items) {
+      // Extract product ID (handle both ObjectId and populated object)
+      const productId = typeof item.product === 'object' && item.product._id
+        ? item.product._id.toString()
+        : item.product.toString();
+
+      await this._productRepository.updateQuantity(productId, item.quantity);
+    }
+
+    // Refund amount to wallet if wallet interactor is available
+    if (this._walletInteractor) {
+      await this._walletInteractor.creditWallet(
+        userId,
+        order.total,
+        `Refund for returned order ${order.orderNumber}`,
+        order._id.toString()
+      );
+    }
+
+    return updatedOrder;
+  }
+
   async getOrderByOrderNumber(orderNumber: string): Promise<IOrder | null> {
     return this._orderRepository.findByOrderNumber(orderNumber);
   }
@@ -461,7 +562,7 @@ export class OrderInteractor implements IOrderInteractor {
           await paymentService.refundPayment(payment.razorpayPaymentId, refundData.amount);
         }
       } catch (paymentError) {
-        console.error('Failed to process Razorpay refund:', paymentError);
+        logger.error('Failed to process Razorpay refund', { error: paymentError });
         // Don't fail the refund process if Razorpay refund fails
       }
     }
@@ -530,7 +631,7 @@ export class OrderInteractor implements IOrderInteractor {
     error?: string;
   }> {
     try {
-      console.log('🔄 Retrying NimbusPost integration for order:', orderId);
+      logger.info('Retrying NimbusPost integration for order', { orderId });
 
       const order = await this._orderRepository.findByIdWithPopulate(orderId);
       if (!order) {
@@ -603,8 +704,8 @@ export class OrderInteractor implements IOrderInteractor {
         cod: order.paymentMethod === 'cash_on_delivery' ? order.total : 0
       };
 
-      console.log('📋 NimbusPost order data for retry:', JSON.stringify(nimbusOrderData, null, 2));
-      console.log('📋 Shipping request for retry:', JSON.stringify(shippingRequest, null, 2));
+      logger.debug('NimbusPost order data for retry', { nimbusOrderData });
+      logger.debug('Shipping request for retry', { shippingRequest });
 
       // Process complete NimbusPost flow
       const nimbusResult = await nimbusPostService.processOrderCompleteFlow(
@@ -613,7 +714,7 @@ export class OrderInteractor implements IOrderInteractor {
         courierId
       );
 
-      console.log('📦 NimbusPost retry result:', JSON.stringify(nimbusResult, null, 2));
+      logger.debug('NimbusPost retry result', { nimbusResult });
 
       if (nimbusResult.success) {
         // Update order with NimbusPost details
@@ -627,12 +728,12 @@ export class OrderInteractor implements IOrderInteractor {
           },
           trackingNumber: nimbusResult.airwayBill,
         });
-        console.log('✅ NimbusPost integration retry successful:', nimbusResult.shipmentId);
+        logger.info('NimbusPost integration retry successful', { shipmentId: nimbusResult.shipmentId });
       }
 
       return nimbusResult;
     } catch (error: any) {
-      console.error('❌ NimbusPost retry integration error:', error);
+      logger.error('NimbusPost retry integration error', { error: error.message });
       return {
         success: false,
         error: error.message || 'Failed to retry NimbusPost integration'

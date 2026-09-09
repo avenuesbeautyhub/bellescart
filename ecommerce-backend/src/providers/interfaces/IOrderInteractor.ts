@@ -9,6 +9,8 @@ export interface IOrderInteractor {
     processNimbus?: boolean;
     nimbusCourierId?: string;
     calculatedShippingFee?: number;
+    couponCode?: string;
+    discountAmount?: number;
   }): Promise<IOrder>;
   getOrders(userId: string, filters?: {
     page?: number;
@@ -35,6 +37,7 @@ export interface IOrderInteractor {
     };
   }): Promise<IOrder | null>;
   cancelOrder(userId: string, orderId: string): Promise<IOrder | null>;
+  returnOrder(userId: string, orderId: string, returnReason: string): Promise<IOrder | null>;
   getOrderByOrderNumber(orderNumber: string): Promise<IOrder | null>;
   getOrdersByStatus(status: IOrder['status'], options?: {
     page?: number;

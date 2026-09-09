@@ -133,10 +133,20 @@ class ProfileService {
 
       const token = localStorage.getItem('bellescart_token');
 
+      // Get CSRF token from cookie
+      const getCsrfTokenFromCookie = (): string | null => {
+        if (typeof window === 'undefined') return null;
+        const match = document.cookie.match(/(^|;) ?csrfToken=([^;]*)(;|$)/);
+        return match ? match[2] : null;
+      };
+
+      const csrfToken = getCsrfTokenFromCookie();
+
       const response = await fetch(`${API_BASE_URL}/profile/profile-picture`, {
         method: 'POST',
         headers: {
           ...(token && { 'Authorization': `Bearer ${token}` }),
+          ...(csrfToken && { 'X-CSRF-Token': csrfToken }),
           // Don't set Content-Type - let browser set it with boundary for FormData
         },
         body: formData,

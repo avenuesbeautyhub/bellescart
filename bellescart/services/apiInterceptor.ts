@@ -6,6 +6,101 @@ import { globalToast } from '@/utils/globalToast';
 let isRefreshing = false;
 let refreshSubscribers: ((token: string) => void)[] = [];
 
+// CSRF token management
+let csrfToken: string | null = null;
+let isFetchingCsrfToken = false;
+let csrfTokenSubscribers: ((token: string) => void)[] = [];
+
+// Get CSRF token from cookie
+const getCsrfTokenFromCookie = (): string | null => {
+  if (typeof window === 'undefined') return null;
+  
+  const match = document.cookie.match(/(^|;) ?csrfToken=([^;]*)(;|$)/);
+  return match ? match[2] : null;
+};
+
+// Fetch CSRF token from server
+const fetchCsrfToken = async (): Promise<string> => {
+  if (isFetchingCsrfToken) {
+    return new Promise((resolve) => {
+      csrfTokenSubscribers.push(resolve);
+    });
+  }
+
+  isFetchingCsrfToken = true;
+
+  try {
+    const csrfUrl = `${appConfig.apiBaseUrl}/csrf-token`;
+    console.log('Fetching CSRF token from:', csrfUrl);
+    
+    const response = await fetch(csrfUrl, {
+      method: 'GET',
+      credentials: 'include',
+    });
+
+    console.log('CSRF token response status:', response.status);
+
+    if (response.ok) {
+      const data = await response.json();
+      const token = data.csrfToken;
+      csrfToken = token;
+
+      if (!token) {
+        throw new Error('CSRF token not found in response');
+      }
+
+      console.log('CSRF token fetched successfully');
+      
+      // Notify all subscribers
+      csrfTokenSubscribers.forEach(callback => callback(token));
+      csrfTokenSubscribers = [];
+
+      return token;
+    } else {
+      console.error('CSRF token fetch failed with status:', response.status);
+      throw new Error('Failed to fetch CSRF token');
+    }
+  } catch (error) {
+    console.error('CSRF token fetch error:', error);
+    throw error;
+  } finally {
+    isFetchingCsrfToken = false;
+  }
+};
+
+// Get CSRF token (from memory, cookie, or fetch if needed)
+const getCsrfToken = async (): Promise<string | null> => {
+  // First check if we have it in memory
+  if (csrfToken) {
+    return csrfToken;
+  }
+
+  // Check if it's in the cookie
+  const cookieToken = getCsrfTokenFromCookie();
+  if (cookieToken) {
+    csrfToken = cookieToken;
+    return csrfToken;
+  }
+
+  // Fetch from server
+  try {
+    return await fetchCsrfToken();
+  } catch (error) {
+    // Silent fail - token will be fetched on-demand when needed
+    return null;
+  }
+};
+
+// Export function to initialize CSRF token (call this on app startup)
+// This is optional - token will be fetched on-demand when needed
+export const initializeCsrfToken = async (): Promise<void> => {
+  try {
+    await getCsrfToken();
+  } catch (error) {
+    // Silent fail - token will be fetched on-demand when needed
+  }
+};
+
 // Add subscribers waiting for token refresh
 const addRefreshSubscriber = (callback: (token: string) => void) => {
   refreshSubscribers.push(callback);
@@ -58,13 +153,43 @@ export const apiFetch = async (url: string, options: RequestInit = {}): Promise<
   }
 
   // Add authorization header if token exists
-  const authOptions = {
+  const authOptions: RequestInit = {
     ...options,
     headers: {
       ...options.headers,
       ...(token && { Authorization: `Bearer ${token}` }),
     },
+    credentials: 'include',
   };
+
+  // Add CSRF token for state-changing operations
+  const method = options.method || 'GET';
+  if (['POST', 'PUT', 'DELETE', 'PATCH'].includes(method)) {
+    // Try to get CSRF token from cookie first (synchronous)
+    const cookieCsrf = getCsrfTokenFromCookie();
+    if (cookieCsrf) {
+      const headers = authOptions.headers as Record<string, string>;
+      headers['X-CSRF-Token'] = cookieCsrf;
+    } else {
+      // If not in cookie, fetch it synchronously before the request
+      try {
+        const csrf = await getCsrfToken();
+        if (csrf) {
+          const headers = authOptions.headers as Record<string, string>;
+          headers['X-CSRF-Token'] = csrf;
+        } else {
+          // If still no token, try one more time to fetch directly
+          const directCsrf = await fetchCsrfToken();
+          if (directCsrf) {
+            const headers = authOptions.headers as Record<string, string>;
+            headers['X-CSRF-Token'] = directCsrf;
+          }
+        }
+      } catch (error) {
+        console.warn('Failed to fetch CSRF token, request may fail:', error);
+      }
+    }
+  }
 
   try {
     // Make initial request
@@ -98,12 +223,18 @@ export const apiFetch = async (url: string, options: RequestInit = {}): Promise<
           return new Promise((resolve, reject) => {
             addRefreshSubscriber(async (newToken: string) => {
               try {
+                const csrf = getCsrfTokenFromCookie();
+                const retryHeaders: Record<string, string> = {
+                  ...(options.headers as Record<string, string>),
+                  Authorization: `Bearer ${newToken}`,
+                };
+                if (csrf) {
+                  retryHeaders['X-CSRF-Token'] = csrf;
+                }
+                
                 const retryResponse = await fetch(fullUrl, {
                   ...options,
-                  headers: {
-                    ...options.headers,
-                    Authorization: `Bearer ${newToken}`,
-                  },
+                  headers: retryHeaders,
                 });
 
                 if (retryResponse.ok) {
@@ -135,12 +266,18 @@ export const apiFetch = async (url: string, options: RequestInit = {}): Promise<
             notifyRefreshSubscribers(newToken);
 
             // Retry original request with new token
+            const csrf = getCsrfTokenFromCookie();
+            const retryHeaders: Record<string, string> = {
+              ...(options.headers as Record<string, string>),
+              Authorization: `Bearer ${newToken}`,
+            };
+            if (csrf) {
+              retryHeaders['X-CSRF-Token'] = csrf;
+            }
+            
             const retryResponse = await fetch(fullUrl, {
               ...options,
-              headers: {
-                ...options.headers,
-                Authorization: `Bearer ${newToken}`,
-              },
+              headers: retryHeaders,
             });
 
             return retryResponse;
@@ -220,13 +357,46 @@ export const publicApiFetch = async (url: string, options: RequestInit = {}): Pr
       'Content-Type': 'application/json',
       ...options.headers,
     },
+    mode: 'cors' as RequestMode,
+    credentials: 'include' as RequestCredentials,
   };
 
+  // Add CSRF token for state-changing operations in public API
+  const method = options.method || 'GET';
+  if (['POST', 'PUT', 'DELETE', 'PATCH'].includes(method)) {
+    const cookieCsrf = getCsrfTokenFromCookie();
+    if (cookieCsrf) {
+      const headers = publicOptions.headers as Record<string, string>;
+      headers['X-CSRF-Token'] = cookieCsrf;
+    } else {
+      // If not in cookie, fetch it before the request
+      try {
+        const csrf = await getCsrfToken();
+        if (csrf) {
+          const headers = publicOptions.headers as Record<string, string>;
+          headers['X-CSRF-Token'] = csrf;
+        } else {
+          // If still no token, try one more time to fetch directly
+          const directCsrf = await fetchCsrfToken();
+          if (directCsrf) {
+            const headers = publicOptions.headers as Record<string, string>;
+            headers['X-CSRF-Token'] = directCsrf;
+          }
+        }
+      } catch (error) {
+        console.warn('Failed to fetch CSRF token for public API, request may fail:', error);
+      }
+    }
+  }
+
   try {
+    console.log('Public API Request URL:', fullUrl);
     const response = await fetch(fullUrl, publicOptions);
+    console.log('Public API Response Status:', response.status);
     return response;
   } catch (error) {
     console.error('Public API fetch error:', error);
+    console.error('Full URL that failed:', fullUrl);
     throw error;
   }
 };

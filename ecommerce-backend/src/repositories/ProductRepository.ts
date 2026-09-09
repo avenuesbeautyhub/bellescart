@@ -7,6 +7,10 @@ export class ProductRepository extends BaseRepository<IProduct> implements IProd
     super(Product);
   }
 
+  async findById(id: string, options?: { populate?: string | any }): Promise<IProduct | null> {
+    return super.findById(id, options);
+  }
+
   async findActive(filter: any = {}, options?: { limit?: number; skip?: number; sort?: any }): Promise<IProduct[]> {
     return this.find({ ...filter, status: 'active' }, options);
   }

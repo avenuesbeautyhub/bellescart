@@ -139,6 +139,12 @@ export default function AdminDashboard() {
               >
                 View All Products
               </button>
+              <button
+                onClick={() => router.push('/admin/coupons')}
+                className="bg-white text-pink-600 px-6 py-3 rounded-lg font-semibold hover:bg-pink-50 transition-colors shadow-md"
+              >
+                Manage Coupons
+              </button>
             </div>
           </div>
         </div>

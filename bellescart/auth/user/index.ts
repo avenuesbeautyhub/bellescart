@@ -7,7 +7,7 @@ import { authService } from '@/services/authService';
 
 // Export React Query hooks
 export { useAuthWithQuery } from '@/hooks/user/useAuthWithQuery';
-export { useCurrentUser, useLogin, useLogout, useVerifyOtp } from '@/hooks/user/useAuthQuery';
+export { useCurrentUser, useLogin, useLogout, useVerifyOtp, useSignup, useResendOtp } from '@/hooks/user/useAuthQuery';
 
 // User authentication keys - only tokens needed
 const AUTH_TOKEN_KEY = 'bellescart_token';

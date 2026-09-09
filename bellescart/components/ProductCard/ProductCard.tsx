@@ -103,6 +103,10 @@ export default function ProductCard({
     ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)
     : 0;
 
+  // Check stock using both stock and quantity fields for compatibility
+  const stock = product?.stock ?? product?.quantity ?? 0;
+  const isOutOfStock = stock <= 0;
+
   // Get the main image URL from the images array
   const mainImage = product.images?.find((img: ProductImage) => img.isMain)?.url || product.images?.[0]?.url || '';
 
@@ -130,19 +134,19 @@ export default function ProductCard({
 
           {/* Badges */}
           <div className="absolute top-3 left-3 flex flex-col gap-2 z-10">
-            {!product.quantity && (
+            {isOutOfStock && (
               <div className="bg-gradient-to-r from-red-500 to-red-600 text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-lg backdrop-blur-sm">
                 OUT OF STOCK
               </div>
             )}
-            {discountPercent > 0 && product.quantity > 0 && (
+            {discountPercent > 0 && !isOutOfStock && (
               <div className="bg-gradient-to-r from-pink-500 to-rose-500 text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-lg backdrop-blur-sm">
                 -{discountPercent}% OFF
               </div>
             )}
-            {product.quantity <= 5 && product.quantity > 0 && (
+            {stock <= 5 && stock > 0 && (
               <div className="bg-gradient-to-r from-amber-400 to-orange-500 text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-lg backdrop-blur-sm">
-                Only {product.quantity} left
+                Only {stock} left
               </div>
             )}
           </div>
@@ -222,9 +226,9 @@ export default function ProductCard({
         {/* Add to Cart Button */}
         <button
           onClick={() => handleAddToCart(product)}
-          disabled={!product.quantity || !isLoggedIn || addToCartMutation.isPending || updateCartItemMutation.isPending}
-          className={`w-full mt-4 py-3 rounded-xl font-semibold text-sm transition-all duration-300 ${!product.quantity || !isLoggedIn
-            ? !product.quantity 
+          disabled={isOutOfStock || !isLoggedIn || addToCartMutation.isPending || updateCartItemMutation.isPending}
+          className={`w-full mt-4 py-3 rounded-xl font-semibold text-sm transition-all duration-300 ${isOutOfStock || !isLoggedIn
+            ? isOutOfStock 
               ? 'bg-red-50 text-red-400 cursor-not-allowed border-2 border-red-200'
               : 'bg-gray-100 text-gray-400 cursor-not-allowed border-2 border-gray-200'
             : isInCart
@@ -236,7 +240,7 @@ export default function ProductCard({
             ? 'Adding...' 
             : !isLoggedIn 
               ? 'Login to Add' 
-              : !product.quantity 
+              : isOutOfStock 
                 ? 'Out of Stock' 
                 : isInCart 
                   ? `In Cart (${cartQuantity})` 

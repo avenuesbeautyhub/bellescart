@@ -1,7 +1,9 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { UserRepository } from '../repositories/UserRepository';
 import { OtpRepository } from '../repositories/OtpRepository';
+import { WalletRepository } from '../repositories/WalletRepository';
 import { UserInteractor } from '../interactors/UserInteractor';
+import { WalletInteractor } from '../interactors/WalletInteractor';
 import { AuthController } from '../controllers/authController';
 import { authenticate } from '../middleware/auth';
 import { authRateLimiter } from '../middleware/rateLimiter';
@@ -12,9 +14,13 @@ const router = Router();
 const userRepository = new UserRepository();
 // Creating a new instance of OtpRepository to handle OTP data access operations.
 const otpRepository = new OtpRepository();
+// Creating a new instance of WalletRepository to handle wallet data access operations.
+const walletRepository = new WalletRepository();
+// Creating a new instance of WalletInteractor to contain wallet-specific business logic.
+const walletInteractor = new WalletInteractor(walletRepository);
 // Creating a new instance of UserInteractor to contain application-specific business logic and orchestrate data flow.
-// UserRepository and OtpRepository instances are injected into UserInteractor for database interaction.
-const interactor = new UserInteractor(userRepository, otpRepository);
+// UserRepository, OtpRepository, and WalletInteractor instances are injected into UserInteractor for database interaction.
+const interactor = new UserInteractor(userRepository, otpRepository, walletInteractor);
 // Creating a new instance of AuthController to handle incoming HTTP requests related to user authentication.
 // UserInteractor instance is injected into AuthController to delegate business logic execution.
 const controller = new AuthController(interactor);

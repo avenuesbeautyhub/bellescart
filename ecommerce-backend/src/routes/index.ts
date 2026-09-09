@@ -8,6 +8,8 @@ import categoryRoutes from './categories';
 import publicRoutes from './publicRoutes';
 import paymentRoutes from './paymentRoutes';
 import profileRoutes from './profileRoutes';
+import userRoutes from './userRoutes';
+import walletRoutes from './walletRoutes';
 const router = Router();
 
 // API routes
@@ -20,6 +22,8 @@ router.use('/categories', categoryRoutes);
 router.use('/public', publicRoutes);
 router.use('/payment', paymentRoutes);
 router.use('/profile', profileRoutes);
+router.use('/user', userRoutes);
+router.use('/wallet', walletRoutes);
 
 export default router;
 

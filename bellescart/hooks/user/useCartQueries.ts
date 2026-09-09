@@ -64,14 +64,21 @@ export const useAddToCart = () => {
 
   return useMutation({
     mutationFn: (request: AddToCartRequest) => cartService.addToCart(request),
-    onSuccess: () => {
-      // Invalidate cart query to refetch
-      queryClient.invalidateQueries({ queryKey: cartKeys.items() });
-      // Broadcast to other tabs
-      const channel = getCartChannel();
-      if (channel) {
-        channel.postMessage({ type: 'CART_UPDATED' });
+    onSuccess: (data) => {
+      // Only invalidate and show success if the API call actually succeeded
+      if (data.success) {
+        // Invalidate cart query to refetch
+        queryClient.invalidateQueries({ queryKey: cartKeys.items() });
+        // Broadcast to other tabs
+        const channel = getCartChannel();
+        if (channel) {
+          channel.postMessage({ type: 'CART_UPDATED' });
+        }
       }
+    },
+    onError: (error: any) => {
+      console.error('Add to cart error:', error);
+      // Error is already handled in the component with toast
     },
   });
 };
@@ -82,14 +89,21 @@ export const useUpdateCartItem = () => {
   return useMutation({
     mutationFn: ({ itemId, request }: { itemId: string; request: UpdateCartRequest }) => 
       cartService.updateCartItem(itemId, request),
-    onSuccess: () => {
-      // Invalidate cart query to refetch
-      queryClient.invalidateQueries({ queryKey: cartKeys.items() });
-      // Broadcast to other tabs
-      const channel = getCartChannel();
-      if (channel) {
-        channel.postMessage({ type: 'CART_UPDATED' });
+    onSuccess: (data) => {
+      // Only invalidate and show success if the API call actually succeeded
+      if (data.success) {
+        // Invalidate cart query to refetch
+        queryClient.invalidateQueries({ queryKey: cartKeys.items() });
+        // Broadcast to other tabs
+        const channel = getCartChannel();
+        if (channel) {
+          channel.postMessage({ type: 'CART_UPDATED' });
+        }
       }
+    },
+    onError: (error: any) => {
+      console.error('Update cart item error:', error);
+      // Error is already handled in the component with toast
     },
   });
 };
@@ -125,5 +139,11 @@ export const useClearCart = () => {
         channel.postMessage({ type: 'CART_UPDATED' });
       }
     },
+  });
+};
+
+export const useValidateStock = () => {
+  return useMutation({
+    mutationFn: () => cartService.validateStock(),
   });
 };

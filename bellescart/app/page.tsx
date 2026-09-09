@@ -75,10 +75,10 @@ export default function Home() {
                   Discover thousands of quality products from Belles Avenue! Your premium shopping experience starts here.
                 </p>
                 <div className="max-w-md mx-auto">
-                  <SearchBar placeholder="Search for products..." />
+                  <SearchBar placeholder="Search for products..." onSearch={(query) => router.push(`/products/guest?search=${encodeURIComponent(query)}`)} />
                 </div>
                 <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-                  <Link href="/products">
+                  <Link href="/products/guest">
                     <Button size="lg" variant="primary" className="bg-pink-900 text-pink-600 hover:bg-gray-100 px-6 sm:px-8 py-3 sm:py-4 text-base sm:text-lg font-semibold shadow-xl hover:shadow-2xl transform hover:scale-105 transition-all duration-300">
                       Shop Now
                     </Button>
@@ -130,7 +130,7 @@ export default function Home() {
               </div>
             </div>
             <div className="text-center mt-12">
-              <Link href="/products">
+              <Link href="/products/guest">
                 <Button variant="outline" className="border-2 border-pink-500 text-pink-600 hover:bg-pink-500 hover:text-white px-8 py-3 font-semibold transition-all duration-300">
                   View All Products
                 </Button>
@@ -179,7 +179,7 @@ export default function Home() {
 
                 return (
                   <React.Fragment key={category._id}>
-                    <Link href={`/products?category=${category.name}`}>
+                    <Link href={`/products/guest?category=${category.name}`}>
                       <div className="group relative bg-white rounded-2xl p-8 text-center hover:shadow-2xl transition-all duration-300 transform hover:scale-105 cursor-pointer overflow-hidden">
                         {/* Background Gradient */}
                         <div className={`absolute inset-0 bg-gradient-to-br ${color} opacity-0 group-hover:opacity-10 transition-opacity duration-300`} />

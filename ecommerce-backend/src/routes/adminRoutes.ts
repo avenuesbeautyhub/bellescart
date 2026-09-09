@@ -2,24 +2,22 @@ import { Router } from 'express';
 import { adminRateLimiter } from '../middleware/rateLimiter';
 import { AdminRepository } from '../repositories/AdminRepository';
 import { ProductRepository } from '../repositories/ProductRepository';
-
-
-
-
-
-
-
 import { CategoryRepository } from '../repositories/CategoryRepository';
 import { OrderRepository } from '../repositories/OrderRepository';
 import { UserRepository } from '../repositories/UserRepository';
 import { CartRepository } from '../repositories/CartRepository';
+import { CouponRepository } from '../repositories/CouponRepository';
+import { WalletRepository } from '../repositories/WalletRepository';
 import { AdminInteractor } from '../interactors/AdminInteractor';
 import { ProductInteractor } from '../interactors/ProductInteractor';
 import { CategoryInteractor } from '../interactors/CategoryInteractor';
 import { OrderInteractor } from '../interactors/OrderInteractor';
+import { WalletInteractor } from '../interactors/WalletInteractor';
+import { CouponInteractor } from '../interactors/CouponInteractor';
 import { AdminController } from '../controllers/adminController';
 import { CategoryController } from '../controllers/CategoryController';
 import { OrderController } from '../controllers/orderController';
+import { CouponController } from '../controllers/CouponController';
 import { authenticateAdmin } from '../middleware/auth';
 import { upload } from '../services/cloudinaryService';
 
@@ -35,17 +33,22 @@ const categoryRepository = new CategoryRepository();
 const orderRepository = new OrderRepository();
 const userRepository = new UserRepository();
 const cartRepository = new CartRepository();
+const couponRepository = new CouponRepository();
+const walletRepository = new WalletRepository();
 
 // Creating instances for interactors
 const categoryInteractor = new CategoryInteractor(categoryRepository);
 const productInteractor = new ProductInteractor(productRepository, categoryInteractor);
-const orderInteractor = new OrderInteractor(orderRepository, cartRepository, productRepository, userRepository);
+const walletInteractor = new WalletInteractor(walletRepository);
+const orderInteractor = new OrderInteractor(orderRepository, cartRepository, productRepository, userRepository, walletInteractor);
 const adminInteractor = new AdminInteractor(adminRepository, productInteractor, categoryInteractor);
+const couponInteractor = new CouponInteractor(couponRepository);
 
 // Creating instances of controllers
 const controller = new AdminController(adminInteractor, orderInteractor);
 const categoryController = new CategoryController(categoryInteractor);
 const orderController = new OrderController(orderInteractor, cartRepository);
+const couponController = new CouponController(couponInteractor);
 
 /**
  * @swagger
@@ -1176,5 +1179,188 @@ router.put('/orders/:id/cancel', authenticateAdmin, controller.cancelOrder.bind(
  *         description: User not found
  */
 router.get('/users/:userId/orders', authenticateAdmin, controller.getOrdersByUser.bind(controller));
+
+// ===== ADMIN COUPON ROUTES =====
+/**
+ * @swagger
+ * /admin/coupons:
+ *   post:
+ *     summary: Create a new coupon (admin only)
+ *     tags: [Admin Coupon Management]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - code
+ *               - name
+ *               - discountType
+ *               - discountValue
+ *               - validUntil
+ *             properties:
+ *               code:
+ *                 type: string
+ *               name:
+ *                 type: string
+ *               description:
+ *                 type: string
+ *               discountType:
+ *                 type: string
+ *                 enum: [percentage, fixed, free_shipping]
+ *               discountValue:
+ *                 type: number
+ *               category:
+ *                 type: string
+ *               minOrderValue:
+ *                 type: number
+ *               maxDiscount:
+ *                 type: number
+ *               usageLimit:
+ *                 type: number
+ *               usageLimitPerUser:
+ *                 type: number
+ *               validFrom:
+ *                 type: string
+ *                 format: date-time
+ *               validUntil:
+ *                 type: string
+ *                 format: date-time
+ *               active:
+ *                 type: boolean
+ *     responses:
+ *       201:
+ *         description: Coupon created successfully
+ *       401:
+ *         description: Unauthorized
+ */
+router.post('/coupons', authenticateAdmin, couponController.createCoupon.bind(couponController));
+
+/**
+ * @swagger
+ * /admin/coupons:
+ *   get:
+ *     summary: Get all coupons (admin only)
+ *     tags: [Admin Coupon Management]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Coupons retrieved successfully
+ *       401:
+ *         description: Unauthorized
+ */
+router.get('/coupons', authenticateAdmin, couponController.getAllCoupons.bind(couponController));
+
+/**
+ * @swagger
+ * /admin/coupons/{id}:
+ *   get:
+ *     summary: Get coupon by ID (admin only)
+ *     tags: [Admin Coupon Management]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Coupon retrieved successfully
+ *       404:
+ *         description: Coupon not found
+ *       401:
+ *         description: Unauthorized
+ */
+router.get('/coupons/:id', authenticateAdmin, couponController.getCouponById.bind(couponController));
+
+/**
+ * @swagger
+ * /admin/coupons/{id}:
+ *   put:
+ *     summary: Update coupon (admin only)
+ *     tags: [Admin Coupon Management]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               code:
+ *                 type: string
+ *               name:
+ *                 type: string
+ *               description:
+ *                 type: string
+ *               discountType:
+ *                 type: string
+ *                 enum: [percentage, fixed, free_shipping]
+ *               discountValue:
+ *                 type: number
+ *               category:
+ *                 type: string
+ *               minOrderValue:
+ *                 type: number
+ *               maxDiscount:
+ *                 type: number
+ *               usageLimit:
+ *                 type: number
+ *               usageLimitPerUser:
+ *                 type: number
+ *               validFrom:
+ *                 type: string
+ *                 format: date-time
+ *               validUntil:
+ *                 type: string
+ *                 format: date-time
+ *               active:
+ *                 type: boolean
+ *     responses:
+ *       200:
+ *         description: Coupon updated successfully
+ *       404:
+ *         description: Coupon not found
+ *       401:
+ *         description: Unauthorized
+ */
+router.put('/coupons/:id', authenticateAdmin, couponController.updateCoupon.bind(couponController));
+
+/**
+ * @swagger
+ * /admin/coupons/{id}:
+ *   delete:
+ *     summary: Delete coupon (admin only)
+ *     tags: [Admin Coupon Management]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Coupon deleted successfully
+ *       404:
+ *         description: Coupon not found
+ *       401:
+ *         description: Unauthorized
+ */
+router.delete('/coupons/:id', authenticateAdmin, couponController.deleteCoupon.bind(couponController));
 
 export default router;

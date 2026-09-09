@@ -6,8 +6,10 @@ import { useRouter } from 'next/navigation';
 import { useAuth, useAuthActions } from '@/auth/user';
 import { useCart as useCartQuery } from '@/hooks/user/useCartQueries';
 import { useProfile } from '@/hooks/user/useProfileQueries';
+import { useWalletBalance } from '@/hooks/user/useWalletQueries';
 import { link } from 'fs';
 import { SearchBar } from '@/components';
+import Badge from '@/components/ui/Badge';
 
 export default function Navbar() {
   const router = useRouter();
@@ -19,6 +21,9 @@ export default function Navbar() {
     enabled: isAuthenticated && loaded
   });
   const { data: cartData } = useCartQuery({
+    enabled: isAuthenticated && loaded
+  });
+  const { data: walletBalanceData } = useWalletBalance({
     enabled: isAuthenticated && loaded
   });
 
@@ -35,6 +40,9 @@ export default function Navbar() {
 
   // Get profile avatar from profile data
   const profileAvatar = profileData?.data?.avatar;
+
+  // Get wallet balance safely
+  const walletBalance = walletBalanceData?.data?.balance ?? 0;
 
   const handleLogout = () => {
     logout();
@@ -70,7 +78,7 @@ export default function Navbar() {
           <div className="flex justify-between h-16">
             {/* Logo */}
             <div className="flex items-center">
-              <Link href="/" className="group flex items-center space-x-2">
+              <Link href={isLoggedIn ? "/dashboard" : "/"} className="group flex items-center space-x-2">
                 <div className="w-10 h-10 bg-gradient-to-r from-pink-500 to-pink-600 rounded-xl flex items-center justify-center transform group-hover:scale-105 transition-transform shadow-lg">
                   <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 20 20">
                     <path d="M10.394 2.08a1 1 0 00-.788 0l-7 3a1 1 0 000 1.84L5.25 8.051a.999.999 0 01.226.1l7 3a1 1 0 00.788 0l7-3a1 1 0 000-1.84l-5.38-2.31z" />
@@ -85,7 +93,7 @@ export default function Navbar() {
             {/* Desktop Menu */}
             <div className="hidden md:flex items-center space-x-1">
               {/* Search Bar */}
-              <SearchBar className="w-64" />
+              <SearchBar className="w-64" onSearch={(query) => router.push(`${isLoggedIn ? '/products' : '/products/guest'}?search=${encodeURIComponent(query)}`)} />
 
               {isLoggedIn && (
                 <>
@@ -97,6 +105,18 @@ export default function Navbar() {
                   </Link>
                   <Link href="/orders" className="px-4 py-2 rounded-lg text-gray-600 hover:text-pink-600 hover:bg-pink-50 transition-all duration-200 font-medium">
                     Orders
+                  </Link>
+                  <Link href="/payments" className="px-4 py-2 rounded-lg text-gray-600 hover:text-pink-600 hover:bg-pink-50 transition-all duration-200 font-medium flex items-center gap-2">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                    </svg>
+                    Payments
+                  </Link>
+                  <Link href="/wallet" className="px-4 py-2 rounded-lg text-gray-600 hover:text-pink-600 hover:bg-pink-50 transition-all duration-200 font-medium flex items-center gap-2">
+                    Wallet
+                    {walletBalance > 0 && (
+                      <Badge variant="success" className="text-xs">₹{walletBalance.toFixed(0)}</Badge>
+                    )}
                   </Link>
 
                 </>
@@ -220,7 +240,7 @@ export default function Navbar() {
         <div className="flex flex-col h-full">
           {/* Drawer Header */}
           <div className="flex items-center justify-between p-4 border-b border-gray-100">
-            <div className="flex items-center space-x-3">
+            <Link href={isLoggedIn ? "/dashboard" : "/"} onClick={() => setIsOpen(false)} className="flex items-center space-x-3">
               <div className="w-8 h-8 bg-gradient-to-r from-pink-500 to-pink-600 rounded-lg flex items-center justify-center">
                 <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
                   <path d="M10.394 2.08a1 1 0 00-.788 0l-7 3a1 1 0 000 1.84L5.25 8.051a.999.999 0 01.226.1l7 3a1 1 0 00.788 0l7-3a1 1 0 000-1.84l-5.38-2.31z" />
@@ -229,7 +249,7 @@ export default function Navbar() {
               <span className="text-xl font-bold bg-gradient-to-r from-pink-600 to-purple-600 bg-clip-text text-transparent">
                 BellesCart
               </span>
-            </div>
+            </Link>
             
             <div className="flex items-center space-x-3">
               {isLoggedIn && (
@@ -283,11 +303,11 @@ export default function Navbar() {
             <div className="p-4 space-y-1">
               {/* Mobile Search */}
               <div className="mb-4">
-                <SearchBar className="w-full" />
+                <SearchBar className="w-full" onSearch={(query) => router.push(`${isLoggedIn ? '/products' : '/products/guest'}?search=${encodeURIComponent(query)}`)} />
               </div>
 
               <Link
-                href="/products"
+                href={isLoggedIn ? "/products" : "/products/guest"}
                 className="flex items-center px-4 py-3 text-gray-600 hover:text-pink-600 hover:bg-pink-50 rounded-xl transition-all duration-200 font-medium"
                 onClick={() => setIsOpen(false)}
               >
@@ -317,6 +337,29 @@ export default function Navbar() {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                     </svg>
                     Orders
+                  </Link>
+                  <Link 
+                    href="/payments" 
+                    className="flex items-center px-4 py-3 text-gray-600 hover:text-pink-600 hover:bg-pink-50 rounded-xl transition-all duration-200 font-medium"
+                    onClick={() => setIsOpen(false)}
+                  >
+                    <svg className="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                    </svg>
+                    Payments
+                  </Link>
+                  <Link 
+                    href="/wallet" 
+                    className="flex items-center px-4 py-3 text-gray-600 hover:text-pink-600 hover:bg-pink-50 rounded-xl transition-all duration-200 font-medium"
+                    onClick={() => setIsOpen(false)}
+                  >
+                    <svg className="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                    </svg>
+                    Wallet
+                    {walletBalance > 0 && (
+                      <Badge variant="success" className="text-xs ml-2">₹{walletBalance.toFixed(0)}</Badge>
+                    )}
                   </Link>
                   <Link 
                     href="/profile" 

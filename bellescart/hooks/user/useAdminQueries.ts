@@ -3,6 +3,7 @@ import { adminProductService, ProductResponse, CreateProductData } from '@/servi
 import { adminOrderService, OrderResponse, OrderData } from '@/services/admin/orderService';
 import { adminCategoryService, CategoryResponse, CategoryData } from '@/services/admin/categoryService';
 import { adminUserService, UserResponse, UserData } from '@/services/admin/userService';
+import { adminCouponService, CouponResponse, CouponData } from '@/services/admin/couponService';
 
 // ===== ADMIN PRODUCT QUERIES =====
 export const adminProductKeys = {
@@ -264,6 +265,65 @@ export const useDeleteUser = () => {
     mutationFn: (id: string) => adminUserService.deleteUser(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: adminUserKeys.all });
+    },
+  });
+};
+
+// ===== ADMIN COUPON QUERIES =====
+export const adminCouponKeys = {
+  all: ['admin', 'coupons'] as const,
+  lists: () => [...adminCouponKeys.all, 'list'] as const,
+  details: () => [...adminCouponKeys.all, 'detail'] as const,
+  detail: (id: string) => [...adminCouponKeys.details(), id] as const,
+};
+
+export const useAdminCoupons = () => {
+  return useQuery({
+    queryKey: adminCouponKeys.lists(),
+    queryFn: () => adminCouponService.getAllCoupons(),
+    staleTime: 1000 * 60 * 5, // 5 minutes
+  });
+};
+
+export const useAdminCoupon = (id: string) => {
+  return useQuery({
+    queryKey: adminCouponKeys.detail(id),
+    queryFn: () => adminCouponService.getCouponById(id),
+    enabled: !!id,
+    staleTime: 1000 * 60 * 10, // 10 minutes
+  });
+};
+
+export const useCreateCoupon = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (couponData: CouponData) => adminCouponService.createCoupon(couponData),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: adminCouponKeys.all });
+    },
+  });
+};
+
+export const useUpdateCoupon = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, couponData }: { id: string; couponData: Partial<CouponData> }) => 
+      adminCouponService.updateCoupon(id, couponData),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: adminCouponKeys.all });
+    },
+  });
+};
+
+export const useDeleteCoupon = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) => adminCouponService.deleteCoupon(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: adminCouponKeys.all });
     },
   });
 };

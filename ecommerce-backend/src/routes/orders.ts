@@ -3,7 +3,9 @@ import { OrderRepository } from '../repositories/OrderRepository';
 import { CartRepository } from '../repositories/CartRepository';
 import { ProductRepository } from '../repositories/ProductRepository';
 import { UserRepository } from '../repositories/UserRepository';
+import { WalletRepository } from '../repositories/WalletRepository';
 import { OrderInteractor } from '../interactors/OrderInteractor';
+import { WalletInteractor } from '../interactors/WalletInteractor';
 import { OrderController } from '../controllers/orderController';
 import { authenticate, authorize } from '../middleware/auth';
 import { orderRateLimiter, shippingRateLimiter } from '../middleware/rateLimiter';
@@ -18,9 +20,13 @@ const cartRepository = new CartRepository();
 const productRepository = new ProductRepository();
 // Creating a new instance of UserRepository to handle data access operations for the User entity.
 const userRepository = new UserRepository();
+// Creating a new instance of WalletRepository to handle data access operations for the Wallet entity.
+const walletRepository = new WalletRepository();
+// Creating a new instance of WalletInteractor to contain wallet-specific business logic.
+const walletInteractor = new WalletInteractor(walletRepository);
 // Creating a new instance of OrderInteractor to contain application-specific business logic and orchestrate data flow.
-// OrderRepository, CartRepository, ProductRepository, and UserRepository instances are injected into OrderInteractor for database interaction.
-const interactor = new OrderInteractor(orderRepository, cartRepository, productRepository, userRepository);
+// OrderRepository, CartRepository, ProductRepository, UserRepository, and WalletInteractor instances are injected into OrderInteractor for database interaction.
+const interactor = new OrderInteractor(orderRepository, cartRepository, productRepository, userRepository, walletInteractor);
 // Creating a new instance of OrderController to handle incoming HTTP requests related to order operations.
 // OrderInteractor and CartRepository instances are injected into OrderController to delegate business logic execution.
 const controller = new OrderController(interactor, cartRepository);
@@ -129,6 +135,44 @@ router.get('/:id', authenticate, controller.getOrderById.bind(controller));
  *         description: Order not found
  */
 router.put('/:id/cancel', authenticate,controller.cancelOrder.bind(controller));
+
+/**
+ * @swagger
+ * /orders/{id}/return:
+ *   post:
+ *     summary: Return a delivered order
+ *     tags: [Orders]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - returnReason
+ *             properties:
+ *               returnReason:
+ *                 type: string
+ *                 description: Reason for returning the order
+ *     responses:
+ *       200:
+ *         description: Order returned successfully
+ *       401:
+ *         description: Unauthorized
+ *       404:
+ *         description: Order not found
+ *       400:
+ *         description: Bad request
+ */
+router.post('/:id/return', authenticate, controller.returnOrder.bind(controller));
 
 /**
  * @swagger

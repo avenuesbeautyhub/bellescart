@@ -13,11 +13,14 @@ import Loader from '@/components/ui/Loader';
 import Badge from '@/components/ui/Badge';
 import { orderService, CreateOrderRequest, ShippingAddress } from '@/services/orderService';
 import { paymentService } from '@/services/paymentService';
+import { couponService } from '@/services/couponService';
 import { globalToast } from '@/utils/globalToast';
 import { Address } from '@/types/auth';
-import { useCart as useCartQuery, useClearCart } from '@/hooks/user/useCartQueries';
+import { useCart as useCartQuery, useClearCart, useValidateStock } from '@/hooks/user/useCartQueries';
 import { useCreateOrder } from '@/hooks/user/useOrderQueries';
 import { useCurrentUser } from '@/hooks/user/useAuthQuery';
+import { useWalletBalance, useDebitWallet } from '@/hooks/user/useWalletQueries';
+import { useInvalidatePaymentQueries } from '@/hooks/user/usePaymentQueries';
 
 export default function CheckoutPage() {
   const router = useRouter();
@@ -26,14 +29,22 @@ export default function CheckoutPage() {
   // React Query hooks
   const { data: cartData, isLoading: isLoadingCart } = useCartQuery();
   const { data: currentUserData } = useCurrentUser();
+  const { data: walletBalanceData } = useWalletBalance();
+  const debitWalletMutation = useDebitWallet();
   const createOrderMutation = useCreateOrder();
   const clearCartMutation = useClearCart();
+  const invalidatePaymentQueries = useInvalidatePaymentQueries();
+  const validateStockMutation = useValidateStock();
   
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [processingStep, setProcessingStep] = useState<string>('');
   const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
   const [showNewAddressForm, setShowNewAddressForm] = useState(false);
   const [calculatedShippingFee, setCalculatedShippingFee] = useState<number>(0);
+  const [couponCode, setCouponCode] = useState('');
+  const [appliedCoupon, setAppliedCoupon] = useState<any | null>(null);
+  const [couponDiscount, setCouponDiscount] = useState<number>(0);
+  const [isApplyingCoupon, setIsApplyingCoupon] = useState(false);
   
   // Process cart data from React Query
   const cartItems = React.useMemo(() => {
@@ -54,7 +65,7 @@ export default function CheckoutPage() {
     state: string;
     zipCode: string;
     country: string;
-    paymentMethod: 'razorpay';
+    paymentMethod: 'razorpay' | 'wallet';
     notes: string;
   }>({
     fullName: '',
@@ -125,8 +136,8 @@ export default function CheckoutPage() {
     return <Loader size="lg" text="Loading checkout..." fullScreen />;
   }
 
-  // Redirect to cart page if cart is empty
-  if (cartItems.length === 0) {
+  // Redirect to cart page if cart is empty (but not during order submission)
+  if (cartItems.length === 0 && !isSubmitting) {
     router.push('/cart');
     return null;
   }
@@ -134,6 +145,41 @@ export default function CheckoutPage() {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleApplyCoupon = async () => {
+    if (!couponCode.trim()) {
+      globalToast.general.error('Invalid Coupon', 'Please enter a coupon code');
+      return;
+    }
+
+    setIsApplyingCoupon(true);
+    try {
+      const response = await couponService.applyCoupon(couponCode.trim(), {
+        cartTotal: subtotal,
+        cartCategory: cartItems[0]?.category ? String(cartItems[0]?.category) : undefined
+      });
+
+      if (response.success && response.data?.success) {
+        setAppliedCoupon(response.data.coupon);
+        setCouponDiscount(response.data.discountAmount);
+        globalToast.general.success('Coupon Applied', `Discount of ₹${response.data.discountAmount.toFixed(2)} applied!`);
+        setCouponCode('');
+      } else {
+        globalToast.general.error('Invalid Coupon', response.data?.error || 'This coupon is not valid');
+      }
+    } catch (error: any) {
+      console.error('Coupon application error:', error);
+      globalToast.general.error('Error', 'Failed to apply coupon');
+    } finally {
+      setIsApplyingCoupon(false);
+    }
+  };
+
+  const handleRemoveCoupon = () => {
+    setAppliedCoupon(null);
+    setCouponDiscount(0);
+    globalToast.general.success('Coupon Removed', 'Coupon has been removed');
   };
 
   const handleAddressSelect = (address: Address) => {
@@ -168,6 +214,35 @@ export default function CheckoutPage() {
     return true;
   };
 
+  const validateCartStock = async (): Promise<boolean> => {
+    try {
+      setProcessingStep('Checking stock availability...');
+      const stockValidation = await validateStockMutation.mutateAsync();
+      
+      if (stockValidation.success && stockValidation.data?.valid) {
+        return true;
+      } else if (stockValidation.data?.outOfStockItems && stockValidation.data.outOfStockItems.length > 0) {
+        // Show detailed error about out of stock items
+        const outOfStockMessage = stockValidation.data.outOfStockItems
+          .map(item => `${item.productName} (Requested: ${item.requestedQuantity}, Available: ${item.availableQuantity})`)
+          .join(', ');
+        
+        globalToast.general.error(
+          'Out of Stock',
+          `${stockValidation.data.message}. Please update your cart: ${outOfStockMessage}`
+        );
+        return false;
+      } else {
+        globalToast.general.error('Stock Validation Failed', stockValidation.data?.message || 'Unable to validate stock');
+        return false;
+      }
+    } catch (error: any) {
+      console.error('Stock validation error:', error);
+      globalToast.general.error('Error', 'Failed to validate stock availability');
+      return false;
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -175,6 +250,14 @@ export default function CheckoutPage() {
 
     try {
       setIsSubmitting(true);
+
+      // Validate stock availability before proceeding
+      const isStockValid = await validateCartStock();
+      if (!isStockValid) {
+        setIsSubmitting(false);
+        setProcessingStep('');
+        return;
+      }
 
       const shippingAddress: ShippingAddress = {
         street: formData.address,
@@ -189,11 +272,13 @@ export default function CheckoutPage() {
         setProcessingStep('Initializing payment...');
         const subtotal = cartItems.reduce((sum, item) => sum + (item.price || 0) * item.quantity, 0);
         const shipping = calculateShippingFee(subtotal);
-        const grandTotal = subtotal + shipping;
+        const discount = couponDiscount;
+        const grandTotal = subtotal + shipping - discount;
 
         const paymentResponse = await paymentService.createPaymentIntent({
           amount: grandTotal,
           currency: 'INR',
+          userId: currentUserData?.id || currentUserData?._id,
         });
 
         if (paymentResponse.success && paymentResponse.data) {
@@ -220,6 +305,21 @@ export default function CheckoutPage() {
               );
 
               if (verifyResponse.success) {
+                setProcessingStep('Validating stock availability...');
+                
+                // Re-validate stock after payment to handle race conditions
+                const isStockValid = await validateCartStock();
+                if (!isStockValid) {
+                  // Stock validation failed - refund payment and show error
+                  globalToast.general.error(
+                    'Payment Processed But Order Failed',
+                    'Some items in your cart are now out of stock. Your payment will be refunded automatically.'
+                  );
+                  setIsSubmitting(false);
+                  setProcessingStep('');
+                  return;
+                }
+
                 setProcessingStep('Creating your order...');
                 // Create order after successful payment
                 const orderRequest: CreateOrderRequest = {
@@ -228,6 +328,8 @@ export default function CheckoutPage() {
                   notes: formData.notes,
                   paymentId: response.razorpay_payment_id,
                   calculatedShippingFee: shipping,
+                  couponCode: appliedCoupon?.code,
+                  discountAmount: couponDiscount,
                   processNimbus: false, // Disabled - orders managed by admin
                   nimbusCourierId: undefined,
                   nimbusAllRates: undefined,
@@ -241,8 +343,41 @@ export default function CheckoutPage() {
 
                 if (orderResponse.success) {
                   setProcessingStep('Finalizing order...');
-                  await clearCartMutation.mutateAsync();
                   const orderId = orderResponse.data?.order?._id || orderResponse.data?.order?.id;
+                  
+                  // Create payment record with completed status
+                  try {
+                    await paymentService.createPaymentRecord({
+                      bookingId: razorpayOrderId,
+                      razorpayPaymentId: response.razorpay_payment_id,
+                      razorpayOrderId: response.razorpay_order_id,
+                      amount: grandTotal,
+                      currency: 'INR',
+                      status: 'completed',
+                      paymentMethod: 'razorpay',
+                      userId: currentUserData?.id || currentUserData?._id,
+                      orderId,
+                      paymentSignature: response.razorpay_signature,
+                      metadata: {
+                        verifiedAt: new Date().toISOString(),
+                        completedAt: new Date().toISOString(),
+                        orderAmount: grandTotal,
+                        currency: 'INR',
+                        userEmail: currentUserData?.email,
+                        userName: currentUserData?.name,
+                        userPhone: formData.phone,
+                        shippingCity: shippingAddress.city,
+                        shippingState: shippingAddress.state,
+                        paymentMethod: 'razorpay'
+                      }
+                    });
+                    console.log('✅ Razorpay payment record created with completed status');
+                  } catch (err) {
+                    console.error('❌ Failed to create Razorpay payment record:', err);
+                  }
+                  
+                  await clearCartMutation.mutateAsync();
+                  invalidatePaymentQueries(); // Refresh payment history
                   // Immediate redirect without toast to avoid delay
                   router.push(`/order-confirmation?orderId=${orderId}`);
                 } else {
@@ -266,6 +401,8 @@ export default function CheckoutPage() {
             },
             modal: {
               ondismiss: function() {
+                console.log('Payment modal closed by user');
+                globalToast.general.info('Payment Cancelled', 'You cancelled the payment. Try again when ready.');
                 setIsSubmitting(false);
                 setProcessingStep('');
               }
@@ -273,13 +410,78 @@ export default function CheckoutPage() {
           };
 
           const razorpay = (window as any).Razorpay(options);
-          razorpay.on('payment.failed', function (response: any) {
+          razorpay.on('payment.failed', async function (response: any) {
             console.error('Payment failed:', response);
-            const errorDescription = response.error?.description || response.error?.reason || 'Payment failed';
-            globalToast.general.error('Payment Failed', errorDescription);
+
+            // Update payment record status to failed
+            if (response.error?.metadata?.payment_id) {
+              try {
+                await paymentService.createPaymentRecord({
+                  bookingId: razorpayOrderId,
+                  razorpayPaymentId: response.error?.metadata?.payment_id,
+                  razorpayOrderId: response.error?.metadata?.order_id,
+                  amount: amount / 100, // Convert from paise to rupees
+                  currency: currency,
+                  status: 'failed',
+                  paymentMethod: 'razorpay',
+                  userId: currentUserData?.id || currentUserData?._id,
+                  metadata: {
+                    error: response.error,
+                    failedAt: new Date().toISOString()
+                  }
+                });
+                console.log('✅ Payment record updated to failed status');
+              } catch (err) {
+                console.error('❌ Failed to update payment record status:', err);
+              }
+            }
+
+            // Handle different error types with user-friendly messages
+            const errorCode = response.error?.code;
+            const errorReason = response.error?.reason;
+            const errorDescription = response.error?.description;
+            
+            let userMessage = '';
+            let suggestions: string[] = [];
+
+            switch (errorCode) {
+              case 'BAD_REQUEST_ERROR':
+                if (errorReason === 'payment_failed' && response.error?.source === 'bank') {
+                  userMessage = 'Payment declined by your bank';
+                  suggestions = [
+                    'Check if you have sufficient funds',
+                    'Try a different payment method',
+                    'Contact your bank for more details',
+                    'Ensure your card is active for online transactions'
+                  ];
+                } else {
+                  userMessage = 'Payment request failed';
+                  suggestions = ['Please try again', 'Contact support if the issue persists'];
+                }
+                break;
+              case 'GATEWAY_ERROR':
+                userMessage = 'Payment gateway error';
+                suggestions = ['Network issue - please try again', 'Check your internet connection'];
+                break;
+              case 'AUTHENTICATION_ERROR':
+                userMessage = 'Authentication failed';
+                suggestions = ['Check your payment details', 'Ensure you entered correct OTP/password'];
+                break;
+              default:
+                userMessage = errorDescription || 'Payment failed';
+                suggestions = ['Please try again', 'Use a different payment method'];
+            }
+
+            // Show comprehensive error message
+            globalToast.general.error(
+              `Payment Failed: ${userMessage}`,
+              suggestions.join('. ')
+            );
+
             setIsSubmitting(false);
             setProcessingStep('');
           });
+          
           razorpay.open();
           return;
         } else {
@@ -288,6 +490,98 @@ export default function CheckoutPage() {
           setProcessingStep('');
           return;
         }
+      }
+
+      // If wallet payment, debit wallet and create order
+      if (formData.paymentMethod === 'wallet') {
+        setProcessingStep('Processing wallet payment...');
+        const subtotal = cartItems.reduce((sum, item) => sum + (item.price || 0) * item.quantity, 0);
+        const shipping = calculateShippingFee(subtotal);
+        const discount = couponDiscount;
+        const grandTotal = subtotal + shipping - discount;
+
+        // Debit wallet
+        const debitResponse = await debitWalletMutation.mutateAsync({
+          amount: grandTotal,
+          description: 'Payment for order',
+        });
+
+        if (debitResponse.success) {
+          setProcessingStep('Validating stock availability...');
+          
+          // Re-validate stock after wallet payment to handle race conditions
+          const isStockValid = await validateCartStock();
+          if (!isStockValid) {
+            // Stock validation failed - refund wallet and show error
+            globalToast.general.error(
+              'Payment Processed But Order Failed',
+              'Some items in your cart are now out of stock. Your wallet will be refunded automatically.'
+            );
+            setIsSubmitting(false);
+            setProcessingStep('');
+            return;
+          }
+
+          setProcessingStep('Creating your order...');
+          // Create order after successful wallet payment
+          const orderRequest: CreateOrderRequest = {
+            shippingAddress,
+            paymentMethod: 'wallet',
+            notes: formData.notes,
+            calculatedShippingFee: shipping,
+            couponCode: appliedCoupon?.code,
+            discountAmount: couponDiscount,
+            processNimbus: false,
+            nimbusCourierId: undefined,
+            nimbusAllRates: undefined,
+          };
+
+          const orderResponse = await createOrderMutation.mutateAsync(orderRequest);
+
+          if (orderResponse.success) {
+            setProcessingStep('Finalizing order...');
+            // Create payment record for wallet payment with completed status
+            const orderId = orderResponse.data?.order?._id || orderResponse.data?.order?.id;
+            try {
+              await paymentService.createPaymentRecord({
+                bookingId: orderId,
+                amount: grandTotal,
+                currency: 'INR',
+                status: 'completed',
+                paymentMethod: 'wallet',
+                userId: currentUserData?.id || currentUserData?._id,
+                orderId,
+                metadata: {
+                  completedAt: new Date().toISOString(),
+                  orderAmount: grandTotal,
+                  currency: 'INR',
+                  userEmail: currentUserData?.email,
+                  userName: currentUserData?.name,
+                  userPhone: formData.phone,
+                  shippingCity: shippingAddress.city,
+                  shippingState: shippingAddress.state,
+                  paymentMethod: 'wallet'
+                }
+              });
+              console.log('✅ Wallet payment record created with completed status');
+            } catch (err) {
+              console.error('❌ Failed to create wallet payment record:', err);
+            }
+            
+            await clearCartMutation.mutateAsync();
+            invalidatePaymentQueries(); // Refresh payment history
+            router.push(`/order-confirmation?orderId=${orderId}`);
+          } else {
+            globalToast.order.createFailed(orderResponse.message);
+            setIsSubmitting(false);
+            setProcessingStep('');
+          }
+        } else {
+          globalToast.order.createFailed('Wallet payment failed');
+          setIsSubmitting(false);
+          setProcessingStep('');
+        }
+        return;
       }
 
     } catch (error) {
@@ -301,7 +595,10 @@ export default function CheckoutPage() {
 
   const subtotal = cartItems.reduce((sum, item) => sum + (item.price || 0) * item.quantity, 0);
   const shipping = calculateShippingFee(subtotal);
-  const grandTotal = subtotal + shipping;
+  const discount = couponDiscount;
+  const grandTotal = subtotal + shipping - discount;
+  const walletBalance = walletBalanceData?.data?.balance || 0;
+  const canUseWallet = walletBalance >= grandTotal;
 
   return (
     <div className="min-h-screen  flex flex-col">
@@ -635,6 +932,36 @@ export default function CheckoutPage() {
                       </div>
                     </label>
 
+                    {canUseWallet && (
+                      <label className="flex items-center p-4 border-2 rounded-xl cursor-pointer transition-all hover:border-pink-300 hover:bg-pink-50">
+                        <input
+                          type="radio"
+                          name="paymentMethod"
+                          value="wallet"
+                          checked={formData.paymentMethod === 'wallet'}
+                          onChange={handleChange}
+                          className="w-4 h-4 text-pink-500"
+                        />
+                        <div className="ml-3 flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium text-gray-800">Wallet</span>
+                            <Badge variant="success" className="text-xs">₹{walletBalance.toFixed(2)}</Badge>
+                          </div>
+                          <p className="text-sm text-gray-500 mt-1">Pay using your wallet balance</p>
+                        </div>
+                        <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${formData.paymentMethod === 'wallet'
+                          ? 'border-pink-500 bg-pink-500'
+                          : 'border-gray-300'
+                          }`}>
+                          {formData.paymentMethod === 'wallet' && (
+                            <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                            </svg>
+                          )}
+                        </div>
+                      </label>
+                    )}
+
                   </div>
                   
                   <div className="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-100">
@@ -708,6 +1035,12 @@ export default function CheckoutPage() {
                       {shipping === 0 && <span className="text-green-600 ml-2 font-bold">(Free)</span>}
                     </span>
                   </div>
+                  {appliedCoupon && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-green-600 font-medium">Coupon Discount</span>
+                      <span className="text-green-600 font-bold">-₹{discount.toFixed(2)}</span>
+                    </div>
+                  )}
                   <div className="border-t-2 border-gray-200 pt-4 flex justify-between items-center">
                     <span className="font-bold text-gray-800 text-xl">Total</span>
                     <span className="text-4xl font-bold text-pink-600">₹{grandTotal.toFixed(2)}</span>
@@ -716,21 +1049,53 @@ export default function CheckoutPage() {
 
                 {/* Promo Code Section */}
                 <div className="mb-6">
-                  <div className="flex flex-col sm:flex-row gap-2">
-                    <input
-                      type="text"
-                      placeholder="Promo code"
-                      className="flex-1 px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-pink-500 focus:border-transparent text-sm"
-                    />
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="w-full sm:w-auto px-4"
-                      disabled={isSubmitting}
-                    >
-                      Apply
-                    </Button>
-                  </div>
+                  {appliedCoupon ? (
+                    <div className="bg-green-50 border border-green-200 rounded-xl p-4">
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                            </svg>
+                            <span className="font-semibold text-green-800">{appliedCoupon.code}</span>
+                          </div>
+                          <p className="text-sm text-green-600 mt-1">
+                            {appliedCoupon.discountType === 'percentage' ? `${appliedCoupon.discountValue}% off` :
+                             appliedCoupon.discountType === 'fixed' ? `₹${appliedCoupon.discountValue} off` :
+                             'Free shipping'}
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={handleRemoveCoupon}
+                          className="text-red-600 hover:text-red-800 font-medium text-sm"
+                          disabled={isSubmitting}
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col sm:flex-row gap-2">
+                      <input
+                        type="text"
+                        placeholder="Promo code"
+                        value={couponCode}
+                        onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+                        className="flex-1 px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-pink-500 focus:border-transparent text-sm text-black"
+                        disabled={isSubmitting || isApplyingCoupon}
+                      />
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full sm:w-auto px-4"
+                        disabled={isSubmitting || isApplyingCoupon || !couponCode.trim()}
+                        onClick={handleApplyCoupon}
+                      >
+                        {isApplyingCoupon ? 'Applying...' : 'Apply'}
+                      </Button>
+                    </div>
+                  )}
                 </div>
 
                 <Button

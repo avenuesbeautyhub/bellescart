@@ -241,10 +241,12 @@ function OrderConfirmationContent() {
                     {order.shipping === 0 && <span className="text-green-600 ml-2 font-medium">(Free)</span>}
                   </span>
                 </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Tax</span>
-                  <span className="font-semibold text-gray-800">₹{order.tax?.toFixed(2) || '0.00'}</span>
-                </div>
+                {order.coupon && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Coupon Discount ({order.coupon.code})</span>
+                    <span className="font-semibold text-green-600">-₹{order.discountAmount?.toFixed(2) || '0.00'}</span>
+                  </div>
+                )}
                 <div className="flex justify-between text-xl font-bold pt-4 border-t-2 border-green-200">
                   <span className="bg-gradient-to-r from-gray-800 to-gray-600 bg-clip-text text-transparent">Total</span>
                   <span className="bg-gradient-to-r from-pink-600 to-purple-600 bg-clip-text text-transparent text-2xl">

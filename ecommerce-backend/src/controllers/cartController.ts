@@ -149,4 +149,30 @@ export class CartController {
       next(error);
     }
   };
+
+  validateStock = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const authReq = req as AuthRequest;
+      if (!authReq.user) {
+        res.status(401).json({
+          success: false,
+          error: 'User not authenticated'
+        });
+        return;
+      }
+
+      const stockValidation = await this._cartInteractor.validateCartStock(authReq.user._id.toString());
+
+      res.status(200).json({
+        success: stockValidation.valid,
+        data: {
+          valid: stockValidation.valid,
+          outOfStockItems: stockValidation.outOfStockItems,
+          message: stockValidation.message
+        }
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
 }

@@ -9,18 +9,25 @@ import Button from '@/components/ui/Button';
 import Loader from '@/components/ui/Loader';
 import CartItem from '@/components/CartItem/CartItem';
 import { CartItem as CartItemType } from '@/utils/types';
-import { useCart, useUpdateCartItem, useRemoveFromCart, useClearCart } from '@/hooks/user/useCartQueries';
+import { useCart, useUpdateCartItem, useRemoveFromCart, useClearCart, useValidateStock } from '@/hooks/user/useCartQueries';
 import { globalToast } from '@/utils/globalToast';
 
 export default function CartPage() {
   const { loaded, isAuthenticated } = useRequireUserAuth();
   const [updatingItemId, setUpdatingItemId] = useState<string | null>(null);
+  const [stockValidation, setStockValidation] = useState<{
+    valid: boolean;
+    outOfStockItems: Array<{ productId: string; productName: string; requestedQuantity: number; availableQuantity: number }>;
+    message: string;
+  } | undefined>(undefined);
+  const [isValidatingStock, setIsValidatingStock] = useState(false);
 
   // React Query hooks
   const { data: cartData, isLoading } = useCart();
   const updateCartItem = useUpdateCartItem();
   const removeFromCart = useRemoveFromCart();
   const clearCartMutation = useClearCart();
+  const validateStockMutation = useValidateStock();
 
   // Process cart data
   const cartItems = React.useMemo(() => {
@@ -34,6 +41,44 @@ export default function CartPage() {
       cartQuantity: item.quantity, // Preserve cart item quantity
       stock: item.product?.quantity || 0 // Product's available stock
     }));
+  }, [cartData]);
+
+  // Validate stock and show out-of-stock indicators
+  const validateStock = async () => {
+    try {
+      setIsValidatingStock(true);
+      const result = await validateStockMutation.mutateAsync();
+      
+      if (result.success && result.data) {
+        setStockValidation(result.data);
+        
+        // Show warning if items are out of stock
+        if (!result.data.valid && result.data.outOfStockItems.length > 0) {
+          const outOfStockMessage = result.data.outOfStockItems
+            .map(item => `${item.productName} (Requested: ${item.requestedQuantity}, Available: ${item.availableQuantity})`)
+            .join(', ');
+          
+          globalToast.general.warning(
+            'Stock Warning',
+            `${result.data.message}. ${outOfStockMessage}`
+          );
+        }
+      } else {
+        setStockValidation(undefined);
+      }
+    } catch (error) {
+      console.error('Stock validation error:', error);
+      setStockValidation(undefined);
+    } finally {
+      setIsValidatingStock(false);
+    }
+  };
+
+  // Auto-validate stock when cart loads
+  useEffect(() => {
+    if (cartData?.data?.items && cartData.data.items.length > 0) {
+      validateStock();
+    }
   }, [cartData]);
 
   // Show loader while checking authentication
@@ -117,6 +162,8 @@ export default function CartPage() {
     try {
       await removeFromCart.mutateAsync(id);
       globalToast.cart.itemRemoved();
+      // Re-validate stock after removing item
+      await validateStock();
     } catch (error) {
       console.error('Failed to remove item:', error);
       globalToast.cart.removeFailed();
@@ -245,6 +292,7 @@ export default function CartPage() {
                         onUpdateQuantity={handleUpdateQuantity}
                         onRemove={handleRemove}
                         isUpdating={updatingItemId === item._id}
+                        stockValidation={stockValidation}
                       />
                     ))}
                   </div>
@@ -318,36 +366,47 @@ export default function CartPage() {
                     </div>
                   </div>
 
-                  {/* Promo Code Section */}
-                  <div className="mb-6">
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">Promo Code</label>
-                    <div className="flex flex-col sm:flex-row gap-2">
-                      <input
-                        type="text"
-                        placeholder="Enter promo code"
-                        className="flex-1 px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-pink-500 focus:border-transparent text-sm focus:outline-none"
-                      />
-                      <Button
-                        variant="outline"
-                        size="md"
-                        className="w-full sm:w-auto px-6"
-                      >
-                        Apply
-                      </Button>
-                    </div>
-                  </div>
-
                   <div className="space-y-3">
-                    <Link href="/checkout">
-                      <Button className="w-full shadow-xl shadow-pink-500/30 hover:shadow-pink-500/40 transition-all" size="lg">
+                    {stockValidation !== undefined && !stockValidation.valid ? (
+                      <Button 
+                        disabled={true}
+                        className="w-full bg-gray-400 cursor-not-allowed" 
+                        size="lg"
+                      >
                         <span className="flex items-center justify-center gap-2">
-                          Proceed to Checkout
                           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                           </svg>
+                          Items Out of Stock - Update Cart
                         </span>
                       </Button>
-                    </Link>
+                    ) : (
+                      <Link href="/checkout">
+                        <Button className="w-full shadow-xl shadow-pink-500/30 hover:shadow-pink-500/40 transition-all" size="lg">
+                          <span className="flex items-center justify-center gap-2">
+                            Proceed to Checkout
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                            </svg>
+                          </span>
+                        </Button>
+                      </Link>
+                    )}
+                    
+                    {/* Stock validation status */}
+                    {stockValidation !== undefined && !stockValidation.valid && (
+                      <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+                        <div className="flex items-start gap-3">
+                          <svg className="w-5 h-5 text-red-500 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                          </svg>
+                          <div className="flex-1">
+                            <p className="text-sm font-semibold text-red-800">{stockValidation.message}</p>
+                            <p className="text-xs text-red-600 mt-1">Please update quantities or remove out-of-stock items to proceed.</p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>

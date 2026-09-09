@@ -3,6 +3,9 @@ import { IOrderInteractor } from '../providers/interfaces/IOrderInteractor';
 import { ICartRepository } from '../providers/interfaces/ICartRepository';
 import { AuthRequest } from '../middleware/auth';
 import { nimbusPostService } from '../services/nimbusPost.service';
+import { createLogger } from '../utils/logger';
+
+const logger = createLogger('OrderController');
 
 export class OrderController {
   private _orderInteractor: IOrderInteractor;
@@ -15,7 +18,7 @@ export class OrderController {
 
   createOrder = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      console.log('🎯 createOrder endpoint called');
+      logger.debug('createOrder endpoint called', { requestId: req.id });
       const authReq = req as AuthRequest;
       if (!authReq.user) {
         res.status(401).json({
@@ -32,14 +35,19 @@ export class OrderController {
         notes,
         processNimbus,
         nimbusCourierId,
-        calculatedShippingFee
+        calculatedShippingFee,
+        couponCode,
+        discountAmount
       } = req.body;
 
-      console.log('📦 Request body received:', {
+      logger.debug('Request body received', {
+        requestId: req.id,
         processNimbus,
         nimbusCourierId,
         calculatedShippingFee,
-        paymentMethod
+        paymentMethod,
+        couponCode,
+        discountAmount
       });
 
       const order = await this._orderInteractor.createOrder(authReq.user._id.toString(), {
@@ -49,7 +57,9 @@ export class OrderController {
         notes,
         processNimbus,
         nimbusCourierId,
-        calculatedShippingFee
+        calculatedShippingFee,
+        couponCode,
+        discountAmount
       });
 
       res.status(201).json({
@@ -157,6 +167,50 @@ export class OrderController {
       }
 
       const order = await this._orderInteractor.cancelOrder(authReq.user._id.toString(), req.params.id);
+
+      if (!order) {
+        res.status(404).json({
+          success: false,
+          error: 'Order not found'
+        });
+        return;
+      }
+
+      res.status(200).json({
+        success: true,
+        data: { order }
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  returnOrder = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const authReq = req as AuthRequest;
+      if (!authReq.user) {
+        res.status(401).json({
+          success: false,
+          error: 'User not authenticated'
+        });
+        return;
+      }
+
+      const { returnReason } = req.body;
+
+      if (!returnReason || returnReason.trim() === '') {
+        res.status(400).json({
+          success: false,
+          error: 'Return reason is required'
+        });
+        return;
+      }
+
+      const order = await this._orderInteractor.returnOrder(
+        authReq.user._id.toString(),
+        req.params.id,
+        returnReason
+      );
 
       if (!order) {
         res.status(404).json({

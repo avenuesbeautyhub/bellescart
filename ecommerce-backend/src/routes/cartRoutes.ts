@@ -1,7 +1,9 @@
 import { Router } from 'express';
 import { CartRepository } from '../repositories/CartRepository';
 import { ProductRepository } from '../repositories/ProductRepository';
+import { CouponRepository } from '../repositories/CouponRepository';
 import { CartInteractor } from '../interactors/CartInteractor';
+import { CouponInteractor } from '../interactors/CouponInteractor';
 import { CartController } from '../controllers/cartController';
 import { authenticate } from '../middleware/auth';
 
@@ -11,9 +13,13 @@ const router = Router();
 const cartRepository = new CartRepository();
 // Creating a new instance of ProductRepository to handle data access operations for the Product entity.
 const productRepository = new ProductRepository();
+// Creating a new instance of CouponRepository to handle data access operations for the Coupon entity.
+const couponRepository = new CouponRepository();
+// Creating a new instance of CouponInteractor to contain application-specific business logic for coupons.
+const couponInteractor = new CouponInteractor(couponRepository);
 // Creating a new instance of CartInteractor to contain application-specific business logic and orchestrate data flow.
-// CartRepository and ProductRepository instances are injected into CartInteractor for database interaction.
-const interactor = new CartInteractor(cartRepository, productRepository);
+// CartRepository, ProductRepository, and CouponRepository instances are injected into CartInteractor for database interaction.
+const interactor = new CartInteractor(cartRepository, productRepository, couponInteractor);
 // Creating a new instance of CartController to handle incoming HTTP requests related to cart operations.
 // CartInteractor instance is injected into CartController to delegate business logic execution.
 const controller = new CartController(interactor);
@@ -141,5 +147,21 @@ router.delete('/item/:itemId', authenticate, controller.removeFromCart.bind(cont
  *         description: Unauthorized
  */
 router.delete('/clear', authenticate, controller.clearCart.bind(controller));
+
+/**
+ * @swagger
+ * /cart/validate-stock:
+ *   post:
+ *     summary: Validate stock for all items in cart
+ *     tags: [Cart]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Stock validation completed
+ *       401:
+ *         description: Unauthorized
+ */
+router.post('/validate-stock', authenticate, controller.validateStock.bind(controller));
 
 export default router;

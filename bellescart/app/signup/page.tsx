@@ -9,14 +9,14 @@ import Input from '@/components/ui/Input';
 import Loader from '@/components/ui/Loader';
 import { useToast } from '@/contexts/ToastContext';
 import { toastMessages } from '@/utils/toastHelpers';
-import { useAuth, useAuthActions } from '@/auth/user';
+import { useAuth, useSignup } from '@/auth/user';
 import Link from 'next/link';
 
 export default function SignupPage() {
   const { loaded, isAuthenticated } = useAuth();
   const router = useRouter();
   const toast = useToast();
-  const { signup } = useAuthActions();
+  const signup = useSignup();
 
   const [formData, setFormData] = useState({
     name: '',
@@ -28,7 +28,6 @@ export default function SignupPage() {
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
@@ -70,11 +69,9 @@ export default function SignupPage() {
     setErrors(newErrors);
 
     if (Object.keys(newErrors).length === 0) {
-      setIsLoading(true);
-
       try {
         const nameParts = formData.name.trim().split(' ');
-        const response = await signup({
+        const response = await signup.mutateAsync({
           firstName: nameParts[0],
           lastName: nameParts.length > 1 ? nameParts.slice(1).join(' ') : '',
           email: formData.email,
@@ -97,8 +94,6 @@ export default function SignupPage() {
       } catch (err) {
         // Show network error toast
         toast.showToast(toastMessages.general.networkError());
-      } finally {
-        setIsLoading(false);
       }
     }
   };
@@ -207,8 +202,8 @@ export default function SignupPage() {
                 <p className="text-red-500 text-sm">{errors.agreeToTerms}</p>
               )}
 
-              <Button type="submit" className="w-full" disabled={isLoading}>
-                {isLoading ? 'Creating Account...' : 'Create Account'}
+              <Button type="submit" className="w-full" disabled={signup.isPending}>
+                {signup.isPending ? 'Creating Account...' : 'Create Account'}
               </Button>
             </form>
 

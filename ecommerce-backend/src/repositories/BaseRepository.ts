@@ -2,7 +2,7 @@ import { Model, Document, FilterQuery, UpdateQuery } from 'mongoose';
 
 export interface IBaseRepository<T extends Document> {
   create(data: Partial<T>): Promise<T>;
-  findById(id: string): Promise<T | null>;
+  findById(id: string, options?: { populate?: string | any }): Promise<T | null>;
   findOne(filter: FilterQuery<T>): Promise<T | null>;
   find(filter: FilterQuery<T>, options?: { limit?: number; skip?: number; sort?: any; populate?: string | any }): Promise<T[]>;
   update(id: string, data: UpdateQuery<T>): Promise<T | null>;
@@ -19,8 +19,14 @@ export class BaseRepository<T extends Document> implements IBaseRepository<T> {
     return this.model.create(data);
   }
 
-  async findById(id: string): Promise<T | null> {
-    return this.model.findById(id);
+  async findById(id: string, options?: { populate?: string | any }): Promise<T | null> {
+    let query = this.model.findById(id);
+    
+    if (options?.populate) {
+      query = query.populate(options.populate);
+    }
+    
+    return query;
   }
 
   async findOne(filter: FilterQuery<T>): Promise<T | null> {

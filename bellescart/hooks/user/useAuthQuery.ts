@@ -97,3 +97,29 @@ export function useVerifyOtp() {
     },
   });
 }
+
+export function useSignup() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async (data: {
+      firstName: string;
+      lastName: string;
+      email: string;
+      password: string;
+      phone: string;
+    }) => {
+      const response = await authService.signup(data);
+      return response;
+    },
+  });
+}
+
+export function useResendOtp() {
+  return useMutation({
+    mutationFn: async (data: { email: string }) => {
+      const response = await authService.resendOtp(data);
+      return response;
+    },
+  });
+}

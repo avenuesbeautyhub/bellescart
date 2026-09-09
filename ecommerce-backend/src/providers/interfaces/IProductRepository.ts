@@ -2,7 +2,7 @@ import { IProduct } from '../../models/Product';
 
 export interface IProductRepository {
   create(data: Partial<IProduct>): Promise<IProduct>;
-  findById(id: string): Promise<IProduct | null>;
+  findById(id: string, options?: { populate?: string | any }): Promise<IProduct | null>;
   findByIdActive(id: string): Promise<IProduct | null>;
   findByName(name: string): Promise<IProduct | null>;
   find(filter: any, options?: { limit?: number; skip?: number; sort?: any; populate?: string | any }): Promise<IProduct[]>;

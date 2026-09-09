@@ -1,6 +1,11 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { orderService, OrderResponse, OrdersResponse, CreateOrderRequest } from '@/services/orderService';
 
+// Define wallet keys locally to avoid circular import
+const walletKeys = {
+  all: ['wallet'] as const,
+};
+
 // Query keys
 export const orderKeys = {
   all: ['orders'] as const,
@@ -57,6 +62,8 @@ export const useCreateOrder = () => {
     onSuccess: () => {
       // Invalidate orders query to refetch
       queryClient.invalidateQueries({ queryKey: orderKeys.all });
+      // Invalidate wallet queries in case of wallet payment
+      queryClient.invalidateQueries({ queryKey: walletKeys.all });
     },
   });
 };
@@ -69,6 +76,23 @@ export const useCancelOrder = () => {
     onSuccess: () => {
       // Invalidate orders query to refetch
       queryClient.invalidateQueries({ queryKey: orderKeys.all });
+      // Invalidate wallet queries in case of refund
+      queryClient.invalidateQueries({ queryKey: walletKeys.all });
+    },
+  });
+};
+
+export const useReturnOrder = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ orderId, returnReason }: { orderId: string; returnReason: string }) => 
+      orderService.returnOrder(orderId, returnReason),
+    onSuccess: () => {
+      // Invalidate orders query to refetch
+      queryClient.invalidateQueries({ queryKey: orderKeys.all });
+      // Invalidate wallet queries to update balance after refund
+      queryClient.invalidateQueries({ queryKey: walletKeys.all });
     },
   });
 };

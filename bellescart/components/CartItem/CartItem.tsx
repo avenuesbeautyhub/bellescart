@@ -10,6 +10,11 @@ interface CartItemProps {
   onUpdateQuantity: (id: string, quantity: number) => void;
   onRemove: (id: string) => void;
   isUpdating?: boolean;
+  stockValidation?: {
+    valid: boolean;
+    outOfStockItems: Array<{ productId: string; productName: string; requestedQuantity: number; availableQuantity: number }>;
+    message: string;
+  };
 }
 
 export default function CartItem({
@@ -17,6 +22,7 @@ export default function CartItem({
   onUpdateQuantity,
   onRemove,
   isUpdating = false,
+  stockValidation,
 }: CartItemProps) {
   // Handle both id and _id for compatibility
   const itemId = item._id;
@@ -29,8 +35,14 @@ export default function CartItem({
   // Get available stock and cart quantity
   const cartQuantity = item.cartQuantity || item.quantity || 0;
   const availableStock = item.stock || 0;
-  const isOutOfStock = availableStock === 0;
-  const isLowStock = availableStock > 0 && availableStock < 5;
+  
+  // Check if this specific item is out of stock based on validation
+  const stockIssue = stockValidation?.outOfStockItems?.find(
+    issue => issue.productId === item._id || issue.productId === item.product?._id
+  );
+  const actualAvailableStock = stockIssue ? stockIssue.availableQuantity : availableStock;
+  const isOutOfStock = actualAvailableStock === 0 || actualAvailableStock < cartQuantity;
+  const isLowStock = actualAvailableStock > 0 && actualAvailableStock < 5;
 
   return (
     <div className="flex flex-col sm:flex-row gap-6 bg-white p-6 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all duration-300">
@@ -55,7 +67,7 @@ export default function CartItem({
         {/* Stock indicator badge */}
         {isOutOfStock && (
           <div className="absolute top-2 right-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">
-            Out of Stock
+            {stockIssue ? `${actualAvailableStock} Left` : 'Out of Stock'}
           </div>
         )}
       </div>
@@ -90,21 +102,23 @@ export default function CartItem({
                 <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
                 </svg>
-                <span className="text-sm font-medium">Out of Stock</span>
+                <span className="text-sm font-medium">
+                  {stockIssue ? `Out of Stock (Only ${actualAvailableStock} available)` : 'Out of Stock'}
+                </span>
               </div>
             ) : isLowStock ? (
               <div className="flex items-center gap-2 text-orange-500">
                 <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
                 </svg>
-                <span className="text-sm font-medium">Only {availableStock} left!</span>
+                <span className="text-sm font-medium">Only {actualAvailableStock} left!</span>
               </div>
             ) : (
               <div className="flex items-center gap-2 text-green-500">
                 <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                 </svg>
-                <span className="text-sm font-medium">In Stock ({availableStock} available)</span>
+                <span className="text-sm font-medium">In Stock ({actualAvailableStock} available)</span>
               </div>
             )}
           </div>
@@ -124,8 +138,8 @@ export default function CartItem({
               {cartQuantity}
             </span>
             <button
-              onClick={() => onUpdateQuantity(itemId, Math.min(cartQuantity + 1, availableStock))}
-              disabled={isOutOfStock || cartQuantity >= availableStock || isUpdating}
+              onClick={() => onUpdateQuantity(itemId, Math.min(cartQuantity + 1, actualAvailableStock))}
+              disabled={isOutOfStock || cartQuantity >= actualAvailableStock || isUpdating}
               className="px-4 py-2.5 text-gray-600 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
             >
               +

@@ -1,5 +1,8 @@
 import Razorpay from 'razorpay';
 import { Payment, IPayment } from '../models/Payment';
+import { createLogger } from '../utils/logger';
+
+const logger = createLogger('PaymentService');
 
 const razorpay = new Razorpay({
   key_id: process.env.RAZORPAY_KEY_ID || '',
@@ -31,7 +34,7 @@ export interface CreatePaymentRecordRequest {
   amount: number;
   currency: string;
   status: 'pending' | 'completed' | 'failed' | 'refunded';
-  paymentMethod: 'razorpay' | 'stripe' | 'paypal' | 'cash_on_delivery' | 'credit_card' | 'debit_card';
+  paymentMethod: 'razorpay' | 'stripe' | 'paypal' | 'cash_on_delivery' | 'credit_card' | 'debit_card' | 'wallet';
   userId: string;
   orderId?: string;
   paymentSignature?: string;
@@ -63,20 +66,8 @@ export class PaymentService {
 
       const order = await razorpay.orders.create(options);
 
-      // Create payment record in database
-      if (userId && orderId) {
-        await this.createPaymentRecord({
-          bookingId: orderId,
-          razorpayOrderId: order.id,
-          amount: Number(order.amount) / 100, // Convert back to rupees
-          currency: order.currency,
-          status: 'pending',
-          paymentMethod: 'razorpay',
-          userId,
-          orderId,
-          metadata: { ...metadata, razorpayOrderId: order.id }
-        });
-      }
+      // Note: Payment record will be created after successful payment verification
+      // Razorpay payments are immediate - no pending status needed
 
       return {
         success: true,
@@ -87,7 +78,7 @@ export class PaymentService {
         keyId: process.env.RAZORPAY_KEY_ID,
       };
     } catch (error: any) {
-      console.error('Error creating Razorpay order:', error);
+      logger.error('Error creating Razorpay order', { error: error.message });
       return {
         success: false,
         error: error.message || 'Failed to create payment order',
@@ -112,7 +103,7 @@ export class PaymentService {
         };
       }
     } catch (error: any) {
-      console.error('Error confirming payment:', error);
+      logger.error('Error confirming payment', { error: error.message });
       return {
         success: false,
         error: error.message || 'Failed to confirm payment',
@@ -133,7 +124,7 @@ export class PaymentService {
         razorpayOrderId: order.id,
       };
     } catch (error: any) {
-      console.error('Error fetching payment order:', error);
+      logger.error('Error fetching payment order', { error: error.message });
       return {
         success: false,
         error: error.message || 'Failed to fetch payment order',
@@ -151,22 +142,44 @@ export class PaymentService {
       const generatedSignature = hmac.digest('hex');
 
       if (generatedSignature === signature) {
-        // Update payment record with completed status and signature
-        await this.updatePaymentStatus(paymentId, 'completed', signature);
+        // Create payment record with completed status after successful verification
+        // Razorpay payments are immediate - no pending status
+        await this.createPaymentRecord({
+          bookingId: orderId,
+          razorpayPaymentId: paymentId,
+          razorpayOrderId: orderId,
+          amount: 0, // Will be updated from order details
+          currency: 'INR',
+          status: 'completed',
+          paymentMethod: 'razorpay',
+          userId: '', // Will be populated from order
+          paymentSignature: signature,
+          metadata: { verifiedAt: new Date().toISOString() }
+        });
         return {
           success: true,
           orderId,
         };
       } else {
-        // Update payment record with failed status
-        await this.updatePaymentStatus(paymentId, 'failed');
+        // Create payment record with failed status
+        await this.createPaymentRecord({
+          bookingId: orderId,
+          razorpayPaymentId: paymentId,
+          razorpayOrderId: orderId,
+          amount: 0,
+          currency: 'INR',
+          status: 'failed',
+          paymentMethod: 'razorpay',
+          userId: '',
+          metadata: { verificationFailed: true, failedAt: new Date().toISOString() }
+        });
         return {
           success: false,
           error: 'Invalid payment signature',
         };
       }
     } catch (error: any) {
-      console.error('Error verifying payment signature:', error);
+      logger.error('Error verifying payment signature', { error: error.message });
       return {
         success: false,
         error: error.message || 'Failed to verify payment signature',
@@ -186,7 +199,7 @@ export class PaymentService {
 
       const refund = await razorpay.payments.refund(paymentId, refundData);
 
-      console.log('💰 Refund processed successfully:', refund.id);
+      logger.info('Refund processed successfully', { refundId: refund.id });
 
       // Update payment record with refund information if exists
       const payment = await Payment.findOneAndUpdate(
@@ -200,7 +213,7 @@ export class PaymentService {
       );
 
       if (payment) {
-        console.log('💳 Payment record updated with refund:', payment._id);
+        logger.info('Payment record updated with refund', { paymentId: payment._id });
       }
 
       return {
@@ -208,7 +221,7 @@ export class PaymentService {
         orderId: refund.id,
       };
     } catch (error: any) {
-      console.error('Error processing refund:', error);
+      logger.error('Error processing refund', { error: error.message });
       return {
         success: false,
         error: error.message || 'Failed to process refund',
@@ -234,14 +247,14 @@ export class PaymentService {
 
       await payment.save();
 
-      console.log('💳 Payment record created:', payment._id);
+      logger.info('Payment record created', { paymentId: payment._id });
 
       return {
         success: true,
         payment
       };
     } catch (error: any) {
-      console.error('Error creating payment record:', error);
+      logger.error('Error creating payment record', { error: error.message });
       return {
         success: false,
         error: error.message || 'Failed to create payment record'
@@ -269,14 +282,14 @@ export class PaymentService {
         };
       }
 
-      console.log('💳 Payment status updated:', payment._id, status);
+      logger.info('Payment status updated', { paymentId: payment._id, status });
 
       return {
         success: true,
         payment
       };
     } catch (error: any) {
-      console.error('Error updating payment status:', error);
+      logger.error('Error updating payment status', { error: error.message });
       return {
         success: false,
         error: error.message || 'Failed to update payment status'
@@ -300,7 +313,7 @@ export class PaymentService {
         payment
       };
     } catch (error: any) {
-      console.error('Error fetching payment by booking ID:', error);
+      logger.error('Error fetching payment by booking ID', { error: error.message });
       return {
         success: false,
         error: error.message || 'Failed to fetch payment record'
@@ -324,7 +337,7 @@ export class PaymentService {
         payment
       };
     } catch (error: any) {
-      console.error('Error fetching payment by Razorpay payment ID:', error);
+      logger.error('Error fetching payment by Razorpay payment ID', { error: error.message });
       return {
         success: false,
         error: error.message || 'Failed to fetch payment record'
@@ -363,7 +376,7 @@ export class PaymentService {
         }
       };
     } catch (error: any) {
-      console.error('Error fetching user payment history:', error);
+      logger.error('Error fetching user payment history', { error: error.message });
       return {
         success: false,
         error: error.message || 'Failed to fetch payment history'

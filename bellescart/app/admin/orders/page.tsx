@@ -422,6 +422,12 @@ export default function OrderManagementPage() {
                     <span className="text-gray-600">Subtotal</span>
                     <span className="font-medium text-gray-900">{formatAmount(selectedOrder.totalAmount)}</span>
                   </div>
+                  {selectedOrder.coupon && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Coupon Discount ({selectedOrder.coupon.code})</span>
+                      <span className="font-medium text-green-600">-{formatAmount(selectedOrder.discountAmount || 0)}</span>
+                    </div>
+                  )}
                   <div className="flex justify-between">
                     <span className="text-gray-600">Payment Method</span>
                     <span className="font-medium text-gray-900">{selectedOrder.paymentMethod || 'N/A'}</span>

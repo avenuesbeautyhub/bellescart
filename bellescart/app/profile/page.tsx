@@ -13,6 +13,7 @@ import Badge from '@/components/ui/Badge';
 import Loader from '@/components/ui/Loader';
 import { useProfile, useUpdateProfile, useAddAddress, useUpdateAddress, useDeleteAddress, useSetDefaultAddress, useUploadProfilePicture } from '@/hooks/user/useProfileQueries';
 import { useCurrentUser } from '@/hooks/user/useAuthQuery';
+import { useWalletBalance } from '@/hooks/user/useWalletQueries';
 import { globalToast } from '@/utils/globalToast';
 
 export default function ProfilePage() {
@@ -27,6 +28,9 @@ export default function ProfilePage() {
     enabled: isAuthenticated && loaded
   });
   const { data: currentUserData } = useCurrentUser();
+  const { data: walletBalanceData } = useWalletBalance({
+    enabled: isAuthenticated && loaded
+  });
   const updateProfileMutation = useUpdateProfile();
   const addAddressMutation = useAddAddress();
   const updateAddressMutation = useUpdateAddress();
@@ -245,9 +249,23 @@ export default function ProfilePage() {
                     <p className="text-xs text-gray-600 uppercase tracking-wide">Total Spent</p>
                     <p className="font-semibold text-gray-800">₹45,299</p>
                   </div>
+                  <div className="p-3 bg-pink-50 rounded-lg">
+                    <p className="text-xs text-gray-600 uppercase tracking-wide">Wallet Balance</p>
+                    <p className="font-semibold text-gray-800">₹{walletBalanceData?.data?.balance?.toFixed(2) || '0.00'}</p>
+                  </div>
                 </div>
 
-                <Button variant="danger" className="w-full mt-6" onClick={handleLogout}>
+                <Link href="/wallet" className="w-full mt-4">
+                  <Button variant="outline" className="w-full">
+                    View Wallet
+                  </Button>
+                </Link>
+                <Link href="/payments" className="w-full mt-3">
+                  <Button variant="outline" className="w-full">
+                    View Payment History
+                  </Button>
+                </Link>
+                <Button variant="danger" className="w-full mt-3" onClick={handleLogout}>
                   Logout
                 </Button>
               </div>

@@ -1,33 +1,34 @@
 import app from './app';
 import dotenv from 'dotenv';
+import { createLogger } from './utils/logger';
+
+const logger = createLogger('Server');
 
 dotenv.config();
 
 const PORT = process.env.PORT || 5000;
 
 const server = app.listen(PORT, () => {
-  console.log(`\n==========================================`);
-  console.log(`  BellesCart E-commerce Backend Server`);
-  console.log(`==========================================`);
-  console.log(`Server is running on port: ${PORT}`);
-  console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`Time: ${new Date().toISOString()}`);
-  console.log(`==========================================\n`);
+  logger.info('BellesCart E-commerce Backend Server started', {
+    port: PORT,
+    environment: process.env.NODE_ENV || 'development',
+    time: new Date().toISOString()
+  });
 });
 
 // Graceful shutdown
 process.on('SIGTERM', () => {
-  console.log('SIGTERM received, shutting down gracefully');
+  logger.info('SIGTERM received, shutting down gracefully');
   server.close(() => {
-    console.log('Process terminated');
+    logger.info('Process terminated');
     process.exit(0);
   });
 });
 
 process.on('SIGINT', () => {
-  console.log('SIGINT received, shutting down gracefully');
+  logger.info('SIGINT received, shutting down gracefully');
   server.close(() => {
-    console.log('Process terminated');
+    logger.info('Process terminated');
     process.exit(0);
   });
 });

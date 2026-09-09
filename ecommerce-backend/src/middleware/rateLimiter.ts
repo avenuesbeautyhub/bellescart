@@ -68,7 +68,7 @@ export const shippingRateLimiter = rateLimit({
 // Rate limiter for public endpoints (products, categories)
 export const publicRateLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 200, // Higher limit for public read-only endpoints
+  max: 500, // Higher limit for public read-only endpoints
   message: {
     success: false,
     error: 'Too many requests, please try again after 15 minutes'

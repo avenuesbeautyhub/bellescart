@@ -9,7 +9,7 @@ import Input from '@/components/ui/Input';
 import Loader from '@/components/ui/Loader';
 import { useToast } from '@/contexts/ToastContext';
 import { toastMessages } from '@/utils/toastHelpers';
-import { useAuth, useAuthActions } from '@/auth/user';
+import { useAuth, useVerifyOtp, useResendOtp } from '@/auth/user';
 
 function VerifyOtpContent() {
   const { loaded, isAuthenticated } = useAuth();
@@ -17,11 +17,10 @@ function VerifyOtpContent() {
   const router = useRouter();
   const email = searchParams.get('email') || '';
   const toast = useToast();
-  const { verifyOtp, resendOtp } = useAuthActions();
+  const verifyOtp = useVerifyOtp();
+  const resendOtp = useResendOtp();
 
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
-  const [isLoading, setIsLoading] = useState(false);
-  const [isResending, setIsResending] = useState(false);
   const [error, setError] = useState('');
   const [timeLeft, setTimeLeft] = useState(60);
   const [canResend, setCanResend] = useState(false);
@@ -86,37 +85,28 @@ function VerifyOtpContent() {
       return;
     }
 
-    setIsLoading(true);
     setError('');
 
     try {
-      const response = await verifyOtp({ email, otp: otpString });
+      await verifyOtp.mutateAsync({ email, otp: otpString });
 
-      if (response.success) {
-        // Show success toast
-        toast.showToast(toastMessages.auth.otpVerified());
+      // Show success toast
+      toast.showToast(toastMessages.auth.otpVerified());
 
-        // Redirect to dashboard immediately since user is now authenticated
-        router.replace('/dashboard');
-      } else {
-        // Show error toast
-        toast.showToast(toastMessages.auth.otpError(response.error));
-      }
+      // Redirect to dashboard immediately since user is now authenticated
+      router.replace('/dashboard');
     } catch (err) {
-      setError('Something went wrong. Please try again.');
-    } finally {
-      setIsLoading(false);
+      setError('Invalid OTP. Please try again.');
     }
   };
 
   const handleResendOtp = async () => {
-    if (!canResend || isResending) return;
+    if (!canResend || resendOtp.isPending) return;
 
-    setIsResending(true);
     setError('');
 
     try {
-      const response = await resendOtp({ email });
+      const response = await resendOtp.mutateAsync({ email });
 
       if (response.success) {
         // Show success toast
@@ -130,8 +120,6 @@ function VerifyOtpContent() {
       }
     } catch (err) {
       setError('Something went wrong. Please try again.');
-    } finally {
-      setIsResending(false);
     }
   };
 
@@ -186,9 +174,9 @@ function VerifyOtpContent() {
               <Button
                 type="submit"
                 className="w-full"
-                disabled={isLoading || otp.join('').length !== 6}
+                disabled={verifyOtp.isPending || otp.join('').length !== 6}
               >
-                {isLoading ? 'Verifying...' : 'Verify Email'}
+                {verifyOtp.isPending ? 'Verifying...' : 'Verify Email'}
               </Button>
             </form>
 
@@ -198,10 +186,10 @@ function VerifyOtpContent() {
               </p>
               <button
                 onClick={handleResendOtp}
-                disabled={!canResend || isResending}
+                disabled={!canResend || resendOtp.isPending}
                 className="text-pink-500 hover:text-pink-600 font-medium text-sm disabled:text-gray-400 disabled:cursor-not-allowed"
               >
-                {isResending ? 'Resending...' :
+                {resendOtp.isPending ? 'Resending...' :
                   canResend ? 'Resend OTP' :
                     `Resend in ${formatTime(timeLeft)}`}
               </button>

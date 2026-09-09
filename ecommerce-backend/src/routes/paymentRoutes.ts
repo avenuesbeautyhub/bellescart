@@ -2,6 +2,10 @@ import { Router, Request, Response, NextFunction } from 'express';
 import { paymentService } from '../services/paymentService';
 import { authenticate } from '../middleware/auth';
 import { paymentRateLimiter } from '../middleware/rateLimiter';
+import { Payment } from '../models/Payment';
+import { createLogger } from '../utils/logger';
+
+const logger = createLogger('PaymentRoutes');
 
 const router = Router();
 
@@ -377,7 +381,7 @@ router.get('/razorpay/:razorpayPaymentId', authenticate, async (req: Request, re
  * @swagger
  * /payment/create-record:
  *   post:
- *     summary: Create a payment record manually (for non-Razorpay payments)
+ *     summary: Create or update a payment record
  *     tags: [Payment]
  *     security:
  *       - bearerAuth: []
@@ -411,16 +415,20 @@ router.get('/razorpay/:razorpayPaymentId', authenticate, async (req: Request, re
  *                 default: pending
  *               metadata:
  *                 type: object
+ *               razorpayPaymentId:
+ *                 type: string
+ *               razorpayOrderId:
+ *                 type: string
  *     responses:
  *       200:
- *         description: Payment record created successfully
+ *         description: Payment record created/updated successfully
  *       401:
  *         description: Unauthorized
  */
 router.post('/create-record', authenticate, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const userId = (req as any).user?._id?.toString();
-    const { bookingId, amount, currency, paymentMethod, orderId, status, metadata } = req.body;
+    const { bookingId, amount, currency, paymentMethod, orderId, status, metadata, razorpayPaymentId, razorpayOrderId } = req.body;
 
     if (!bookingId || !amount || !paymentMethod) {
       res.status(400).json({
@@ -430,16 +438,50 @@ router.post('/create-record', authenticate, async (req: Request, res: Response, 
       return;
     }
 
-    const result = await paymentService.createPaymentRecord({
-      bookingId,
-      amount,
-      currency: currency || 'INR',
-      paymentMethod,
-      userId,
-      orderId,
-      status: status || 'pending',
-      metadata
+    // Try to find existing payment record and update it
+    let result;
+    const existingPayment = await Payment.findOne({ 
+      $or: [
+        { razorpayOrderId: razorpayOrderId },
+        { razorpayPaymentId: razorpayPaymentId },
+        { bookingId: bookingId }
+      ]
     });
+
+    if (existingPayment) {
+      // Update existing payment record
+      existingPayment.status = status || existingPayment.status;
+      if (metadata) {
+        existingPayment.metadata = { ...existingPayment.metadata, ...metadata };
+      }
+      if (orderId) {
+        existingPayment.order = orderId;
+      }
+      if (razorpayPaymentId && !existingPayment.razorpayPaymentId) {
+        existingPayment.razorpayPaymentId = razorpayPaymentId;
+      }
+      await existingPayment.save();
+      
+      result = {
+        success: true,
+        payment: existingPayment
+      };
+      logger.info('Payment record updated', { paymentId: existingPayment._id, status: existingPayment.status });
+    } else {
+      // Create new payment record
+      result = await paymentService.createPaymentRecord({
+        bookingId,
+        razorpayPaymentId,
+        razorpayOrderId,
+        amount,
+        currency: currency || 'INR',
+        paymentMethod,
+        userId,
+        orderId,
+        status: status || 'pending',
+        metadata
+      });
+    }
 
     if (result.success) {
       res.status(200).json({

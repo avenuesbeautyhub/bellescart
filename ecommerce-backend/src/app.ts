@@ -3,19 +3,30 @@ import cors from "cors";
 import dotenv from "dotenv";
 import path from "path";
 import helmet from "helmet";
+import cookieParser from "cookie-parser";
 
 import { connectDatabase } from "./config/database";
 import { errorHandler } from "./middleware/errorHandler";
 import { corsOptions } from "./config/cors_config";
 import { swaggerUi, specs } from "./config/swagger";
-import { apiRateLimiter } from "./middleware/rateLimiter";
+import { apiRateLimiter, publicRateLimiter } from "./middleware/rateLimiter";
+import { requestIdMiddleware } from "./middleware/requestId";
+import { csrfMiddleware, csrfTokenEndpoint } from "./middleware/csrf";
+import { requestSigningMiddleware } from "./middleware/requestSigning";
+import { requestLogger } from "./utils/logger";
 
 dotenv.config();
 
 const app = express();
 
+// Request ID middleware (must be first)
+app.use(requestIdMiddleware);
+
 // CORS configuration
 app.use(cors(corsOptions));
+
+// Cookie parser for CSRF tokens
+app.use(cookieParser());
 
 // Body parsing middleware
 app.use(express.json({ limit: '10mb' }));
@@ -26,6 +37,9 @@ app.use(helmet({
   contentSecurityPolicy: false,
   crossOriginEmbedderPolicy: false,
 }));
+
+// Request logging middleware
+app.use(requestLogger);
 
 
 // Static files
@@ -46,17 +60,35 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(specs, {
   customSiteTitle: 'BellesCart API Documentation'
 }));
 
+// CSRF token endpoint (must be before API middleware to avoid middleware)
+app.get('/api/csrf-token', csrfTokenEndpoint);
+
 // API routes with rate limiting
 import apiRoutes from './routes';
 
-// Apply general rate limiter to all API routes except admin (which has its own)
+// Apply middleware to API routes
 app.use('/api', (req, res, next) => {
   // Skip general rate limiter for admin routes (they have their own)
   if (req.path.startsWith('/admin')) {
     next();
+  } else if (req.path.startsWith('/public')) {
+    // Use more lenient rate limiter for public routes
+    publicRateLimiter(req, res, next);
   } else {
     apiRateLimiter(req, res, next);
   }
+}, (req, res, next) => {
+  // Skip CSRF middleware for public routes and csrf-token endpoint
+  if (req.path.startsWith('/public') || req.path === '/csrf-token') {
+    return next();
+  }
+  csrfMiddleware(req, res, next);
+}, (req, res, next) => {
+  // Skip request signing middleware for public routes and csrf-token endpoint
+  if (req.path.startsWith('/public') || req.path === '/csrf-token') {
+    return next();
+  }
+  requestSigningMiddleware(req, res, next);
 }, apiRoutes);
 
 // Error handling middleware

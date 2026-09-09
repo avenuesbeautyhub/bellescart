@@ -5,6 +5,14 @@ import { getAdminAuth as getAuthData, getAdminToken, clearAdminSession, isTokenV
 
 const API_BASE_URL = appConfig.apiBaseUrl;
 
+// Get CSRF token from cookie (shared function)
+const getCsrfTokenFromCookie = (): string | null => {
+  if (typeof window === 'undefined') return null;
+  
+  const match = document.cookie.match(/(^|;) ?csrfToken=([^;]*)(;|$)/);
+  return match ? match[2] : null;
+};
+
 // Global toast for admin notifications
 const globalToast = {
   auth: {
@@ -50,13 +58,23 @@ export const adminApiFetch = async (url: string, options: RequestInit = {}): Pro
   }
 
   // Add authorization header if token exists
-  const authOptions = {
+  const authOptions: RequestInit = {
     ...options,
     headers: {
       ...options.headers,
       ...(token && { Authorization: `Bearer ${token}` }),
     },
   };
+
+  // Add CSRF token for state-changing operations
+  const method = options.method || 'GET';
+  if (['POST', 'PUT', 'DELETE', 'PATCH'].includes(method)) {
+    const cookieCsrf = getCsrfTokenFromCookie();
+    if (cookieCsrf) {
+      const headers = authOptions.headers as Record<string, string>;
+      headers['X-CSRF-Token'] = cookieCsrf;
+    }
+  }
 
   try {
     // Make initial request
@@ -138,19 +156,39 @@ export const adminApi = {
     adminApiFetch(url, { ...options, method: 'DELETE' }),
 
   // For FormData (file uploads)
-  postFormData: (url: string, formData: FormData, options?: RequestInit) =>
-    adminApiFetch(url, {
+  postFormData: (url: string, formData: FormData, options?: RequestInit) => {
+    const csrf = getCsrfTokenFromCookie();
+    const formDataHeaders: Record<string, string> = {
+      ...(options?.headers as Record<string, string>),
+    };
+    if (csrf) {
+      formDataHeaders['X-CSRF-Token'] = csrf;
+    }
+    
+    return adminApiFetch(url, {
       ...options,
       method: 'POST',
+      headers: formDataHeaders,
       body: formData,
       // Don't set Content-Type header for FormData - browser will set it with boundary
-    }),
+    });
+  },
 
-  putFormData: (url: string, formData: FormData, options?: RequestInit) =>
-    adminApiFetch(url, {
+  putFormData: (url: string, formData: FormData, options?: RequestInit) => {
+    const csrf = getCsrfTokenFromCookie();
+    const formDataHeaders: Record<string, string> = {
+      ...(options?.headers as Record<string, string>),
+    };
+    if (csrf) {
+      formDataHeaders['X-CSRF-Token'] = csrf;
+    }
+    
+    return adminApiFetch(url, {
       ...options,
       method: 'PUT',
+      headers: formDataHeaders,
       body: formData,
       // Don't set Content-Type header for FormData - browser will set it with boundary
-    }),
+    });
+  },
 };

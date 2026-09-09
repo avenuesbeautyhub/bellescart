@@ -9,7 +9,8 @@ import Footer from '@/components/Footer/Footer';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 import Loader from '@/components/ui/Loader';
-import { useOrder, useTrackOrderById, useCancelOrder } from '@/hooks/user/useOrderQueries';
+import ReturnModal from '@/components/ReturnModal/ReturnModal';
+import { useOrder, useTrackOrderById, useCancelOrder, useReturnOrder } from '@/hooks/user/useOrderQueries';
 import { globalToast } from '@/utils/globalToast';
 
 export default function OrderDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -21,6 +22,10 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
   const { data: orderData, isLoading: isLoadingOrder, refetch: refetchOrder } = useOrder(id);
   const { data: trackingData, isLoading: isLoadingTracking } = useTrackOrderById(id);
   const cancelOrderMutation = useCancelOrder();
+  const returnOrderMutation = useReturnOrder();
+
+  // UI state
+  const [showReturnModal, setShowReturnModal] = useState(false);
 
   // Process order data from React Query
   const order = React.useMemo(() => {
@@ -45,6 +50,22 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
     }
   };
 
+  const handleReturnOrder = async (returnReason: string) => {
+    try {
+      const response = await returnOrderMutation.mutateAsync({ orderId: id, returnReason });
+      if (response.success) {
+        globalToast.order.returnSuccess();
+        setShowReturnModal(false);
+        refetchOrder();
+      } else {
+        globalToast.order.returnFailed();
+      }
+    } catch (error) {
+      console.error('Failed to return order:', error);
+      globalToast.order.returnFailed();
+    }
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'delivered':
@@ -57,6 +78,8 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
         return 'warning';
       case 'cancelled':
         return 'danger';
+      case 'returned':
+        return 'secondary';
       default:
         return 'secondary';
     }
@@ -362,7 +385,16 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
               <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                 <h2 className="text-xl font-semibold text-gray-900 mb-4">Actions</h2>
                 <div className="space-y-3">
-                  {order.status !== 'cancelled' && order.status !== 'delivered' && (
+                  {order.status === 'delivered' && (
+                    <Button
+                      variant="primary"
+                      className="w-full"
+                      onClick={() => setShowReturnModal(true)}
+                    >
+                      Return Order
+                    </Button>
+                  )}
+                  {order.status !== 'cancelled' && order.status !== 'delivered' && order.status !== 'returned' && (
                     <Button
                       variant="danger"
                       className="w-full"
@@ -384,6 +416,14 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
       </main>
 
       <Footer />
+
+      {/* Return Modal */}
+      <ReturnModal
+        isOpen={showReturnModal}
+        onClose={() => setShowReturnModal(false)}
+        onReturn={handleReturnOrder}
+        isLoading={returnOrderMutation.isPending}
+      />
     </div>
   );
 }

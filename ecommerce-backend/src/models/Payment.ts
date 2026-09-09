@@ -7,7 +7,7 @@ export interface IPayment extends Document {
   amount: number;
   currency: string;
   status: 'pending' | 'completed' | 'failed' | 'refunded';
-  paymentMethod: 'razorpay' | 'stripe' | 'paypal' | 'cash_on_delivery' | 'credit_card' | 'debit_card';
+  paymentMethod: 'razorpay' | 'stripe' | 'paypal' | 'cash_on_delivery' | 'credit_card' | 'debit_card' | 'wallet';
   user: mongoose.Types.ObjectId;
   order?: mongoose.Types.ObjectId; // Reference to Order
   paymentSignature?: string; // Razorpay signature for verification
@@ -21,18 +21,15 @@ export interface IPayment extends Document {
 const paymentSchema = new Schema<IPayment>({
   bookingId: {
     type: String,
-    required: true,
-    index: true
+    required: true
   },
   razorpayPaymentId: {
     type: String,
-    sparse: true,
-    index: true
+    sparse: true
   },
   razorpayOrderId: {
     type: String,
-    sparse: true,
-    index: true
+    sparse: true
   },
   amount: {
     type: Number,
@@ -48,8 +45,7 @@ const paymentSchema = new Schema<IPayment>({
   status: {
     type: String,
     enum: ['pending', 'completed', 'failed', 'refunded'],
-    default: 'pending',
-    index: true
+    default: 'pending'
   },
   paymentMethod: {
     type: String,
@@ -59,13 +55,11 @@ const paymentSchema = new Schema<IPayment>({
   user: {
     type: Schema.Types.ObjectId,
     ref: 'User',
-    required: true,
-    index: true
+    required: true
   },
   order: {
     type: Schema.Types.ObjectId,
-    ref: 'Order',
-    index: true
+    ref: 'Order'
   },
   paymentSignature: {
     type: String

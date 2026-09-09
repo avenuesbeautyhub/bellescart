@@ -10,19 +10,18 @@ import Input from '@/components/ui/Input';
 import Loader from '@/components/ui/Loader';
 import { useToast } from '@/contexts/ToastContext';
 import { toastMessages } from '@/utils/toastHelpers';
-import { useAuth, useAuthActions } from '@/auth/user';
+import { useAuth, useLogin } from '@/auth/user';
 
 export default function LoginPage() {
   const router = useRouter();
   const { loaded, isAuthenticated } = useAuth();
   const toast = useToast();
-  const { login } = useAuthActions();
+  const login = useLogin();
   const [formData, setFormData] = useState({
     email: '',
     password: '',
   });
   const [showPassword, setShowPassword] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     if (loaded && isAuthenticated) {
@@ -45,29 +44,21 @@ export default function LoginPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
 
     try {
-      const response = await login({
+      const user = await login.mutateAsync({
         email: formData.email,
         password: formData.password
       });
 
-      if (response.success) {
-        // Show success toast
-        toast.showToast(toastMessages.auth.loginSuccess(response.data?.user?.name));
+      // Show success toast
+      toast.showToast(toastMessages.auth.loginSuccess(user?.name));
 
-        // Redirect to dashboard immediately
-        router.replace('/dashboard');
-      } else {
-        // Show error toast
-        toast.showToast(toastMessages.auth.loginError(response.error));
-      }
+      // Redirect to dashboard immediately
+      router.replace('/dashboard');
     } catch (err) {
-      // Show error toast for network errors
-      toast.showToast(toastMessages.general.networkError());
-    } finally {
-      setIsLoading(false);
+      // Show error toast
+      toast.showToast(toastMessages.auth.loginError('Login failed. Please check your credentials.'));
     }
   };
 
@@ -163,9 +154,9 @@ export default function LoginPage() {
               <Button 
                 type="submit" 
                 className="w-full bg-gradient-to-r from-pink-500 to-pink-600 hover:from-pink-600 hover:to-pink-700 text-white py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all duration-200" 
-                disabled={isLoading}
+                disabled={login.isPending}
               >
-                {isLoading ? (
+                {login.isPending ? (
                   <span className="flex items-center justify-center">
                     <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>

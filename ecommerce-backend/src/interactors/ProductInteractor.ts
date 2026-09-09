@@ -3,6 +3,9 @@ import { IProductRepository } from '../providers/interfaces/IProductRepository';
 import { ICategoryInteractor } from '../providers/interfaces/ICategoryInteractor';
 import { IProduct } from '../models/Product';
 import mongoose from 'mongoose';
+import { createLogger } from '../utils/logger';
+
+const logger = createLogger('ProductInteractor');
 
 export class ProductInteractor implements IProductInteractor {
   private _productRepository: IProductRepository;
@@ -83,8 +86,8 @@ export class ProductInteractor implements IProductInteractor {
     } else {
       // Regular query - include both active and draft products for admin view
       const finalQuery = { ...query, status: { $in: ['active', 'draft','inactive'] } };
-      console.log('Final query:', JSON.stringify(finalQuery, null, 2));
-      console.log('Query options:', { limit, skip, sort: sortOptions });
+      logger.debug('Final query', { finalQuery });
+      logger.debug('Query options', { limit, skip, sort: sortOptions });
 
       products = await this._productRepository.find(finalQuery, {
         limit,
@@ -92,10 +95,10 @@ export class ProductInteractor implements IProductInteractor {
         sort: sortOptions,
         populate: { path: 'category', select: 'name description' }
       });
-      console.log('Products found:', products.length);
+      logger.debug('Products found', { count: products.length });
 
       total = await this._productRepository.count(finalQuery);
-      console.log('Total count:', total);
+      logger.debug('Total count', { total });
     }
 
     return {
@@ -111,7 +114,9 @@ export class ProductInteractor implements IProductInteractor {
 
   async getProductById(id: string): Promise<IProduct | null> {
     try {
-      return await this._productRepository.findById(id);
+      return await this._productRepository.findById(id, {
+        populate: { path: 'category', select: 'name description' }
+      });
     } catch (error: any) {
       throw new Error(error.message || 'Failed to get product');
     }
