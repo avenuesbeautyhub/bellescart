@@ -1,70 +1,121 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+
 import Navbar from '@/components/Navbar/Navbar';
 import Footer from '@/components/Footer/Footer';
 import Button from '@/components/ui/Button';
 import Loader from '@/components/ui/Loader';
-import Badge from '@/components/ui/Badge';
-import Rating from '@/components/ui/Rating';
-import { Product, ProductImage, ProductCategory } from '@/utils/types';
-import Link from 'next/link';
+
+import { ProductImage } from '@/utils/types';
 import { useRequireUserAuth } from '@/auth/user';
 import { globalToast } from '@/utils/globalToast';
-import { useProduct } from '@/hooks/user/useProductQueries';
-import { useCart as useCartQuery, useAddToCart, useUpdateCartItem } from '@/hooks/user/useCartQueries';
 
-export default function ProductPage({ params }: { params: Promise<{ id: string }> }) {
+import { useProduct } from '@/hooks/user/useProductQueries';
+import {
+  useCart as useCartQuery,
+  useAddToCart,
+  useUpdateCartItem,
+} from '@/hooks/user/useCartQueries';
+
+export default function ProductPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
   const router = useRouter();
+
   const resolvedParams = React.use(params);
   const productId = resolvedParams.id;
-  const { user, loaded, isAuthenticated } = useRequireUserAuth();
 
-  // React Query hooks
-  const { data: productData, isLoading: isLoadingProduct } = useProduct(productId);
+  const { loaded, isAuthenticated } = useRequireUserAuth();
+
+  // ============================================================
+  // DATA
+  // ============================================================
+
+  const {
+    data: productData,
+    isLoading: isLoadingProduct,
+  } = useProduct(productId);
+
   const { data: cartData } = useCartQuery();
+
   const addToCartMutation = useAddToCart();
   const updateCartItemMutation = useUpdateCartItem();
 
-  const [selectedImage, setSelectedImage] = useState<string | null>(null);
-  const [quantity, setQuantity] = useState<number>(1);
+  // ============================================================
+  // STATE
+  // ============================================================
 
-  // Process product data from React Query
-  const product = React.useMemo(() => {
+  const [selectedImage, setSelectedImage] =
+    useState<string | null>(null);
+
+  const [quantity, setQuantity] = useState(1);
+
+  // ============================================================
+  // PRODUCT
+  // ============================================================
+
+  const product = useMemo(() => {
     if (!productData?.data) return null;
-    const productDataItem = productData.data.product || productData.data.products?.[0];
+
+    const productDataItem =
+      productData.data.product ||
+      productData.data.products?.[0];
+
     return productDataItem || null;
   }, [productData]);
 
-  // Process cart data from React Query
-  const cartItems = React.useMemo(() => {
+  // ============================================================
+  // CART
+  // ============================================================
+
+  const cartItems = useMemo(() => {
     return cartData?.data?.items || [];
   }, [cartData]);
 
-  // Set selected image when product loads
-  useEffect(() => {
-    if (product) {
-      const mainImage = product.images?.find((img: ProductImage) => img.isMain)?.url || product.images?.[0]?.url || null;
-      setSelectedImage(mainImage);
-    }
-  }, [product]);
-
-  // Check if product is in cart
-  const cartItem = React.useMemo(() => {
+  const cartItem = useMemo(() => {
     if (!product) return null;
-    // Cart items structure: items have product nested with all product data
-    return cartItems.find((item: any) => {
-      const productIdInCart = item.product?._id || item.productId;
-      return productIdInCart === product._id;
-    }) || null;
+
+    return (
+      cartItems.find((item: any) => {
+        const productIdInCart =
+          item.product?._id || item.productId;
+
+        return productIdInCart === product._id;
+      }) || null
+    );
   }, [product, cartItems]);
 
   const isInCart = !!cartItem;
+
   const cartItemId = cartItem?._id || null;
   const cartQuantity = cartItem?.quantity || 0;
 
-  // Set quantity based on cart
+  // ============================================================
+  // IMAGE
+  // ============================================================
+
+  useEffect(() => {
+    if (!product) return;
+
+    const mainImage =
+      product.images?.find(
+        (img: ProductImage) => img.isMain
+      )?.url ||
+      product.images?.[0]?.url ||
+      null;
+
+    setSelectedImage(mainImage);
+  }, [product]);
+
+  // ============================================================
+  // CART QUANTITY
+  // ============================================================
+
   useEffect(() => {
     if (isInCart && cartQuantity > 0) {
       setQuantity(cartQuantity);
@@ -73,364 +124,956 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
     }
   }, [isInCart, cartQuantity]);
 
-  // Show loader while checking authentication
+  // ============================================================
+  // AUTH LOADING
+  // ============================================================
+
   if (!loaded) {
     return (
-      <div className="min-h-screen flex flex-col">
+      <div className="min-h-screen flex flex-col bg-[#faf9fb]">
         <Navbar />
-        <div className="flex-1 flex items-center justify-center">
+
+        <div className="flex-1 flex items-center justify-center px-4">
           <Loader size="lg" text="Loading..." />
         </div>
+
         <Footer />
       </div>
     );
   }
 
-  // Don't render if not authenticated (should be handled by useRequireUserAuth redirect)
+  // ============================================================
+  // GUEST REDIRECT
+  // ============================================================
+
   if (!isAuthenticated) {
     return null;
   }
 
-  const handleAddToCart = async () => {
-    if (product) {
-      try {
-        if (isInCart && cartItemId) {
-          // Update existing cart item using React Query mutation
-          await updateCartItemMutation.mutateAsync({ itemId: cartItemId, request: { quantity } });
-          globalToast.cart.quantityUpdated();
-        } else {
-          // Add new item to cart using React Query mutation
-          await addToCartMutation.mutateAsync({ productId: product._id, quantity });
-          globalToast.cart.addSuccess();
-        }
-      } catch (error) {
-        console.error('Failed to add/update cart:', error);
-        globalToast.cart.addFailed();
-      }
-    }
-  };
+  // ============================================================
+  // PRODUCT LOADING
+  // ============================================================
 
-  const handleAddToWishlist = () => {
-    if (product) {
-      console.log('Add to wishlist:', product);
-      // TODO: Implement wishlist functionality for authenticated users
-    }
-  };
-
-  // Show loader while checking authentication or loading product
-  if (!loaded || isLoadingProduct) {
+  if (isLoadingProduct) {
     return (
-      <div className="min-h-screen flex flex-col">
+      <div className="min-h-screen flex flex-col bg-[#faf9fb]">
         <Navbar />
-        <div className="flex-1 flex items-center justify-center">
-          <Loader size="lg" text={!loaded ? "Checking authentication..." : "Loading product..."} fullScreen />
+
+        <div className="flex-1 flex items-center justify-center px-4">
+          <Loader
+            size="lg"
+            text="Preparing your product..."
+            fullScreen
+          />
         </div>
+
         <Footer />
       </div>
     );
   }
+
+  // ============================================================
+  // PRODUCT NOT FOUND
+  // ============================================================
 
   if (!product) {
     return (
-      <div className="min-h-screen flex flex-col">
+      <div className="min-h-screen flex flex-col bg-[#faf9fb]">
         <Navbar />
-        <div className="flex-1 flex items-center justify-center">
-          <div className="text-center">
-            <h1 className="text-2xl font-bold text-gray-800 mb-4">Product Not Found</h1>
-            <p className="text-gray-600 mb-8">The product you're looking for doesn't exist.</p>
-            <Button onClick={() => router.push('/products')}>
-              Back to Products
-            </Button>
+
+        <main className="flex-1 flex items-center justify-center px-6">
+          <div className="max-w-md text-center">
+
+            <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-gray-100">
+              <svg
+                className="h-9 w-9 text-gray-400"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={1.5}
+                  d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
+              </svg>
+            </div>
+
+            <h1 className="text-2xl font-semibold text-gray-950">
+              Product not found
+            </h1>
+
+            <p className="mt-2 text-sm leading-6 text-gray-500">
+              The product you're looking for may no longer
+              be available.
+            </p>
+
+            <button
+              onClick={() => router.push('/products')}
+              className="mt-6 rounded-xl bg-gray-950 px-6 py-3 text-sm font-semibold text-white transition hover:bg-gray-800"
+            >
+              Back to products
+            </button>
+
           </div>
-        </div>
+        </main>
+
         <Footer />
       </div>
     );
   }
 
-  const discountPercent = (product as any).originalPrice
-    ? Math.round((((product as any).originalPrice - product.price) / (product as any).originalPrice) * 100)
+  // ============================================================
+  // PRODUCT CALCULATIONS
+  // ============================================================
+
+  const originalPrice = (product as any).originalPrice;
+
+  const discountPercent = originalPrice
+    ? Math.round(
+        ((originalPrice - product.price) /
+          originalPrice) *
+          100
+      )
     : 0;
 
+  const isOutOfStock = product.quantity <= 0;
+
+  const maxQuantity = Math.max(
+    1,
+    product.quantity || 1
+  );
+
+  const isCartUpdating =
+    addToCartMutation.isPending ||
+    updateCartItemMutation.isPending;
+
+  /*
+   * Important UX:
+   *
+   * Existing cart quantity = 1
+   * Current quantity = 1
+   * -> "In cart · 1"
+   *
+   * Existing cart quantity = 1
+   * Current quantity = 2
+   * -> "Update cart · 2"
+   */
+  const hasQuantityChanged =
+    isInCart && quantity !== cartQuantity;
+
+  // ============================================================
+  // CART ACTION
+  // ============================================================
+
+  const handleAddToCart = async () => {
+    if (!product || isOutOfStock) return;
+
+    try {
+      if (isInCart && cartItemId) {
+        await updateCartItemMutation.mutateAsync({
+          itemId: cartItemId,
+          request: {
+            quantity,
+          },
+        });
+
+        globalToast.cart.quantityUpdated();
+      } else {
+        await addToCartMutation.mutateAsync({
+          productId: product._id,
+          quantity,
+        });
+
+        globalToast.cart.addSuccess();
+      }
+    } catch (error) {
+      console.error(
+        'Failed to add/update cart:',
+        error
+      );
+
+      globalToast.cart.addFailed();
+    }
+  };
+
+  // ============================================================
+  // WISHLIST
+  // ============================================================
+
+  const handleAddToWishlist = () => {
+    if (!product) return;
+
+    console.log('Add to wishlist:', product);
+
+    // TODO: Implement wishlist functionality
+  };
+
+  // ============================================================
+  // QUANTITY
+  // ============================================================
+
+  const decreaseQuantity = () => {
+    setQuantity((current) =>
+      Math.max(1, current - 1)
+    );
+  };
+
+  const increaseQuantity = () => {
+    setQuantity((current) =>
+      Math.min(maxQuantity, current + 1)
+    );
+  };
+
+  // ============================================================
+  // PAGE
+  // ============================================================
+
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-b from-gray-50 to-white">
+    <div className="min-h-screen flex flex-col bg-[#faf9fb] text-gray-900">
       <Navbar />
 
       <main className="flex-1">
-        {/* Enhanced Breadcrumb */}
-        <div className="bg-white border-b border-gray-100">
-          <div className="max-w-7xl mx-auto px-4 py-4">
-            <nav className="flex items-center space-x-2 text-sm">
-              <Link href="/" className="text-gray-500 hover:text-pink-600 transition-colors flex items-center gap-1">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+
+        {/* ======================================================
+            ACCOUNT SHOPPING BAR
+        ======================================================= */}
+
+        <div className="border-b border-gray-100 bg-white">
+          <div className="mx-auto max-w-[1440px] px-4 sm:px-6 lg:px-8">
+
+            <div className="flex items-center justify-between py-3">
+
+              <div className="flex min-w-0 items-center gap-2 text-xs sm:text-sm">
+
+                <Link
+                  href="/products"
+                  className="font-medium text-gray-500 transition hover:text-pink-600"
+                >
+                  Products
+                </Link>
+
+                <span className="text-gray-300">
+                  /
+                </span>
+
+                <span className="truncate font-medium text-gray-900">
+                  {product.name}
+                </span>
+
+              </div>
+
+              <Link
+                href="/cart"
+                className="hidden shrink-0 items-center gap-2 rounded-full bg-gray-50 px-4 py-2 text-xs font-semibold text-gray-700 transition hover:bg-pink-50 hover:text-pink-600 sm:flex"
+              >
+                <svg
+                  className="h-4 w-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={1.8}
+                    d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 100-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"
+                  />
                 </svg>
-                Home
+
+                View cart
               </Link>
-              <span className="text-gray-300">/</span>
-              <Link href="/products" className="text-gray-500 hover:text-pink-600 transition-colors">Products</Link>
-              <span className="text-gray-300">/</span>
-              <span className="text-gray-900 font-medium truncate max-w-[200px]">{product.name}</span>
-            </nav>
+
+            </div>
+
           </div>
         </div>
 
-        <div className="max-w-7xl mx-auto px-4 py-8">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
-            {/* Enhanced Product Images */}
-            <div className="space-y-6">
-              <div className="relative aspect-[4/5] bg-white rounded-3xl shadow-xl overflow-hidden group max-h-[500px]">
-                {selectedImage && selectedImage !== "" ? (
-                  <img
-                    src={selectedImage}
-                    alt={product.name}
-                    loading="eager"
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
-                  />
-                ) : (
-                  <div className="w-full h-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
-                    <svg className="w-16 h-16 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                    </svg>
-                  </div>
-                )}
-                {/* Discount Badge */}
-                {discountPercent > 0 && (
-                  <div className="absolute top-4 right-4">
-                    <div className="bg-gradient-to-r from-red-500 to-red-600 text-white text-lg font-bold px-4 py-2 rounded-full shadow-lg">
-                      -{discountPercent}%
-                    </div>
-                  </div>
-                )}
-                {/* Image Overlay */}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-              </div>
+        {/* ======================================================
+            MAIN PRODUCT
+        ======================================================= */}
 
-              {/* Enhanced Thumbnail Images */}
-              <div className="grid grid-cols-5 gap-3">
-                {product.images?.map((image: ProductImage, index: number) => (
-                  <button
-                    key={index}
-                    onClick={() => image.url && setSelectedImage(image.url)}
-                    className={`aspect-square bg-white rounded-xl border-2 overflow-hidden transition-all duration-300 ${selectedImage === image.url
-                      ? 'border-pink-500 shadow-lg transform scale-105 ring-2 ring-pink-200'
-                      : 'border-gray-200 hover:border-gray-300 hover:shadow-md hover:scale-105'
-                      }`}
-                  >
-                    {image.url && image.url !== "" ? (
+        <div className="mx-auto max-w-[1440px] px-4 py-6 sm:px-6 sm:py-8 lg:px-8 lg:py-10">
+
+          <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,0.95fr)_minmax(400px,1.05fr)] lg:gap-10 xl:gap-16">
+
+            {/* ==================================================
+                PRODUCT IMAGE
+            =================================================== */}
+
+            <section>
+
+              <div className="lg:sticky lg:top-24">
+
+                {/* Main image */}
+
+                <div className="relative overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-[0_4px_24px_rgba(0,0,0,0.03)]">
+
+                  <div className="relative flex h-[360px] items-center justify-center bg-white sm:h-[420px] lg:h-[480px] xl:h-[500px]">
+
+                    {selectedImage ? (
                       <img
-                        src={image.url}
-                        alt={image.alt}
-                        className="w-full h-full object-cover"
+                        src={selectedImage}
+                        alt={product.name}
+                        loading="eager"
+                        className="h-full w-full object-contain p-5 sm:p-7 lg:p-8"
                       />
                     ) : (
-                      <div className="w-full h-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
-                        <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      <div className="flex h-full w-full items-center justify-center bg-gray-50">
+                        <svg
+                          className="h-16 w-16 text-gray-300"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={1.3}
+                            d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                          />
                         </svg>
                       </div>
                     )}
-                  </button>
-                ))}
-              </div>
-            </div>
 
-            {/* Enhanced Product Details */}
-            <div className="space-y-8">
-              {/* Product Header */}
-              <div>
-                {product.category && (
-                  <div className="inline-flex items-center gap-2 px-3 py-1 bg-pink-100 text-pink-600 rounded-full text-sm font-semibold mb-4">
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
-                    </svg>
-                    {product.category.name}
+                    {/* Discount */}
+
+                    {discountPercent > 0 && (
+                      <div className="absolute left-4 top-4 sm:left-5 sm:top-5">
+                        <span className="rounded-full bg-gray-950 px-3 py-1.5 text-xs font-bold text-white shadow-sm">
+                          {discountPercent}% OFF
+                        </span>
+                      </div>
+                    )}
+
+                    {/* Cart status */}
+
+                    {isInCart && (
+                      <div className="absolute right-4 top-4 sm:right-5 sm:top-5">
+                        <div className="flex items-center gap-1.5 rounded-full bg-white/95 px-3 py-1.5 text-xs font-semibold text-green-600 shadow-sm backdrop-blur">
+                          <span className="h-1.5 w-1.5 rounded-full bg-green-500" />
+                          In your cart
+                        </div>
+                      </div>
+                    )}
+
                   </div>
+
+                </div>
+
+                {/* ==================================================
+                    IMAGE THUMBNAILS
+                =================================================== */}
+
+                {product.images &&
+                  product.images.length > 1 && (
+                    <div className="mt-4 flex gap-3 overflow-x-auto pb-1">
+
+                      {product.images.map(
+                        (
+                          image: ProductImage,
+                          index: number
+                        ) => (
+                          <button
+                            key={index}
+                            type="button"
+                            onClick={() =>
+                              image.url &&
+                              setSelectedImage(
+                                image.url
+                              )
+                            }
+                            className={`
+                              h-[72px] w-[72px]
+                              shrink-0 overflow-hidden
+                              rounded-xl border-2 bg-white
+                              transition-all duration-200
+                              sm:h-20 sm:w-20
+                              ${
+                                selectedImage ===
+                                image.url
+                                  ? 'border-gray-950 shadow-sm'
+                                  : 'border-gray-200 hover:border-gray-400'
+                              }
+                            `}
+                          >
+                            {image.url ? (
+                              <img
+                                src={image.url}
+                                alt={
+                                  image.alt ||
+                                  product.name
+                                }
+                                className="h-full w-full object-cover"
+                              />
+                            ) : (
+                              <div className="flex h-full w-full items-center justify-center bg-gray-50">
+                                <span className="text-xs text-gray-400">
+                                  Image
+                                </span>
+                              </div>
+                            )}
+                          </button>
+                        )
+                      )}
+
+                    </div>
+                  )}
+
+              </div>
+
+            </section>
+
+            {/* ==================================================
+                PRODUCT DETAILS
+            =================================================== */}
+
+            <section>
+
+              <div className="lg:pt-2">
+
+                {/* Category */}
+
+                {product.category && (
+                  <Link
+                    href={`/products?category=${encodeURIComponent(
+                      product.category.name.toLowerCase()
+                    )}`}
+                    className="inline-flex items-center rounded-full bg-pink-50 px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-pink-600 transition hover:bg-pink-100"
+                  >
+                    {product.category.name}
+                  </Link>
                 )}
-                
-                <h1 className="text-3xl lg:text-4xl font-bold text-gray-900 mb-4 leading-tight">
+
+                {/* Product name */}
+
+                <h1 className="mt-4 text-3xl font-semibold leading-tight tracking-tight text-gray-950 sm:text-4xl lg:text-[40px]">
                   {product.name}
                 </h1>
 
-                <p className="text-gray-600 text-lg leading-relaxed mb-6">{product.description}</p>
+                {/* Brand */}
 
-                {/* Price Section */}
-                <div className="bg-gradient-to-r from-pink-50 via-purple-50 to-pink-50 rounded-2xl p-6 mb-6 border border-pink-100">
-                  <div className="flex items-center gap-4 mb-4">
-                    <span className="text-3xl font-bold text-gray-900">₹{product.price}</span>
-                    {(product as any).originalPrice && (
-                      <span className="text-xl text-gray-400 line-through">₹{(product as any).originalPrice}</span>
+                {product.brand && (
+                  <p className="mt-2 text-sm font-medium text-gray-400">
+                    by{' '}
+                    <span className="text-gray-700">
+                      {product.brand}
+                    </span>
+                  </p>
+                )}
+
+                {/* Description */}
+
+                {product.description && (
+                  <p className="mt-5 max-w-2xl text-sm leading-7 text-gray-500 sm:text-base">
+                    {product.description}
+                  </p>
+                )}
+
+                {/* Divider */}
+
+                <div className="my-6 h-px bg-gray-100 sm:my-7" />
+
+                {/* ==================================================
+                    PRICE
+                =================================================== */}
+
+                <div>
+
+                  <div className="flex flex-wrap items-end gap-3">
+
+                    <span className="text-3xl font-bold tracking-tight text-gray-950 sm:text-4xl">
+                      ₹{product.price}
+                    </span>
+
+                    {originalPrice && (
+                      <span className="pb-1 text-lg text-gray-400 line-through">
+                        ₹{originalPrice}
+                      </span>
                     )}
+
                     {discountPercent > 0 && (
-                      <div className="bg-gradient-to-r from-green-500 to-green-600 text-white text-sm font-bold px-3 py-1 rounded-full">
+                      <span className="mb-1 rounded-md bg-green-50 px-2 py-1 text-xs font-bold text-green-600">
                         Save {discountPercent}%
-                      </div>
+                      </span>
                     )}
+
                   </div>
-                  <div className="flex items-center gap-2">
-                    {product.quantity > 0 ? (
-                      <div className="flex items-center gap-2 text-green-600">
-                        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                        </svg>
-                        <span className="font-medium">In Stock - Ready to ship</span>
-                      </div>
-                    ) : (
-                      <div className="flex items-center gap-2 text-red-600">
-                        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                        </svg>
-                        <span className="font-medium">Out of Stock</span>
-                      </div>
-                    )}
-                    {product.quantity > 0 && product.quantity < 10 && (
-                      <span className="text-sm text-amber-600 font-medium">Only {product.quantity} left!</span>
-                    )}
-                  </div>
+
+                  <p className="mt-2 text-xs text-gray-400">
+                    Inclusive of applicable taxes
+                  </p>
+
                 </div>
 
-                {/* Product Info */}
-                <div className="bg-white rounded-2xl border border-gray-100 p-6 mb-6 shadow-sm">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 bg-gradient-to-br from-pink-100 to-pink-200 rounded-xl flex items-center justify-center">
-                        <svg className="w-6 h-6 text-pink-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
-                        </svg>
-                      </div>
-                      <div>
-                        <p className="text-sm text-gray-500">Category</p>
-                        <p className="font-semibold text-gray-900">{product.category?.name}</p>
-                      </div>
+                {/* ==================================================
+                    STOCK
+                =================================================== */}
+
+                <div className="mt-5">
+
+                  {isOutOfStock ? (
+                    <div className="flex items-center gap-2 rounded-xl border border-red-100 bg-red-50 px-4 py-3">
+                      <span className="h-2 w-2 rounded-full bg-red-500" />
+
+                      <span className="text-sm font-semibold text-red-600">
+                        Currently unavailable
+                      </span>
                     </div>
-                    {product.brand && (
-                      <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 bg-gradient-to-br from-blue-100 to-blue-200 rounded-xl flex items-center justify-center">
-                          <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                          </svg>
-                        </div>
-                        <div>
-                          <p className="text-sm text-gray-500">Brand</p>
-                          <p className="font-semibold text-gray-900">{product.brand}</p>
-                        </div>
+                  ) : (
+                    <div className="flex flex-wrap items-center gap-3">
+
+                      <div className="flex items-center gap-2 rounded-full bg-green-50 px-3 py-1.5">
+                        <span className="h-1.5 w-1.5 rounded-full bg-green-500" />
+
+                        <span className="text-xs font-semibold text-green-700">
+                          In stock
+                        </span>
                       </div>
-                    )}
-                  </div>
-                </div>
 
-                {/* Enhanced Quantity Selector */}
-                <div className="mb-6">
-                  <label className="font-semibold text-gray-900 block mb-3 text-lg">Quantity</label>
-                  <div className="flex items-center gap-4">
-                    <button
-                      onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                      className="w-12 h-12 rounded-xl border-2 border-gray-200 flex items-center justify-center hover:border-pink-500 hover:bg-pink-50 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed font-bold text-xl"
-                      disabled={quantity <= 1}
-                    >
-                      −
-                    </button>
-                    <div className="w-20 h-12 rounded-xl border-2 border-gray-200 flex items-center justify-center bg-white font-semibold text-xl">
-                      {quantity}
-                    </div>
-                    <button
-                      onClick={() => setQuantity(quantity + 1)}
-                      className="w-12 h-12 rounded-xl border-2 border-gray-200 flex items-center justify-center hover:border-pink-500 hover:bg-pink-50 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed font-bold text-xl"
-                      disabled={quantity >= (product.quantity || 10)}
-                    >
-                      +
-                    </button>
-                  </div>
-                </div>
-
-                {/* Enhanced Action Buttons */}
-                <div className="flex gap-4 mb-8">
-                  <Button
-                    variant={isInCart ? "success" : "primary"}
-                    size="lg"
-                    className="flex-1 py-4 text-lg"
-                    onClick={handleAddToCart}
-                    disabled={product.quantity <= 0 || addToCartMutation.isPending || updateCartItemMutation.isPending}
-                  >
-                    <div className="flex items-center justify-center gap-2">
-                      {addToCartMutation.isPending || updateCartItemMutation.isPending ? (
-                        <>
-                          <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
-                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                          </svg>
-                          <span>Adding...</span>
-                        </>
-                      ) : product.quantity <= 0 ? (
-                        <>
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                          </svg>
-                          <span>Out of Stock</span>
-                        </>
-                      ) : isInCart ? (
-                        <>
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                          </svg>
-                          <span>In Cart ({cartQuantity})</span>
-                        </>
-                      ) : (
-                        <>
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
-                          </svg>
-                          <span>Add to Cart</span>
-                        </>
+                      {product.quantity < 10 && (
+                        <span className="text-xs font-medium text-amber-600">
+                          Only {product.quantity}{' '}
+                          left
+                        </span>
                       )}
+
                     </div>
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="lg"
-                    onClick={handleAddToWishlist}
-                    className="w-14 h-14 rounded-xl border-2 border-gray-300 hover:border-pink-500 hover:bg-pink-50 transition-all duration-200 flex items-center justify-center"
-                  >
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-                    </svg>
-                  </Button>
+                  )}
+
                 </div>
 
-                {/* Enhanced Trust Indicators */}
-                <div className="grid grid-cols-3 gap-4">
-                  <div className="text-center p-4 bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl border border-gray-200 hover:border-pink-200 transition-colors">
-                    <div className="w-10 h-10 mx-auto mb-2 bg-gradient-to-br from-green-400 to-green-500 rounded-full flex items-center justify-center">
-                      <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
-                      </svg>
+                {/* ==================================================
+                    ALREADY IN CART
+                =================================================== */}
+
+                {isInCart && (
+                  <div className="mt-5 rounded-2xl border border-green-100 bg-green-50/70 p-4">
+
+                    <div className="flex items-center justify-between gap-4">
+
+                      <div className="flex items-center gap-3">
+
+                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-green-100">
+                          <svg
+                            className="h-4 w-4 text-green-600"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M5 13l4 4L19 7"
+                            />
+                          </svg>
+                        </div>
+
+                        <div>
+                          <p className="text-sm font-semibold text-green-800">
+                            Already in your cart
+                          </p>
+
+                          <p className="text-xs text-green-600">
+                            Quantity: {cartQuantity}
+                          </p>
+                        </div>
+
+                      </div>
+
+                      <Link
+                        href="/cart"
+                        className="shrink-0 text-xs font-bold text-green-700 underline underline-offset-2 transition hover:text-green-800"
+                      >
+                        View cart
+                      </Link>
+
                     </div>
-                    <p className="text-sm font-semibold text-gray-900">Free Shipping</p>
-                    <p className="text-xs text-gray-500">On orders over ₹500</p>
+
                   </div>
-                  <div className="text-center p-4 bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl border border-gray-200 hover:border-pink-200 transition-colors">
-                    <div className="w-10 h-10 mx-auto mb-2 bg-gradient-to-br from-blue-400 to-blue-500 rounded-full flex items-center justify-center">
-                      <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016zM12 9V2.25M4.5 9.75L12 2.25l7.5 7.5" />
-                      </svg>
+                )}
+
+                {/* ==================================================
+                    PURCHASE AREA
+                =================================================== */}
+
+                <div className="mt-6 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:p-5">
+
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-end">
+
+                    {/* Quantity */}
+
+                    <div className="sm:shrink-0">
+
+                      <label className="mb-2 block text-xs font-bold uppercase tracking-wider text-gray-400">
+                        Quantity
+                      </label>
+
+                      <div className="flex h-12 items-center rounded-xl border border-gray-200 bg-gray-50">
+
+                        <button
+                          type="button"
+                          onClick={decreaseQuantity}
+                          disabled={
+                            quantity <= 1 ||
+                            isOutOfStock ||
+                            isCartUpdating
+                          }
+                          className="flex h-full w-11 items-center justify-center text-lg font-medium text-gray-600 transition hover:bg-white hover:text-gray-950 disabled:cursor-not-allowed disabled:opacity-30"
+                          aria-label="Decrease quantity"
+                        >
+                          −
+                        </button>
+
+                        <div className="flex h-full w-12 items-center justify-center border-x border-gray-200 bg-white text-sm font-semibold text-gray-950">
+                          {quantity}
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={increaseQuantity}
+                          disabled={
+                            quantity >= maxQuantity ||
+                            isOutOfStock ||
+                            isCartUpdating
+                          }
+                          className="flex h-full w-11 items-center justify-center text-lg font-medium text-gray-600 transition hover:bg-white hover:text-gray-950 disabled:cursor-not-allowed disabled:opacity-30"
+                          aria-label="Increase quantity"
+                        >
+                          +
+                        </button>
+
+                      </div>
+
                     </div>
-                    <p className="text-sm font-semibold text-gray-900">Secure Payment</p>
-                    <p className="text-xs text-gray-500">100% protected</p>
-                  </div>
-                  <div className="text-center p-4 bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl border border-gray-200 hover:border-pink-200 transition-colors">
-                    <div className="w-10 h-10 mx-auto mb-2 bg-gradient-to-br from-purple-400 to-purple-500 rounded-full flex items-center justify-center">
-                      <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                      </svg>
+
+                    {/* Main cart action */}
+
+                    <div className="min-w-0 flex-1">
+
+                      <label className="mb-2 hidden text-xs font-bold uppercase tracking-wider text-gray-400 sm:block">
+                        {isInCart
+                          ? 'Your cart'
+                          : 'Shopping'}
+                      </label>
+
+                      <Button
+                        variant={
+                          isInCart &&
+                          !hasQuantityChanged
+                            ? 'success'
+                            : 'primary'
+                        }
+                        size="lg"
+                        className="h-12 w-full rounded-xl text-sm font-semibold"
+                        onClick={handleAddToCart}
+                        disabled={
+                          isOutOfStock ||
+                          isCartUpdating ||
+                          (isInCart &&
+                            !hasQuantityChanged)
+                        }
+                      >
+                        <div className="flex items-center justify-center gap-2">
+
+                          {/* Updating */}
+
+                          {isCartUpdating ? (
+                            <>
+                              <svg
+                                className="h-4 w-4 animate-spin"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                              >
+                                <circle
+                                  className="opacity-25"
+                                  cx="12"
+                                  cy="12"
+                                  r="10"
+                                  stroke="currentColor"
+                                  strokeWidth="4"
+                                />
+
+                                <path
+                                  className="opacity-75"
+                                  fill="currentColor"
+                                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                                />
+                              </svg>
+
+                              Updating cart...
+                            </>
+
+                          /* Out of stock */
+
+                          ) : isOutOfStock ? (
+                            'Out of stock'
+
+                          /* Existing cart but quantity changed */
+
+                          ) : isInCart &&
+                            hasQuantityChanged ? (
+                            <>
+                              <svg
+                                className="h-4 w-4"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M5 13l4 4L19 7"
+                                />
+                              </svg>
+
+                              Update cart · {quantity}
+                            </>
+
+                          /* Existing cart, no changes */
+
+                          ) : isInCart ? (
+                            <>
+                              <svg
+                                className="h-4 w-4"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M5 13l4 4L19 7"
+                                />
+                              </svg>
+
+                              In cart · {cartQuantity}
+                            </>
+
+                          /* New product */
+
+                          ) : (
+                            <>
+                              <svg
+                                className="h-4 w-4"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 100-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"
+                                />
+                              </svg>
+
+                              Add to cart
+                            </>
+                          )}
+
+                        </div>
+                      </Button>
+
                     </div>
-                    <p className="text-sm font-semibold text-gray-900">Easy Returns</p>
-                    <p className="text-xs text-gray-500">30-day policy</p>
+
+                    {/* Wishlist */}
+
+                    <button
+                      type="button"
+                      onClick={handleAddToWishlist}
+                      aria-label="Add to wishlist"
+                      className="flex h-12 w-full shrink-0 items-center justify-center rounded-xl border border-gray-200 bg-white text-gray-500 transition hover:border-pink-200 hover:bg-pink-50 hover:text-pink-600 sm:w-12"
+                    >
+                      <svg
+                        className="h-5 w-5"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={1.8}
+                          d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 000-7.78z"
+                        />
+                      </svg>
+
+                      <span className="ml-2 text-xs font-semibold sm:hidden">
+                        Wishlist
+                      </span>
+                    </button>
+
                   </div>
+
+                  {/* Continue to cart */}
+
+                  {isInCart && (
+                    <Link
+                      href="/cart"
+                      className="mt-3 flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-gray-50 py-3 text-xs font-semibold text-gray-600 transition hover:bg-gray-100 hover:text-gray-950"
+                    >
+                      Continue to cart
+
+                      <span>
+                        →
+                      </span>
+                    </Link>
+                  )}
+
                 </div>
+
+                {/* ==================================================
+                    SHOPPING BENEFITS
+                =================================================== */}
+
+                <div className="mt-4 grid grid-cols-1 divide-y divide-gray-100 rounded-2xl border border-gray-200 bg-white sm:grid-cols-3 sm:divide-x sm:divide-y-0">
+
+                  {/* Shipping */}
+
+                  <div className="flex items-center gap-3 p-4 sm:block sm:p-5">
+
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gray-50">
+                      <svg
+                        className="h-4 w-4 text-gray-700"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={1.7}
+                          d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8"
+                        />
+                      </svg>
+                    </div>
+
+                    <div className="sm:mt-3">
+                      <p className="text-xs font-bold text-gray-900">
+                        Free shipping
+                      </p>
+
+                      <p className="mt-0.5 text-[11px] text-gray-400">
+                        On orders over ₹500
+                      </p>
+                    </div>
+
+                  </div>
+
+                  {/* Secure checkout */}
+
+                  <div className="flex items-center gap-3 p-4 sm:block sm:p-5">
+
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gray-50">
+                      <svg
+                        className="h-4 w-4 text-gray-700"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={1.7}
+                          d="M12 15v2m-6 4h12a2 2 0 002-2V9a2 2 0 00-2-2H6a2 2 0 00-2 2v10a2 2 0 002 2zm10-10V5a4 4 0 00-8 0v2h8z"
+                        />
+                      </svg>
+                    </div>
+
+                    <div className="sm:mt-3">
+                      <p className="text-xs font-bold text-gray-900">
+                        Secure checkout
+                      </p>
+
+                      <p className="mt-0.5 text-[11px] text-gray-400">
+                        Protected payment
+                      </p>
+                    </div>
+
+                  </div>
+
+                  {/* Returns */}
+
+                  <div className="flex items-center gap-3 p-4 sm:block sm:p-5">
+
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gray-50">
+                      <svg
+                        className="h-4 w-4 text-gray-700"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={1.7}
+                          d="M4 4v5h.582m15.356 2A8.001 8.001 0 014.582 9M4.582 9H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2M19.419 15H15"
+                        />
+                      </svg>
+                    </div>
+
+                    <div className="sm:mt-3">
+                      <p className="text-xs font-bold text-gray-900">
+                        Easy returns
+                      </p>
+
+                      <p className="mt-0.5 text-[11px] text-gray-400">
+                        30-day policy
+                      </p>
+                    </div>
+
+                  </div>
+
+                </div>
+
               </div>
-            </div>
+
+            </section>
+
           </div>
+
         </div>
+
+        {/* ======================================================
+            CONTINUE SHOPPING
+        ======================================================= */}
+
+        <section className="border-t border-gray-100 bg-white">
+          <div className="mx-auto max-w-[1440px] px-4 py-8 sm:px-6 lg:px-8">
+
+            <div className="flex flex-col gap-5 rounded-2xl bg-gray-950 px-6 py-7 text-white sm:flex-row sm:items-center sm:justify-between sm:px-8">
+
+              <div>
+                <p className="text-xs font-bold uppercase tracking-[0.18em] text-pink-300">
+                  Shopping with us
+                </p>
+
+                <h2 className="mt-1 text-xl font-semibold">
+                  Find more pieces you'll love.
+                </h2>
+              </div>
+
+              <Link
+                href="/products"
+                className="inline-flex shrink-0 items-center justify-center rounded-xl bg-white px-5 py-3 text-sm font-semibold text-gray-950 transition hover:bg-pink-50"
+              >
+                Continue shopping
+
+                <span className="ml-2">
+                  →
+                </span>
+              </Link>
+
+            </div>
+
+          </div>
+        </section>
+
       </main>
 
       <Footer />
