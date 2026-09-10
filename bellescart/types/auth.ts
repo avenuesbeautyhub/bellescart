@@ -59,6 +59,7 @@ export interface Address {
   zipCode: string;
   country: string;
   isDefault: boolean;
+  phone?: string;
 }
 
 export interface UserProfile {

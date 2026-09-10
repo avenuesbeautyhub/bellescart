@@ -1,6 +1,7 @@
 import { appConfig } from '@/config/appConfig';
 import { authService } from './authService';
 import { globalToast } from '@/utils/globalToast';
+import { generateSignature, generateNonce, getTimestamp, isSensitiveEndpoint } from '@/utils/requestSigning';
 
 // Flag to prevent multiple simultaneous refresh attempts
 let isRefreshing = false;
@@ -146,10 +147,145 @@ export const apiFetch = async (url: string, options: RequestInit = {}): Promise<
       return Promise.reject(new Error('No authentication tokens found. Please login.'));
     }
   } else if (!token && refreshToken) {
-    // Access token missing but refresh token exists - attempt auto refresh
-    console.log('Access token missing but refresh token exists. Will attempt refresh on 401.');
-    globalToast.auth.tokenExpired();
-    // Continue with normal flow - will trigger refresh on 401
+    // Access token missing but refresh token exists - attempt proactive refresh
+    console.log('Access token missing but refresh token exists. Attempting proactive refresh.');
+
+    // If we're already refreshing, wait for it to complete
+    if (isRefreshing) {
+      return new Promise((resolve, reject) => {
+        addRefreshSubscriber(async (newToken: string) => {
+          try {
+            const authOptions: RequestInit = {
+              ...options,
+              headers: {
+                ...options.headers,
+                Authorization: `Bearer ${newToken}`,
+              },
+              credentials: 'include',
+            };
+
+            // Add CSRF token for state-changing operations
+            const method = options.method || 'GET';
+            if (['POST', 'PUT', 'DELETE', 'PATCH'].includes(method)) {
+              const cookieCsrf = getCsrfTokenFromCookie();
+              if (cookieCsrf) {
+                const headers = authOptions.headers as Record<string, string>;
+                headers['X-CSRF-Token'] = cookieCsrf;
+              }
+            }
+
+            // Add request signature for sensitive endpoints
+            if (isSensitiveEndpoint(url) && ['POST', 'PUT', 'DELETE', 'PATCH'].includes(method)) {
+              let payload = '';
+              if (options.body) {
+                if (typeof options.body === 'string') {
+                  payload = options.body;
+                } else {
+                  payload = JSON.stringify(options.body);
+                }
+              }
+              const timestamp = getTimestamp();
+              const nonce = generateNonce();
+              const signature = generateSignature(payload, timestamp, nonce);
+              const headers = authOptions.headers as Record<string, string>;
+              headers['X-Signature'] = signature;
+              headers['X-Timestamp'] = timestamp;
+              headers['X-Nonce'] = nonce;
+            }
+
+            const fullUrl = url.startsWith('http') ? url : appConfig.apiBaseUrl + url;
+            const response = await fetch(fullUrl, authOptions);
+
+            if (response.ok) {
+              resolve(response);
+            } else {
+              reject(new Error('Request failed after proactive token refresh'));
+            }
+          } catch (error) {
+            reject(error);
+          }
+        });
+      });
+    }
+
+    // Start refresh process
+    isRefreshing = true;
+
+    try {
+      console.log('Starting proactive token refresh...');
+      const refreshResponse = await authService.refreshToken();
+      console.log('Proactive refresh response:', refreshResponse);
+
+      if (refreshResponse.success && refreshResponse.data?.token) {
+        const newToken = refreshResponse.data.token;
+        console.log('Proactive token refresh successful');
+
+        // Show success toast for token refresh
+        globalToast.auth.tokenRefreshed();
+
+        // Notify all waiting subscribers
+        notifyRefreshSubscribers(newToken);
+
+        // Update authOptions with new token
+        const authOptions: RequestInit = {
+          ...options,
+          headers: {
+            ...options.headers,
+            Authorization: `Bearer ${newToken}`,
+          },
+          credentials: 'include',
+        };
+
+        // Add CSRF token for state-changing operations
+        const method = options.method || 'GET';
+        if (['POST', 'PUT', 'DELETE', 'PATCH'].includes(method)) {
+          const cookieCsrf = getCsrfTokenFromCookie();
+          if (cookieCsrf) {
+            const headers = authOptions.headers as Record<string, string>;
+            headers['X-CSRF-Token'] = cookieCsrf;
+          }
+        }
+
+        // Add request signature for sensitive endpoints
+        if (isSensitiveEndpoint(url) && ['POST', 'PUT', 'DELETE', 'PATCH'].includes(method)) {
+          let payload = '';
+          if (options.body) {
+            if (typeof options.body === 'string') {
+              payload = options.body;
+            } else {
+              payload = JSON.stringify(options.body);
+            }
+          }
+          const timestamp = getTimestamp();
+          const nonce = generateNonce();
+          const signature = generateSignature(payload, timestamp, nonce);
+          const headers = authOptions.headers as Record<string, string>;
+          headers['X-Signature'] = signature;
+          headers['X-Timestamp'] = timestamp;
+          headers['X-Nonce'] = nonce;
+        }
+
+        // Make the request with the new token
+        const fullUrl = url.startsWith('http') ? url : appConfig.apiBaseUrl + url;
+        const response = await fetch(fullUrl, authOptions);
+
+        return response;
+      } else {
+        // Refresh failed, clear tokens and redirect to login
+        console.error('Proactive token refresh failed:', refreshResponse);
+        globalToast.auth.tokenRefreshFailed();
+        authService.logout();
+        throw new Error('Session expired. Please login again.');
+      }
+    } catch (refreshError) {
+      // Refresh failed, clear tokens
+      console.error('Proactive token refresh error:', refreshError);
+      globalToast.auth.tokenRefreshFailed();
+      authService.logout();
+      throw new Error('Session expired. Please login again.');
+    } finally {
+      isRefreshing = false;
+    }
   }
 
   // Add authorization header if token exists
@@ -188,6 +324,36 @@ export const apiFetch = async (url: string, options: RequestInit = {}): Promise<
       } catch (error) {
         console.warn('Failed to fetch CSRF token, request may fail:', error);
       }
+    }
+  }
+
+  // Add request signature for sensitive endpoints
+  if (isSensitiveEndpoint(url) && ['POST', 'PUT', 'DELETE', 'PATCH'].includes(method)) {
+    try {
+      // Get the payload for signature generation
+      let payload = '';
+      if (options.body) {
+        // If body is already a string, use it directly
+        if (typeof options.body === 'string') {
+          payload = options.body;
+        } else {
+          // If body is an object, stringify it
+          payload = JSON.stringify(options.body);
+        }
+      }
+
+      const timestamp = getTimestamp();
+      const nonce = generateNonce();
+      const signature = generateSignature(payload, timestamp, nonce);
+
+      const headers = authOptions.headers as Record<string, string>;
+      headers['X-Signature'] = signature;
+      headers['X-Timestamp'] = timestamp;
+      headers['X-Nonce'] = nonce;
+
+      console.log('Request signature added for sensitive endpoint:', url);
+    } catch (error) {
+      console.error('Failed to generate request signature:', error);
     }
   }
 
@@ -231,7 +397,26 @@ export const apiFetch = async (url: string, options: RequestInit = {}): Promise<
                 if (csrf) {
                   retryHeaders['X-CSRF-Token'] = csrf;
                 }
-                
+
+                // Add request signature for sensitive endpoints
+                const method = options.method || 'GET';
+                if (isSensitiveEndpoint(url) && ['POST', 'PUT', 'DELETE', 'PATCH'].includes(method)) {
+                  let payload = '';
+                  if (options.body) {
+                    if (typeof options.body === 'string') {
+                      payload = options.body;
+                    } else {
+                      payload = JSON.stringify(options.body);
+                    }
+                  }
+                  const timestamp = getTimestamp();
+                  const nonce = generateNonce();
+                  const signature = generateSignature(payload, timestamp, nonce);
+                  retryHeaders['X-Signature'] = signature;
+                  retryHeaders['X-Timestamp'] = timestamp;
+                  retryHeaders['X-Nonce'] = nonce;
+                }
+
                 const retryResponse = await fetch(fullUrl, {
                   ...options,
                   headers: retryHeaders,
@@ -254,7 +439,9 @@ export const apiFetch = async (url: string, options: RequestInit = {}): Promise<
 
         try {
           // Attempt to refresh token
+          console.log('Attempting to refresh token...');
           const refreshResponse = await authService.refreshToken();
+          console.log('Refresh token response:', refreshResponse);
 
           if (refreshResponse.success && refreshResponse.data?.token) {
             const newToken = refreshResponse.data.token;
@@ -274,7 +461,26 @@ export const apiFetch = async (url: string, options: RequestInit = {}): Promise<
             if (csrf) {
               retryHeaders['X-CSRF-Token'] = csrf;
             }
-            
+
+            // Add request signature for sensitive endpoints
+            const method = options.method || 'GET';
+            if (isSensitiveEndpoint(url) && ['POST', 'PUT', 'DELETE', 'PATCH'].includes(method)) {
+              let payload = '';
+              if (options.body) {
+                if (typeof options.body === 'string') {
+                  payload = options.body;
+                } else {
+                  payload = JSON.stringify(options.body);
+                }
+              }
+              const timestamp = getTimestamp();
+              const nonce = generateNonce();
+              const signature = generateSignature(payload, timestamp, nonce);
+              retryHeaders['X-Signature'] = signature;
+              retryHeaders['X-Timestamp'] = timestamp;
+              retryHeaders['X-Nonce'] = nonce;
+            }
+
             const retryResponse = await fetch(fullUrl, {
               ...options,
               headers: retryHeaders,
@@ -283,12 +489,14 @@ export const apiFetch = async (url: string, options: RequestInit = {}): Promise<
             return retryResponse;
           } else {
             // Refresh failed, clear tokens and redirect to login
+            console.error('Token refresh failed:', refreshResponse);
             globalToast.auth.tokenRefreshFailed();
             authService.logout();
             throw new Error('Session expired. Please login again.');
           }
         } catch (refreshError) {
           // Refresh failed, clear tokens
+          console.error('Token refresh error:', refreshError);
           globalToast.auth.tokenRefreshFailed();
           authService.logout();
           throw new Error('Session expired. Please login again.');
@@ -386,6 +594,36 @@ export const publicApiFetch = async (url: string, options: RequestInit = {}): Pr
       } catch (error) {
         console.warn('Failed to fetch CSRF token for public API, request may fail:', error);
       }
+    }
+  }
+
+  // Add request signature for sensitive endpoints (but skip auth endpoints)
+  if (isSensitiveEndpoint(url) && ['POST', 'PUT', 'DELETE', 'PATCH'].includes(method) && !url.includes('/auth/')) {
+    try {
+      // Get the payload for signature generation
+      let payload = '';
+      if (options.body) {
+        // If body is already a string, use it directly
+        if (typeof options.body === 'string') {
+          payload = options.body;
+        } else {
+          // If body is an object, stringify it
+          payload = JSON.stringify(options.body);
+        }
+      }
+
+      const timestamp = getTimestamp();
+      const nonce = generateNonce();
+      const signature = generateSignature(payload, timestamp, nonce);
+
+      const headers = publicOptions.headers as Record<string, string>;
+      headers['X-Signature'] = signature;
+      headers['X-Timestamp'] = timestamp;
+      headers['X-Nonce'] = nonce;
+
+      console.log('Request signature added for sensitive public API endpoint:', url);
+    } catch (error) {
+      console.error('Failed to generate request signature for public API:', error);
     }
   }
 

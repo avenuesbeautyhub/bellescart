@@ -1,6 +1,6 @@
 import { SignupData, LoginData, OtpData, ResendOtpData, ApiResponse, LoginResponse, UserProfile } from '@/types/auth';
 import { appConfig, isMockMode } from '@/config/appConfig';
-import { apiFetch } from './apiInterceptor';
+import { apiFetch, publicApiFetch } from './apiInterceptor';
 
 
 
@@ -111,10 +111,13 @@ class AuthService {
 
     const refreshToken = this.getRefreshToken();
     if (!refreshToken) {
+      console.error('No refresh token available in localStorage');
       throw new Error('No refresh token available');
     }
 
-    const response = await fetch(`${API_BASE_URL}/auth/refresh-token`, {
+    console.log('Attempting to refresh token with:', refreshToken.substring(0, 20) + '...');
+
+    const response = await publicApiFetch('/auth/refresh-token', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -122,11 +125,18 @@ class AuthService {
       body: JSON.stringify({ refreshToken }),
     });
 
+    console.log('Refresh token API response status:', response.status);
+
     const result = await response.json();
+
+    console.log('Refresh token API response:', result);
 
     // Store new tokens if refresh is successful
     if (result.success && result.data?.token && result.data?.refreshToken) {
       this.setTokens(result.data.token, result.data.refreshToken);
+      console.log('Tokens refreshed successfully');
+    } else {
+      console.error('Token refresh failed:', result);
     }
 
     return result;
@@ -150,12 +160,12 @@ class AuthService {
     });
 
     const result = await response.json();
-    
+
     // Map backend _id to frontend id
     if (result.success && result.data) {
       result.data.id = result.data._id || result.data.id;
     }
-    
+
     return result;
   }
   

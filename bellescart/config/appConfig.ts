@@ -9,6 +9,10 @@ export const appConfig = {
 
   // Enable/disable console logging
   enableLogging: process.env.NEXT_PUBLIC_ENABLE_LOGGING === 'true',
+
+  // Request signing secret for HMAC signature generation
+  // MUST match the backend's REQUEST_SIGNING_SECRET
+  requestSigningSecret: process.env.NEXT_PUBLIC_REQUEST_SIGNING_SECRET || 'reqsigningsecretforbelles',
 };
 
 export const isMockMode = () => appConfig.useMockData;
