@@ -574,10 +574,6 @@ export default function GuestProductDetailsPage() {
                   )}
               </div>
 
-              <p className="mt-1 text-xs text-gray-400">
-                Inclusive of all applicable taxes
-              </p>
-
               <div className="my-6 sm:my-7 border-t border-gray-200" />
 
               {/* Description */}

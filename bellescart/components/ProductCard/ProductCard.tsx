@@ -4,11 +4,12 @@ import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Product, ProductImage } from '@/utils/types';
-import Button from '@/components/ui/Button';
-import Badge from '@/components/ui/Badge';
-import Rating from '@/components/ui/Rating';
 import { useRequireUserAuth } from '@/auth/user';
-import { useAddToCart, useUpdateCartItem, useCart } from '@/hooks/user/useCartQueries';
+import {
+  useAddToCart,
+  useUpdateCartItem,
+  useCart,
+} from '@/hooks/user/useCartQueries';
 import { globalToast } from '@/utils/globalToast';
 
 interface ProductCardProps {
@@ -24,24 +25,26 @@ export default function ProductCard({
   onAddToWishlist,
   isLoggedIn,
 }: ProductCardProps) {
-  const { user, loaded, isAuthenticated } = useRequireUserAuth();
+  const { loaded, isAuthenticated } = useRequireUserAuth();
+
   const [isInCart, setIsInCart] = useState(false);
   const [cartItemId, setCartItemId] = useState<string | null>(null);
   const [cartQuantity, setCartQuantity] = useState(0);
-  
-  // React Query hooks for cart operations
-  const { data: cartData } = useCart({ enabled: isAuthenticated && loaded });
+
+  const { data: cartData } = useCart({
+    enabled: isAuthenticated && loaded,
+  });
+
   const addToCartMutation = useAddToCart();
   const updateCartItemMutation = useUpdateCartItem();
 
-  // Check if product is in cart using React Query data
   useEffect(() => {
     if (product && cartData?.data?.items) {
-      const cartItem = cartData.data.items.find(item => {
-        // Handle both nested and flattened structure
+      const cartItem = cartData.data.items.find((item) => {
         const productId = item.product?._id ?? item._id;
         return productId === product._id;
       });
+
       if (cartItem) {
         setIsInCart(true);
         setCartItemId(cartItem._id);
@@ -57,21 +60,23 @@ export default function ProductCard({
   const handleAddToCart = async (product: Product) => {
     try {
       if (isInCart && cartItemId) {
-        // Update existing cart item using React Query mutation
         await updateCartItemMutation.mutateAsync({
           itemId: cartItemId,
-          request: { quantity: cartQuantity + 1 }
+          request: {
+            quantity: cartQuantity + 1,
+          },
         });
+
         globalToast.cart.quantityUpdated();
       } else {
-        // Add new item to cart using React Query mutation
         await addToCartMutation.mutateAsync({
           productId: product._id,
-          quantity: 1
+          quantity: 1,
         });
+
         globalToast.cart.addSuccess();
       }
-      
+
       onAddToCart?.(product);
     } catch (error) {
       console.error('Failed to add/update cart:', error);
@@ -79,134 +84,331 @@ export default function ProductCard({
     }
   };
 
-  // Show loader while checking authentication
   if (!loaded) {
     return (
-      <div className="bg-white rounded-2xl shadow-sm overflow-hidden border border-gray-100">
-        <div className="aspect-[4/5] bg-gradient-to-br from-gray-100 to-gray-200 animate-pulse"></div>
-        <div className="p-5 space-y-3">
-          <div className="h-3 bg-gray-200 rounded animate-pulse w-1/3"></div>
-          <div className="h-4 bg-gray-200 rounded animate-pulse"></div>
-          <div className="h-4 bg-gray-200 rounded animate-pulse w-3/4"></div>
-          <div className="flex gap-2">
-            <div className="h-8 bg-gray-200 rounded animate-pulse flex-1"></div>
-            <div className="h-8 bg-gray-200 rounded animate-pulse w-16"></div>
+      <div className="overflow-hidden rounded-[24px] bg-white">
+        <div className="aspect-[0.82] animate-pulse bg-[#f4f2ef]" />
+
+        <div className="space-y-3 px-1 pt-4">
+          <div className="h-2.5 w-20 animate-pulse rounded-full bg-gray-100" />
+          <div className="h-4 w-full animate-pulse rounded-full bg-gray-100" />
+          <div className="h-4 w-2/3 animate-pulse rounded-full bg-gray-100" />
+
+          <div className="flex items-center justify-between pt-1">
+            <div className="h-5 w-20 animate-pulse rounded-full bg-gray-100" />
+            <div className="h-9 w-9 animate-pulse rounded-full bg-gray-100" />
           </div>
-          <div className="h-10 bg-gray-200 rounded-xl animate-pulse"></div>
         </div>
       </div>
     );
   }
 
-  // Don't render if not authenticated (should be handled by useRequireUserAuth redirect)
   if (!isAuthenticated) {
     return null;
   }
 
   const discountPercent = product.originalPrice
-    ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)
+    ? Math.round(
+        ((product.originalPrice - product.price) /
+          product.originalPrice) *
+          100
+      )
     : 0;
 
-  // Check stock using quantity field
   const stock = product?.quantity ?? 0;
   const isOutOfStock = stock <= 0;
 
-  // Get the main image URL from the images array
-  const mainImage = product.images?.find((img: ProductImage) => img.isMain)?.url || product.images?.[0]?.url || '';
+  const mainImage =
+    product.images?.find((img: ProductImage) => img.isMain)?.url ||
+    product.images?.[0]?.url ||
+    '';
+
+  const isCartMutationPending =
+    addToCartMutation.isPending || updateCartItemMutation.isPending;
+
+  const rating = product.rating || 4;
+  const reviewCount = product.reviews || 12;
 
   return (
-    <div className="group bg-white rounded-2xl shadow-sm hover:shadow-2xl transition-all duration-500 overflow-hidden border border-gray-100 hover:border-pink-200">
-      <Link href={`/product/${product._id}`}>
-        <div className="relative aspect-[4/5] bg-gradient-to-br from-gray-50 to-gray-100 overflow-hidden cursor-pointer">
-          {mainImage ? (
-            <Image
-              src={mainImage}
-              alt={product.name}
-              fill
-              className="object-cover group-hover:scale-110 transition-transform duration-700 ease-out"
+    <article className="group relative min-w-0">
+      {/* =========================================================
+          IMAGE
+      ========================================================== */}
+      <div className="relative overflow-hidden rounded-[22px] bg-[#f6f4f1]">
+        <Link
+          href={`/product/${product._id}`}
+          className="block"
+          aria-label={`View ${product.name}`}
+        >
+          <div className="relative aspect-[0.84] overflow-hidden">
+            {mainImage ? (
+              <Image
+                src={mainImage}
+                alt={product.name}
+                fill
+                sizes="
+                  (max-width: 640px) 50vw,
+                  (max-width: 1024px) 33vw,
+                  (max-width: 1536px) 25vw,
+                  20vw
+                "
+                className="
+                  object-cover
+                  transition-transform
+                  duration-700
+                  ease-[cubic-bezier(.2,.65,.3,1)]
+                  group-hover:scale-[1.055]
+                "
+              />
+            ) : (
+              <div className="absolute inset-0 flex items-center justify-center bg-[#f1efec]">
+                <div className="text-center">
+                  <svg
+                    className="mx-auto h-10 w-10 text-gray-300"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={1.2}
+                      d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14M14 8h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                    />
+                  </svg>
+                </div>
+              </div>
+            )}
+
+            {/* Bottom image fade */}
+            <div
+              className="
+                pointer-events-none
+                absolute inset-x-0 bottom-0 h-28
+                bg-gradient-to-t from-black/20 to-transparent
+                opacity-0
+                transition-opacity duration-500
+                group-hover:opacity-100
+              "
             />
-          ) : (
-            <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200">
-              <svg className="w-16 h-16 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-              </svg>
-            </div>
-          )}
-
-          {/* Image Overlay on Hover */}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-
-          {/* Badges */}
-          <div className="absolute top-3 left-3 flex flex-col gap-2 z-10">
-            {isOutOfStock && (
-              <div className="bg-gradient-to-r from-red-500 to-red-600 text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-lg backdrop-blur-sm">
-                OUT OF STOCK
-              </div>
-            )}
-            {discountPercent > 0 && !isOutOfStock && (
-              <div className="bg-gradient-to-r from-pink-500 to-rose-500 text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-lg backdrop-blur-sm">
-                -{discountPercent}% OFF
-              </div>
-            )}
-            {stock <= 5 && stock > 0 && (
-              <div className="bg-gradient-to-r from-amber-400 to-orange-500 text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-lg backdrop-blur-sm">
-                Only {stock} left
-              </div>
-            )}
           </div>
+        </Link>
 
-          {/* Quick Actions Overlay */}
-          <div className="absolute top-3 right-3 flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-x-4 group-hover:translate-x-0 z-10">
-            <button
-              onClick={(e) => {
-                e.preventDefault();
-                onAddToWishlist?.(product);
-              }}
-              className="w-10 h-10 bg-white/95 backdrop-blur-sm rounded-full flex items-center justify-center hover:bg-pink-500 hover:text-white transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-110"
-              disabled={!isLoggedIn}
+        {/* =======================================================
+            TOP LEFT BADGE
+        ======================================================== */}
+        <div className="absolute left-3 top-3 z-10">
+          {isOutOfStock ? (
+            <span
+              className="
+                inline-flex items-center
+                rounded-full
+                bg-white/95
+                px-3 py-1.5
+                text-[9px]
+                font-bold
+                uppercase
+                tracking-[0.14em]
+                text-gray-600
+                shadow-sm
+                backdrop-blur-md
+              "
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-              </svg>
-            </button>
-            <button
-              onClick={(e) => {
-                e.preventDefault();
-                // Quick view functionality could be added here
-              }}
-              className="w-10 h-10 bg-white/95 backdrop-blur-sm rounded-full flex items-center justify-center hover:bg-gray-800 hover:text-white transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-110"
+              Sold out
+            </span>
+          ) : discountPercent > 0 ? (
+            <span
+              className="
+                inline-flex items-center
+                rounded-full
+                bg-[#21151d]
+                px-3 py-1.5
+                text-[9px]
+                font-bold
+                uppercase
+                tracking-[0.13em]
+                text-white
+                shadow-sm
+              "
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-              </svg>
-            </button>
-          </div>
+              −{discountPercent}%
+            </span>
+          ) : null}
         </div>
-      </Link>
 
-      <div className="p-5">
-        {/* Category */}
-        {product.category && (
-          <p className="text-xs font-semibold text-pink-500 uppercase tracking-wider mb-2">
-            {product.category.name}
-          </p>
+        {/* =======================================================
+            WISHLIST
+        ======================================================== */}
+        <button
+          type="button"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onAddToWishlist?.(product);
+          }}
+          disabled={!isLoggedIn}
+          aria-label={`Add ${product.name} to wishlist`}
+          className="
+            absolute right-3 top-3 z-20
+            flex h-9 w-9 items-center justify-center
+            rounded-full
+            border border-white/80
+            bg-white/90
+            text-gray-800
+            shadow-sm
+            backdrop-blur-md
+            transition-all duration-300
+            hover:scale-105
+            hover:bg-white
+            hover:text-[#b45370]
+            active:scale-95
+            disabled:cursor-not-allowed
+            disabled:opacity-50
+            sm:h-10 sm:w-10
+          "
+        >
+          <svg
+            className="h-[17px] w-[17px] sm:h-[18px] sm:w-[18px]"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={1.5}
+              d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 000-7.78z"
+            />
+          </svg>
+        </button>
+
+        {/* =======================================================
+            STOCK INDICATOR
+        ======================================================== */}
+        {!isOutOfStock && stock <= 5 && stock > 0 && (
+          <div className="absolute bottom-3 left-3 z-10">
+            <span
+              className="
+                inline-flex items-center
+                rounded-full
+                bg-white/92
+                px-2.5 py-1
+                text-[9px]
+                font-semibold
+                tracking-wide
+                text-gray-700
+                shadow-sm
+                backdrop-blur-md
+              "
+            >
+              <span className="mr-1.5 h-1.5 w-1.5 rounded-full bg-orange-500" />
+              {stock} left
+            </span>
+          </div>
         )}
 
-        {/* Product Name */}
-        <Link href={`/product/${product._id}`}>
-          <h3 className="text-base font-semibold text-gray-900 hover:text-pink-600 transition-colors duration-200 line-clamp-2 min-h-[48px] leading-snug">
+        {/* =======================================================
+            DESKTOP QUICK VIEW
+        ======================================================== */}
+        <Link
+          href={`/product/${product._id}`}
+          className="
+            absolute bottom-3 left-1/2 z-10
+            hidden
+            w-[calc(100%-24px)]
+            -translate-x-1/2
+            translate-y-3
+            items-center justify-center
+            rounded-xl
+            bg-white/95
+            px-4 py-2.5
+            text-[11px]
+            font-semibold
+            tracking-wide
+            text-gray-900
+            opacity-0
+            shadow-lg
+            backdrop-blur-md
+            transition-all duration-300
+            group-hover:translate-y-0
+            group-hover:opacity-100
+            sm:flex
+          "
+        >
+          View details
+
+          <svg
+            className="ml-2 h-3.5 w-3.5"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={1.6}
+              d="M9 5l7 7-7 7"
+            />
+          </svg>
+        </Link>
+      </div>
+
+      {/* =========================================================
+          PRODUCT INFORMATION
+      ========================================================== */}
+      <div className="px-0.5 pt-4">
+        {/* Category */}
+        {product.category && (
+          <Link
+            href={`/product/${product._id}`}
+            className="
+              block w-fit
+              text-[9px]
+              font-bold
+              uppercase
+              tracking-[0.18em]
+              text-[#a45b70]
+              transition-colors
+              hover:text-[#8d4058]
+              sm:text-[10px]
+            "
+          >
+            {product.category.name}
+          </Link>
+        )}
+
+        {/* Product name */}
+        <Link
+          href={`/product/${product._id}`}
+          className="mt-1.5 block"
+        >
+          <h3
+            className="
+              line-clamp-2
+              min-h-[40px]
+              text-[13px]
+              font-medium
+              leading-[1.5]
+              tracking-[-0.01em]
+              text-gray-900
+              transition-colors
+              group-hover:text-[#a45b70]
+              sm:text-[14px]
+            "
+          >
             {product.name}
           </h3>
         </Link>
 
         {/* Rating */}
-        <div className="flex items-center gap-2 mt-3">
-          <div className="flex">
+        <div className="mt-2 flex items-center gap-2">
+          <div className="flex items-center gap-[1px]">
             {[...Array(5)].map((_, i) => (
               <svg
                 key={i}
-                className={`w-4 h-4 ${i < (product.rating || 4) ? 'text-amber-400' : 'text-gray-200'}`}
+                className={`h-3 w-3 ${
+                  i < rating ? 'text-[#c69a52]' : 'text-gray-200'
+                }`}
                 fill="currentColor"
                 viewBox="0 0 20 20"
               >
@@ -214,43 +416,178 @@ export default function ProductCard({
               </svg>
             ))}
           </div>
-          <span className="text-xs text-gray-500">({product.reviews || 12} reviews)</span>
+
+          <span className="text-[10px] text-gray-400">
+            {reviewCount}
+          </span>
         </div>
 
-        {/* Price */}
-        <div className="flex items-center gap-2 mt-3">
-          <span className="text-2xl font-bold text-gray-900">₹{product.price}</span>
-          {product.originalPrice && (
-            <span className="text-sm text-gray-400 line-through">
-              ₹{product.originalPrice}
+        {/* =======================================================
+            PRICE + CART
+        ======================================================== */}
+        <div className="mt-3 flex items-center justify-between gap-2">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-baseline gap-x-1.5">
+              <span
+                className="
+                  text-[15px]
+                  font-semibold
+                  tracking-[-0.02em]
+                  text-gray-950
+                  sm:text-[17px]
+                "
+              >
+                ₹{product.price}
+              </span>
+
+              {product.originalPrice && (
+                <span className="text-[10px] text-gray-400 line-through sm:text-xs">
+                  ₹{product.originalPrice}
+                </span>
+              )}
+            </div>
+
+            {discountPercent > 0 && (
+              <span className="mt-0.5 block text-[9px] font-medium text-[#a45b70]">
+                You save {discountPercent}%
+              </span>
+            )}
+          </div>
+
+          {/* Compact cart button */}
+          <button
+            type="button"
+            onClick={() => handleAddToCart(product)}
+            disabled={
+              isOutOfStock ||
+              !isLoggedIn ||
+              isCartMutationPending
+            }
+            aria-label={
+              isOutOfStock
+                ? 'Out of stock'
+                : isInCart
+                ? 'Add another to cart'
+                : 'Add to cart'
+            }
+            className={`
+              flex
+              h-10
+              shrink-0
+              items-center
+              justify-center
+              rounded-full
+              px-3.5
+              text-[10px]
+              font-bold
+              tracking-wide
+              transition-all
+              duration-200
+              sm:h-10
+              sm:px-4
+              sm:text-[11px]
+
+              ${
+                isOutOfStock
+                  ? 'cursor-not-allowed border border-gray-200 bg-gray-50 text-gray-400'
+                  : !isLoggedIn
+                  ? 'cursor-not-allowed border border-gray-200 bg-gray-100 text-gray-400'
+                  : isInCart
+                  ? 'bg-[#21151d] text-white hover:bg-[#34212c]'
+                  : 'bg-[#b45f78] text-white shadow-sm hover:bg-[#9e4d66] hover:shadow-md active:scale-95'
+              }
+            `}
+          >
+            {isCartMutationPending ? (
+              <svg
+                className="h-4 w-4 animate-spin"
+                fill="none"
+                viewBox="0 0 24 24"
+              >
+                <circle
+                  className="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="3"
+                />
+                <path
+                  className="opacity-90"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8v3a5 5 0 00-5 5H4z"
+                />
+              </svg>
+            ) : !isLoggedIn ? (
+              <span className="hidden sm:inline">Login</span>
+            ) : isOutOfStock ? (
+              'Sold out'
+            ) : isInCart ? (
+              <>
+                <svg
+                  className="mr-1.5 h-3.5 w-3.5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M5 13l4 4L19 7"
+                  />
+                </svg>
+
+                <span className="hidden sm:inline">Add more</span>
+                <span className="sm:hidden">+</span>
+              </>
+            ) : (
+              <>
+                <svg
+                  className="mr-1.5 h-3.5 w-3.5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={1.7}
+                    d="M12 5v14M5 12h14"
+                  />
+                </svg>
+
+                <span className="hidden sm:inline">Add</span>
+                <span className="sm:hidden">+</span>
+              </>
+            )}
+          </button>
+        </div>
+
+        {/* Cart status */}
+        {isInCart && !isOutOfStock && (
+          <div className="mt-2 flex items-center gap-1.5 text-[9px] font-medium text-emerald-600">
+            <span className="flex h-3.5 w-3.5 items-center justify-center rounded-full bg-emerald-50">
+              <svg
+                className="h-2 w-2"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2.5}
+                  d="M5 13l4 4L19 7"
+                />
+              </svg>
             </span>
-          )}
-        </div>
 
-        {/* Add to Cart Button */}
-        <button
-          onClick={() => handleAddToCart(product)}
-          disabled={isOutOfStock || !isLoggedIn || addToCartMutation.isPending || updateCartItemMutation.isPending}
-          className={`w-full mt-4 py-3 rounded-xl font-semibold text-sm transition-all duration-300 ${isOutOfStock || !isLoggedIn
-            ? isOutOfStock 
-              ? 'bg-red-50 text-red-400 cursor-not-allowed border-2 border-red-200'
-              : 'bg-gray-100 text-gray-400 cursor-not-allowed border-2 border-gray-200'
-            : isInCart
-              ? 'bg-green-500 text-white hover:bg-green-600 hover:shadow-lg hover:shadow-green-500/30 transform hover:-translate-y-0.5'
-              : 'bg-gradient-to-r from-pink-500 to-rose-500 text-white hover:from-pink-600 hover:to-rose-600 hover:shadow-lg hover:shadow-pink-500/30 transform hover:-translate-y-0.5'
-            }`}
-        >
-          {addToCartMutation.isPending || updateCartItemMutation.isPending 
-            ? 'Adding...' 
-            : !isLoggedIn 
-              ? 'Login to Add' 
-              : isOutOfStock 
-                ? 'Out of Stock' 
-                : isInCart 
-                  ? `In Cart (${cartQuantity})` 
-                  : 'Add to Cart'}
-        </button>
+            {cartQuantity}{' '}
+            {cartQuantity === 1 ? 'item' : 'items'} in cart
+          </div>
+        )}
       </div>
-    </div>
+    </article>
   );
 }

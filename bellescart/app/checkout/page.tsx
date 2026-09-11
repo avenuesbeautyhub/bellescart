@@ -37,9 +37,11 @@ import { useCurrentUser } from '@/hooks/user/useAuthQuery';
 import {
   useWalletBalance,
   useDebitWallet,
+  useCreditWallet,
 } from '@/hooks/user/useWalletQueries';
 
 import { useInvalidatePaymentQueries } from '@/hooks/user/usePaymentQueries';
+import { initializeCsrfToken } from '@/services/apiInterceptor';
 
 export default function CheckoutPage() {
   const router = useRouter();
@@ -69,6 +71,9 @@ export default function CheckoutPage() {
   const debitWalletMutation =
     useDebitWallet();
 
+  const creditWalletMutation =
+    useCreditWallet();
+
   const createOrderMutation =
     useCreateOrder();
 
@@ -90,6 +95,9 @@ export default function CheckoutPage() {
 
   const [processingStep, setProcessingStep] =
     useState<string>('');
+
+  const [orderCompleted, setOrderCompleted] =
+    useState(false);
 
   const [selectedAddressId, setSelectedAddressId] =
     useState<string | null>(null);
@@ -199,6 +207,28 @@ export default function CheckoutPage() {
   }, [currentUserData]);
 
   // ============================================================
+  // REDIRECT EMPTY CART
+  // ============================================================
+
+  useEffect(() => {
+    // Only redirect to cart if it's empty AND we're not in the middle of processing an order
+    // This prevents redirects during the checkout completion process
+    if (cartItems.length === 0 && !isSubmitting && !processingStep) {
+      router.push('/cart');
+    }
+  }, [cartItems.length, isSubmitting, processingStep, router]);
+
+  // ============================================================
+  // REDIRECT IF NOT AUTHENTICATED
+  // ============================================================
+
+  useEffect(() => {
+    if (loaded && !isAuthenticated) {
+      router.push('/login?redirect=/checkout');
+    }
+  }, [loaded, isAuthenticated, router]);
+
+  // ============================================================
   // LOAD RAZORPAY
   // ============================================================
 
@@ -222,6 +252,15 @@ export default function CheckoutPage() {
   }, []);
 
   // ============================================================
+  // INITIALIZE CSRF TOKEN
+  // ============================================================
+
+  useEffect(() => {
+    // Initialize CSRF token on page load
+    initializeCsrfToken();
+  }, []);
+
+  // ============================================================
   // SHIPPING CALCULATION
   // ============================================================
 
@@ -234,44 +273,8 @@ export default function CheckoutPage() {
   };
 
   // ============================================================
-  // AUTH / LOADING
+  // TOTALS
   // ============================================================
-
-  if (!loaded) {
-    return (
-      <Loader
-        size="lg"
-        text="Loading..."
-        fullScreen
-      />
-    );
-  }
-
-  if (!isAuthenticated) {
-    return null;
-  }
-
-  if (isLoadingCart) {
-    return (
-      <Loader
-        size="lg"
-        text="Loading checkout..."
-        fullScreen
-      />
-    );
-  }
-
-  // ============================================================
-  // REDIRECT EMPTY CART
-  // ============================================================
-
-  if (
-    cartItems.length === 0 &&
-    !isSubmitting
-  ) {
-    router.push('/cart');
-    return null;
-  }
 
   // ============================================================
   // TOTALS
@@ -711,10 +714,25 @@ export default function CheckoutPage() {
                     }
                   );
 
-                  const orderResponse =
-                    await createOrderMutation.mutateAsync(
-                      orderRequest
+                  let orderResponse;
+                  try {
+                    orderResponse =
+                      await createOrderMutation.mutateAsync(
+                        orderRequest
+                      );
+                  } catch (orderError) {
+                    console.error('❌ Order creation failed after Razorpay payment:', orderError);
+
+                    globalToast.general.error(
+                      'Order Creation Failed',
+                      'Your payment was successful but order creation failed. Please contact support with your payment details for a refund.'
                     );
+
+                    setIsSubmitting(false);
+                    setProcessingStep('');
+
+                    return;
+                  }
 
                   if (
                     orderResponse.success
@@ -786,16 +804,18 @@ export default function CheckoutPage() {
                       );
                     }
 
-                    await clearCartMutation.mutateAsync();
-
                     invalidatePaymentQueries();
 
                     router.push(
                       `/order-confirmation?orderId=${orderId}`
                     );
+
+                    // Clear cart after redirect to avoid race conditions
+                    await clearCartMutation.mutateAsync();
                   } else {
-                    globalToast.order.createFailed(
-                      orderResponse.message
+                    globalToast.general.error(
+                      'Order Creation Failed',
+                      'Your payment was successful but order creation failed. Please contact support with your payment details for a refund.'
                     );
 
                     setIsSubmitting(false);
@@ -1040,9 +1060,22 @@ export default function CheckoutPage() {
             await validateCartStock();
 
           if (!isStockValid) {
+            // Refund wallet if stock validation fails
+            try {
+              await creditWalletMutation.mutateAsync(
+                {
+                  amount: grandTotal,
+                  description: 'Refund: Out of stock items',
+                }
+              );
+              console.log('✅ Wallet refunded due to stock validation failure');
+            } catch (refundError) {
+              console.error('❌ Failed to refund wallet:', refundError);
+            }
+
             globalToast.general.error(
               'Payment Processed But Order Failed',
-              'Some items in your cart are now out of stock. Your wallet will be refunded automatically.'
+              'Some items in your cart are now out of stock. Your wallet has been refunded automatically.'
             );
 
             setIsSubmitting(false);
@@ -1077,10 +1110,38 @@ export default function CheckoutPage() {
                 undefined,
             };
 
-          const orderResponse =
-            await createOrderMutation.mutateAsync(
-              orderRequest
+          let orderResponse;
+          try {
+            orderResponse =
+              await createOrderMutation.mutateAsync(
+                orderRequest
+              );
+          } catch (orderError) {
+            console.error('❌ Order creation failed:', orderError);
+            
+            // Refund wallet if order creation fails
+            try {
+              await creditWalletMutation.mutateAsync(
+                {
+                  amount: grandTotal,
+                  description: 'Refund: Order creation failed',
+                }
+              );
+              console.log('✅ Wallet refunded due to order creation failure');
+            } catch (refundError) {
+              console.error('❌ Failed to refund wallet:', refundError);
+            }
+
+            globalToast.general.error(
+              'Order Creation Failed',
+              'Your wallet has been refunded automatically. Please try again or contact support if the issue persists.'
             );
+
+            setIsSubmitting(false);
+            setProcessingStep('');
+
+            return;
+          }
 
           if (
             orderResponse.success
@@ -1144,14 +1205,28 @@ export default function CheckoutPage() {
               );
             }
 
-            await clearCartMutation.mutateAsync();
-
             invalidatePaymentQueries();
 
             router.push(
               `/order-confirmation?orderId=${orderId}`
             );
+
+            // Clear cart after redirect to avoid race conditions
+            await clearCartMutation.mutateAsync();
           } else {
+            // Refund wallet if order response indicates failure
+            try {
+              await creditWalletMutation.mutateAsync(
+                {
+                  amount: grandTotal,
+                  description: 'Refund: Order response failed',
+                }
+              );
+              console.log('✅ Wallet refunded due to order response failure');
+            } catch (refundError) {
+              console.error('❌ Failed to refund wallet:', refundError);
+            }
+
             globalToast.order.createFailed(
               orderResponse.message
             );
@@ -1176,7 +1251,27 @@ export default function CheckoutPage() {
         error
       );
 
-      globalToast.order.createFailed();
+      // If wallet payment was processed, attempt refund
+      if (formData.paymentMethod === 'wallet') {
+        try {
+          await creditWalletMutation.mutateAsync(
+            {
+              amount: grandTotal,
+              description: 'Refund: Unexpected error during checkout',
+            }
+          );
+          console.log('✅ Wallet refunded due to unexpected error');
+        } catch (refundError) {
+          console.error('❌ Failed to refund wallet:', refundError);
+        }
+
+        globalToast.general.error(
+          'Checkout Error',
+          'An unexpected error occurred. Your wallet has been refunded automatically. Please try again.'
+        );
+      } else {
+        globalToast.order.createFailed();
+      }
     } finally {
       setIsSubmitting(false);
       setProcessingStep('');
@@ -1186,6 +1281,35 @@ export default function CheckoutPage() {
   // ============================================================
   // RENDER
   // ============================================================
+
+  // Early return for loading states
+  if (!loaded) {
+    return (
+      <Loader
+        size="lg"
+        text="Loading..."
+        fullScreen
+      />
+    );
+  }
+
+  if (!isAuthenticated) {
+    return null;
+  }
+
+  if (isLoadingCart) {
+    return (
+      <Loader
+        size="lg"
+        text="Loading checkout..."
+        fullScreen
+      />
+    );
+  }
+
+  if (cartItems.length === 0 && !isSubmitting) {
+    return null;
+  }
 
   return (
     <div className="min-h-screen flex flex-col bg-[#faf9fb] text-gray-900">

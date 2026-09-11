@@ -13,6 +13,7 @@ import CartItem from '@/components/CartItem/CartItem';
 
 import { useCart, useUpdateCartItem, useRemoveFromCart, useClearCart, useValidateStock } from '@/hooks/user/useCartQueries';
 import { globalToast } from '@/utils/globalToast';
+import { initializeCsrfToken } from '@/services/apiInterceptor';
 
 export default function CartPage() {
   const { loaded, isAuthenticated } = useRequireUserAuth();
@@ -149,6 +150,32 @@ export default function CartPage() {
   }, [cartData]);
 
   // ============================================================
+  // INITIALIZE CSRF TOKEN
+  // ============================================================
+
+  const [csrfInitialized, setCsrfInitialized] = useState(false);
+  const [csrfError, setCsrfError] = useState<string | null>(null);
+
+  useEffect(() => {
+    // Initialize CSRF token when cart page loads
+    const initCsrf = async () => {
+      try {
+        console.log('[CART PAGE] Initializing CSRF token...');
+        await initializeCsrfToken();
+        console.log('[CART PAGE] CSRF token initialized successfully');
+        setCsrfInitialized(true);
+        setCsrfError(null);
+      } catch (error) {
+        console.error('[CART PAGE] Failed to initialize CSRF token:', error);
+        setCsrfError('Failed to initialize security token. Some features may not work properly.');
+        setCsrfInitialized(true); // Still set to true to avoid blocking UI
+      }
+    };
+    
+    initCsrf();
+  }, []);
+
+  // ============================================================
   // LOADING / AUTH
   // ============================================================
 
@@ -264,6 +291,19 @@ export default function CartPage() {
   ) => {
     if (updatingItemId) return;
 
+    // Ensure CSRF token is initialized before making the request
+    if (!csrfInitialized) {
+      console.warn('[CART PAGE] CSRF token not initialized, waiting...');
+      try {
+        await initializeCsrfToken();
+        console.log('[CART PAGE] CSRF token initialized before cart operation');
+      } catch (error) {
+        console.error('[CART PAGE] Failed to initialize CSRF token before cart operation:', error);
+        globalToast.general.error('Security Error', 'Failed to initialize security token. Please refresh the page.');
+        return;
+      }
+    }
+
     try {
       setUpdatingItemId(id);
 
@@ -275,7 +315,7 @@ export default function CartPage() {
       });
     } catch (error) {
       console.error(
-        'Failed to update quantity:',
+        '[CART PAGE] Failed to update quantity:',
         error
       );
 
@@ -290,6 +330,19 @@ export default function CartPage() {
   // ============================================================
 
   const handleRemove = async (id: string) => {
+    // Ensure CSRF token is initialized before making the request
+    if (!csrfInitialized) {
+      console.warn('[CART PAGE] CSRF token not initialized, waiting...');
+      try {
+        await initializeCsrfToken();
+        console.log('[CART PAGE] CSRF token initialized before cart operation');
+      } catch (error) {
+        console.error('[CART PAGE] Failed to initialize CSRF token before cart operation:', error);
+        globalToast.general.error('Security Error', 'Failed to initialize security token. Please refresh the page.');
+        return;
+      }
+    }
+
     try {
       await removeFromCart.mutateAsync(id);
 
@@ -298,7 +351,7 @@ export default function CartPage() {
       await validateStock();
     } catch (error) {
       console.error(
-        'Failed to remove item:',
+        '[CART PAGE] Failed to remove item:',
         error
       );
 
@@ -660,6 +713,57 @@ export default function CartPage() {
                   </button>
 
                 </div>
+
+                {/* ==================================================
+                    CSRF ERROR WARNING
+                =================================================== */}
+
+                {csrfError && (
+                  <div className="mb-4 overflow-hidden rounded-2xl border border-red-200 bg-red-50">
+
+                    <div className="flex items-start gap-3 p-4">
+
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-red-100">
+
+                        <svg
+                          className="h-4 w-4 text-red-600"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                          />
+                        </svg>
+
+                      </div>
+
+                      <div className="min-w-0 flex-1">
+
+                        <p className="text-sm font-bold text-red-900">
+                          Security Token Issue
+                        </p>
+
+                        <p className="mt-1 text-xs leading-5 text-red-800">
+                          {csrfError}
+                        </p>
+
+                        <button
+                          onClick={() => window.location.reload()}
+                          className="mt-2 text-xs font-medium text-red-700 underline hover:text-red-900"
+                        >
+                          Refresh the page to fix this issue
+                        </button>
+
+                      </div>
+
+                    </div>
+
+                  </div>
+                )}
 
                 {/* ==================================================
                     STOCK WARNING

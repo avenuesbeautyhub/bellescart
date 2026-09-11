@@ -39,6 +39,9 @@ function OrderConfirmationContent() {
   const [countdown, setCountdown] =
     useState(6);
 
+  const [hasRedirected, setHasRedirected] =
+    useState(false);
+
   // ============================================================
   // REDIRECT IF ORDER ID IS MISSING
   // ============================================================
@@ -82,10 +85,11 @@ function OrderConfirmationContent() {
   // ============================================================
 
   useEffect(() => {
-    if (countdown === 0) {
+    if (countdown === 0 && !hasRedirected) {
+      setHasRedirected(true);
       router.push('/orders');
     }
-  }, [countdown, router]);
+  }, [countdown, router, hasRedirected]);
 
   // ============================================================
   // ORDER DATA
@@ -131,7 +135,22 @@ function OrderConfirmationContent() {
   }
 
   if (!order) {
-    return null;
+    return (
+      <div className="min-h-screen flex flex-col bg-[#faf9fb]">
+        <Navbar />
+        <main className="flex-1 flex items-center justify-center px-4">
+          <div className="text-center">
+            <p className="text-gray-600 mb-4">Order not found</p>
+            <Link href="/orders">
+              <Button variant="primary" size="lg">
+                View My Orders
+              </Button>
+            </Link>
+          </div>
+        </main>
+        <Footer />
+      </div>
+    );
   }
 
   // ============================================================

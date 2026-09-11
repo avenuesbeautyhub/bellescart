@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import Link from 'next/link';
 import { useRequireUserAuth } from '@/auth/user';
 import Navbar from '@/components/Navbar/Navbar';
@@ -12,6 +12,7 @@ import {
   useRemoveFromWishlist,
 } from '@/hooks/user/useWishlistQueries';
 import { globalToast } from '@/utils/globalToast';
+import { initializeCsrfToken } from '@/services/apiInterceptor';
 
 export default function WishlistPage() {
   const { loaded, isAuthenticated } = useRequireUserAuth();
@@ -21,6 +22,11 @@ export default function WishlistPage() {
   const removeFromWishlist = useRemoveFromWishlist();
 
   const wishlistItems = wishlistData?.data?.wishlist || [];
+
+  // Initialize CSRF token when wishlist page loads
+  useEffect(() => {
+    initializeCsrfToken();
+  }, []);
 
   const handleRemoveFromWishlist = async (productId: string) => {
     try {

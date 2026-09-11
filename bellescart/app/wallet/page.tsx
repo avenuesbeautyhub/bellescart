@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
 import { useRequireUserAuth } from '@/auth/user';
@@ -9,6 +9,7 @@ import Footer from '@/components/Footer/Footer';
 import Button from '@/components/ui/Button';
 import Loader from '@/components/ui/Loader';
 import { useWallet, useWalletBalance } from '@/hooks/user/useWalletQueries';
+import { initializeCsrfToken } from '@/services/apiInterceptor';
 
 export default function WalletPage() {
   const router = useRouter();
@@ -31,6 +32,11 @@ export default function WalletPage() {
   const wallet = walletData?.data?.wallet;
   const balance = balanceData?.data?.balance || 0;
   const transactions = wallet?.transactions || [];
+
+  // Initialize CSRF token when wallet page loads
+  useEffect(() => {
+    initializeCsrfToken();
+  }, []);
 
   if (!loaded) {
     return (

@@ -15,8 +15,8 @@ export default function AdminAuthWrapper({ children }: AdminAuthWrapperProps) {
   const { user, isAuthenticated, loaded } = useRequireAdminAuth();
 
   // Don't require auth for the login page (root admin page) and register page
-  const isLoginPage = pathname === '/admin';
-  const isRegisterPage = pathname === '/admin/register';
+  const isLoginPage = pathname === '/belles-portel-25';
+  const isRegisterPage = pathname === '/belles-portel-25/register';
   const isAuthPage = isLoginPage || isRegisterPage;
 
   useEffect(() => {
@@ -24,19 +24,19 @@ export default function AdminAuthWrapper({ children }: AdminAuthWrapperProps) {
 
     // If not authenticated and not on auth page, redirect to login
     if (!isAuthenticated && !isAuthPage) {
-      router.replace('/admin');
+      router.replace('/belles-portel-25');
       return;
     }
 
     // If authenticated and on login page, redirect to dashboard
     if (isAuthenticated && isLoginPage) {
-      router.replace('/admin/dashboard');
+      router.replace('/belles-portel-25/dashboard');
       return;
     }
 
     // If authenticated and on register page, redirect to dashboard
     if (isAuthenticated && isRegisterPage) {
-      router.replace('/admin/dashboard');
+      router.replace('/belles-portel-25/dashboard');
       return;
     }
   }, [loaded, isAuthenticated, isLoginPage, isRegisterPage, router]);

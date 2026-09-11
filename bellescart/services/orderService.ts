@@ -57,7 +57,7 @@ export const orderService = {
   createOrder: async (request: CreateOrderRequest): Promise<OrderResponse> => {
     try {
       const response = await apiPost('/orders', request);
-      const data = await response.json();
+      const data = await response.clone().json();
       return data;
     } catch (error) {
       console.error('Error creating order:', error);
@@ -75,7 +75,7 @@ export const orderService = {
 
       const url = `/orders${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
       const response = await apiGet(url);
-      const data = await response.json();
+      const data = await response.clone().json();
       return data;
     } catch (error) {
       console.error('Error fetching orders:', error);
@@ -87,7 +87,7 @@ export const orderService = {
   getOrderById: async (orderId: string): Promise<OrderResponse> => {
     try {
       const response = await apiGet(`/orders/${orderId}`);
-      const data = await response.json();
+      const data = await response.clone().json();
       return data;
     } catch (error) {
       console.error('Error fetching order:', error);
@@ -99,7 +99,9 @@ export const orderService = {
   cancelOrder: async (orderId: string): Promise<OrderResponse> => {
     try {
       const response = await apiPut(`/orders/${orderId}/cancel`);
-      const data = await response.json();
+      
+      // Clone the response before parsing to avoid stream already read errors
+      const data = await response.clone().json();
       return data;
     } catch (error) {
       console.error('Error cancelling order:', error);
@@ -114,7 +116,7 @@ export const orderService = {
   }): Promise<any> => {
     try {
       const response = await apiPost('/orders/shipping/calculate', request);
-      const data = await response.json();
+      const data = await response.clone().json();
       return data;
     } catch (error) {
       console.error('Error calculating shipping:', error);
@@ -126,7 +128,7 @@ export const orderService = {
   updateOrderStatus: async (orderId: string, status: string): Promise<OrderResponse> => {
     try {
       const response = await apiPut(`/orders/${orderId}/status`, { status });
-      const data = await response.json();
+      const data = await response.clone().json();
       return data;
     } catch (error) {
       console.error('Error updating order status:', error);
@@ -142,7 +144,7 @@ export const orderService = {
   }): Promise<any> => {
     try {
       const response = await apiPost('/orders/nimbus/process', request);
-      const data = await response.json();
+      const data = await response.clone().json();
       return data;
     } catch (error) {
       console.error('Error processing NimbusPost order:', error);
@@ -154,7 +156,7 @@ export const orderService = {
   trackOrder: async (awb: string): Promise<any> => {
     try {
       const response = await apiGet(`/orders/track/${awb}`);
-      const data = await response.json();
+      const data = await response.clone().json();
       return data;
     } catch (error) {
       console.error('Error tracking order:', error);
@@ -166,7 +168,7 @@ export const orderService = {
   trackOrderByOrderId: async (orderId: string): Promise<any> => {
     try {
       const response = await apiGet(`/orders/${orderId}/track`);
-      const data = await response.json();
+      const data = await response.clone().json();
       return data;
     } catch (error) {
       console.error('Error tracking order by ID:', error);
@@ -178,7 +180,7 @@ export const orderService = {
   returnOrder: async (orderId: string, returnReason: string): Promise<OrderResponse> => {
     try {
       const response = await apiPost(`/orders/${orderId}/return`, { returnReason });
-      const data = await response.json();
+      const data = await response.clone().json();
       return data;
     } catch (error) {
       console.error('Error returning order:', error);

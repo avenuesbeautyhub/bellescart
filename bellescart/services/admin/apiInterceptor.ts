@@ -2,6 +2,7 @@
 
 import { appConfig } from '@/config/appConfig';
 import { getAdminAuth as getAuthData, getAdminToken, clearAdminSession, isTokenValid } from '@/auth/admin';
+import { generateSignature, generateNonce, getTimestamp, isSensitiveEndpoint } from '@/utils/requestSigning';
 
 const API_BASE_URL = appConfig.apiBaseUrl;
 
@@ -49,8 +50,15 @@ export const adminApiFetch = async (url: string, options: RequestInit = {}): Pro
   // Get admin authentication data
   const token = getAdminToken();
 
+  console.log('Admin token check:', {
+    hasToken: !!token,
+    tokenLength: token?.length,
+    isValid: token ? isTokenValid(token) : false
+  });
+
   // Check if token exists and is valid
   if (token && isTokenExpired(token)) {
+    console.warn('Admin token expired, clearing session');
     globalToast.auth.tokenExpired();
     // For now, clear auth and let user re-login
     clearAdminSession();
@@ -70,15 +78,81 @@ export const adminApiFetch = async (url: string, options: RequestInit = {}): Pro
   const method = options.method || 'GET';
   if (['POST', 'PUT', 'DELETE', 'PATCH'].includes(method)) {
     const cookieCsrf = getCsrfTokenFromCookie();
+    console.log('CSRF token check:', {
+      method,
+      hasCsrfToken: !!cookieCsrf,
+      csrfTokenLength: cookieCsrf?.length
+    });
+
     if (cookieCsrf) {
       const headers = authOptions.headers as Record<string, string>;
       headers['X-CSRF-Token'] = cookieCsrf;
     }
   }
 
+  // Add request signature for sensitive endpoints
+  const isSensitive = isSensitiveEndpoint(url);
+  const isStateChanging = ['POST', 'PUT', 'DELETE', 'PATCH'].includes(method);
+
+  console.log('Signature check:', {
+    url,
+    method,
+    isSensitive,
+    isStateChanging,
+    shouldSign: isSensitive && isStateChanging
+  });
+
+  if (isSensitive && isStateChanging) {
+    try {
+      let payload = '';
+      if (options.body) {
+        if (typeof options.body === 'string') {
+          payload = options.body;
+        } else {
+          payload = JSON.stringify(options.body);
+        }
+      }
+      // For DELETE requests, ensure empty string for consistency
+      if (method === 'DELETE' && !payload) {
+        payload = '';
+      }
+      const timestamp = getTimestamp();
+      const nonce = generateNonce();
+      const signature = generateSignature(payload, timestamp, nonce);
+      const headers = authOptions.headers as Record<string, string>;
+      headers['X-Signature'] = signature;
+      headers['X-Timestamp'] = timestamp;
+      headers['X-Nonce'] = nonce;
+
+      console.log('Request signature added:', {
+        url,
+        method,
+        payloadLength: payload.length,
+        timestamp,
+        nonce
+      });
+    } catch (error) {
+      console.error('Failed to generate request signature:', error);
+    }
+  }
+
   try {
     // Make initial request
+    console.log('Admin API Request:', {
+      url: `${API_BASE_URL}${url}`,
+      method: authOptions.method,
+      headers: authOptions.headers,
+      hasToken: !!token,
+      isTokenValid: token ? isTokenValid(token) : false
+    });
+
     const response = await fetch(`${API_BASE_URL}${url}`, authOptions);
+
+    console.log('Admin API Response:', {
+      status: response.status,
+      ok: response.ok,
+      statusText: response.statusText
+    });
 
     // If response is successful, return it
     if (response.ok) {
@@ -95,7 +169,7 @@ export const adminApiFetch = async (url: string, options: RequestInit = {}): Pro
 
       // Redirect to admin login page
       if (typeof window !== 'undefined') {
-        window.location.href = '/admin';
+        window.location.href = '/belles-portel-25';
       }
 
       throw new Error('Authentication required');
@@ -104,6 +178,12 @@ export const adminApiFetch = async (url: string, options: RequestInit = {}): Pro
     // Handle other HTTP errors
     if (response.status >= 400) {
       const errorData = await response.json();
+      console.error('Admin API Error:', {
+        status: response.status,
+        errorData,
+        url: `${API_BASE_URL}${url}`,
+        method: authOptions.method
+      });
 
       if (response.status >= 500) {
         globalToast.error.server(errorData.message || 'Server error');
@@ -153,10 +233,18 @@ export const adminApi = {
     }),
 
   delete: (url: string, options?: RequestInit) =>
-    adminApiFetch(url, { ...options, method: 'DELETE' }),
+    adminApiFetch(url, {
+      ...options,
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+        ...options?.headers,
+      },
+      body: undefined // Ensure DELETE has no body for signature consistency
+    }),
 
   // For FormData (file uploads)
-  postFormData: (url: string, formData: FormData, options?: RequestInit) => {
+  postFormData: async (url: string, formData: FormData, options?: RequestInit) => {
     const csrf = getCsrfTokenFromCookie();
     const formDataHeaders: Record<string, string> = {
       ...(options?.headers as Record<string, string>),
@@ -164,7 +252,25 @@ export const adminApi = {
     if (csrf) {
       formDataHeaders['X-CSRF-Token'] = csrf;
     }
-    
+
+    // Add signature for sensitive endpoints with FormData
+    const isSensitive = isSensitiveEndpoint(url);
+    if (isSensitive) {
+      try {
+        // For FormData, we can't easily stringify the body, so use empty string as payload
+        const timestamp = getTimestamp();
+        const nonce = generateNonce();
+        const signature = generateSignature('', timestamp, nonce);
+        formDataHeaders['X-Signature'] = signature;
+        formDataHeaders['X-Timestamp'] = timestamp;
+        formDataHeaders['X-Nonce'] = nonce;
+
+        console.log('FormData signature added for:', url);
+      } catch (error) {
+        console.error('Failed to generate FormData signature:', error);
+      }
+    }
+
     return adminApiFetch(url, {
       ...options,
       method: 'POST',
@@ -174,7 +280,7 @@ export const adminApi = {
     });
   },
 
-  putFormData: (url: string, formData: FormData, options?: RequestInit) => {
+  putFormData: async (url: string, formData: FormData, options?: RequestInit) => {
     const csrf = getCsrfTokenFromCookie();
     const formDataHeaders: Record<string, string> = {
       ...(options?.headers as Record<string, string>),
@@ -182,7 +288,25 @@ export const adminApi = {
     if (csrf) {
       formDataHeaders['X-CSRF-Token'] = csrf;
     }
-    
+
+    // Add signature for sensitive endpoints with FormData
+    const isSensitive = isSensitiveEndpoint(url);
+    if (isSensitive) {
+      try {
+        // For FormData, we can't easily stringify the body, so use empty string as payload
+        const timestamp = getTimestamp();
+        const nonce = generateNonce();
+        const signature = generateSignature('', timestamp, nonce);
+        formDataHeaders['X-Signature'] = signature;
+        formDataHeaders['X-Timestamp'] = timestamp;
+        formDataHeaders['X-Nonce'] = nonce;
+
+        console.log('FormData signature added for:', url);
+      } catch (error) {
+        console.error('Failed to generate FormData signature:', error);
+      }
+    }
+
     return adminApiFetch(url, {
       ...options,
       method: 'PUT',

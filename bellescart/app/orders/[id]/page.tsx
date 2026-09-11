@@ -136,6 +136,17 @@ export default function OrderDetailPage({
     return `₹${amount.toLocaleString('en-IN')}`;
   };
 
+  const canReturnOrder = (order: any) => {
+    if (order.status !== 'delivered') return false;
+    
+    // Check if 2 days have passed since delivery
+    const deliveredDate = new Date(order.deliveredAt || order.updatedAt);
+    const twoDaysAgo = new Date();
+    twoDaysAgo.setDate(twoDaysAgo.getDate() - 2);
+    
+    return deliveredDate <= twoDaysAgo;
+  };
+
   const getPaymentMethodLabel = (method: string) => {
     if (method === 'cash_on_delivery') {
       return 'Cash on Delivery';
@@ -492,7 +503,7 @@ export default function OrderDetailPage({
                       Payment status
                     </p>
                     <p className="mt-1 text-sm font-semibold capitalize text-gray-900">
-                      {order.paymentStatus || 'Paid'}
+                      {(order.paymentStatus === 'paid' || order.paymentStatus === 'completed') ? 'Paid' : (order.paymentStatus || 'Pending')}
                     </p>
                   </div>
 
@@ -566,11 +577,11 @@ export default function OrderDetailPage({
                         className="flex gap-4 px-5 py-5 sm:px-6"
                       >
                         <div className="h-20 w-20 shrink-0 overflow-hidden rounded-xl bg-gray-100 sm:h-24 sm:w-24">
-                          {item.product?.image ? (
+                          {item.product?.images?.[0]?.url || item.product?.image ? (
                             <img
-                              src={item.product.image}
+                              src={item.product?.images?.[0]?.url || item.product?.image}
                               alt={
-                                item.product.name ||
+                                item.product?.name ||
                                 item.name
                               }
                               className="h-full w-full object-cover"
@@ -716,16 +727,6 @@ export default function OrderDetailPage({
 
                   <div className="flex justify-between gap-4 text-sm">
                     <span className="text-gray-500">
-                      Tax
-                    </span>
-
-                    <span className="font-medium text-gray-900">
-                      {formatAmount(order.tax)}
-                    </span>
-                  </div>
-
-                  <div className="flex justify-between gap-4 text-sm">
-                    <span className="text-gray-500">
                       Shipping
                     </span>
 
@@ -805,7 +806,7 @@ export default function OrderDetailPage({
                         </p>
                       </div>
 
-                      {order.estimatedDelivery && (
+                      {order.estimatedDelivery && order.status === 'shipped' && (
                         <div className="mt-4">
                           <p className="text-xs text-gray-500">
                             Estimated delivery
@@ -977,7 +978,7 @@ export default function OrderDetailPage({
                 </h2>
 
                 <div className="space-y-2.5">
-                  {order.status === 'delivered' && (
+                  {canReturnOrder(order) && (
                     <Button
                       variant="primary"
                       className="w-full"

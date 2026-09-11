@@ -1,12 +1,22 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, {
+  useState,
+  useEffect,
+  useMemo,
+} from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useAuth, useAuthActions } from '@/auth/user';
+
+import {
+  useAuth,
+  useAuthActions,
+} from '@/auth/user';
+
 import { useCart as useCartQuery } from '@/hooks/user/useCartQueries';
 import { useProfile } from '@/hooks/user/useProfileQueries';
 import { useWalletBalance } from '@/hooks/user/useWalletQueries';
+
 import { SearchBar } from '@/components';
 import Badge from '@/components/ui/Badge';
 
@@ -15,34 +25,55 @@ export default function Navbar() {
 
   const [isOpen, setIsOpen] = useState(false);
 
-  const { user, isAuthenticated, loaded } = useAuth();
+  const {
+    user,
+    isAuthenticated,
+    loaded,
+  } = useAuth();
+
   const { logout } = useAuthActions();
 
-  const { data: profileData } = useProfile({
-    enabled: isAuthenticated && loaded,
+  const {
+    data: profileData,
+  } = useProfile({
+    enabled:
+      isAuthenticated && loaded,
   });
 
-  const { data: cartData } = useCartQuery({
-    enabled: isAuthenticated && loaded,
+  const {
+    data: cartData,
+  } = useCartQuery({
+    enabled:
+      isAuthenticated && loaded,
   });
 
-  const { data: walletBalanceData } = useWalletBalance({
-    enabled: isAuthenticated && loaded,
+  const {
+    data: walletBalanceData,
+  } = useWalletBalance({
+    enabled:
+      isAuthenticated && loaded,
   });
 
   const cartCount = useMemo(() => {
-    if (!cartData?.data?.items) return 0;
+    if (!cartData?.data?.items) {
+      return 0;
+    }
 
     return cartData.data.items.reduce(
-      (sum: number, item: any) => sum + (item.quantity || 1),
+      (sum: number, item: any) =>
+        sum + (item.quantity || 1),
       0
     );
   }, [cartData]);
 
-  const profileAvatar = profileData?.data?.avatar;
-  const walletBalance = walletBalanceData?.data?.balance ?? 0;
+  const profileAvatar =
+    profileData?.data?.avatar;
 
-  const isLoggedIn = isAuthenticated && loaded;
+  const walletBalance =
+    walletBalanceData?.data?.balance ?? 0;
+
+  const isLoggedIn =
+    isAuthenticated && loaded;
 
   const handleLogout = () => {
     setIsOpen(false);
@@ -51,29 +82,46 @@ export default function Navbar() {
   };
 
   const handleSearch = (query: string) => {
+    const target = isLoggedIn
+      ? '/products'
+      : '/products/guest';
+
     router.push(
-      `${isLoggedIn ? '/products' : '/products/guest'}?search=${encodeURIComponent(query)}`
+      `${target}?search=${encodeURIComponent(query)}`
     );
   };
 
-  // Lock body scroll while mobile drawer is open
+  /*
+   * Lock page scrolling when mobile drawer
+   * is open.
+   */
   useEffect(() => {
-    const handleEscape = (event: KeyboardEvent) => {
+    const handleEscape = (
+      event: KeyboardEvent
+    ) => {
       if (event.key === 'Escape') {
         setIsOpen(false);
       }
     };
 
     if (isOpen) {
-      document.addEventListener('keydown', handleEscape);
+      document.addEventListener(
+        'keydown',
+        handleEscape
+      );
+
       document.body.style.overflow = 'hidden';
     } else {
-      document.body.style.overflow = 'unset';
+      document.body.style.overflow = '';
     }
 
     return () => {
-      document.removeEventListener('keydown', handleEscape);
-      document.body.style.overflow = 'unset';
+      document.removeEventListener(
+        'keydown',
+        handleEscape
+      );
+
+      document.body.style.overflow = '';
     };
   }, [isOpen]);
 
@@ -81,277 +129,477 @@ export default function Navbar() {
     setIsOpen(false);
   };
 
+  const navItems = [
+    {
+      label: 'Shop',
+      href: '/products',
+    },
+    {
+      label: 'Wishlist',
+      href: '/wishlist',
+    },
+    {
+      label: 'Orders',
+      href: '/orders',
+    },
+    {
+      label: 'Payments',
+      href: '/payments',
+    },
+  ];
+
   return (
     <>
       {/* =========================================================
-          MAIN NAVBAR
+          DESKTOP / MAIN NAVBAR
       ========================================================== */}
-      <nav className="sticky top-0 z-50 border-b border-gray-100/80 bg-white/95 backdrop-blur-xl">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="flex h-[72px] items-center justify-between gap-4">
 
-            {/* ---------------------------------------------------
-                LOGO
-            ---------------------------------------------------- */}
-            <Link
-              href={isLoggedIn ? '/dashboard' : '/'}
-              className="group flex shrink-0 items-center gap-2.5"
-              aria-label="BellesCart Home"
-            >
-              <div
+      <header className="sticky top-0 z-50">
+
+        {/* Subtle top announcement */}
+        <div className="hidden h-8 items-center justify-center bg-[#21131c] px-4 text-[9px] font-semibold uppercase tracking-[0.28em] text-white/70 sm:flex">
+          Complimentary delivery on selected orders
+        </div>
+
+        <nav
+          className="
+            border-b
+            border-gray-100/80
+            bg-white/95
+            backdrop-blur-2xl
+          "
+        >
+          <div className="mx-auto max-w-[1440px] px-4 sm:px-6 lg:px-10">
+
+            <div className="flex h-[72px] items-center gap-4 lg:h-[78px]">
+
+              {/* =================================================
+                  LOGO
+              ================================================== */}
+
+              <Link
+                href={
+                  isLoggedIn
+                    ? '/dashboard'
+                    : '/'
+                }
                 className="
-                  flex h-10 w-10 items-center justify-center
-                  rounded-xl
-                  bg-gradient-to-br from-pink-500 via-pink-500 to-purple-600
-                  shadow-[0_6px_18px_rgba(236,72,153,0.22)]
-                  transition-all duration-300
-                  group-hover:-translate-y-0.5
-                  group-hover:shadow-[0_8px_22px_rgba(236,72,153,0.3)]
+                  group
+                  flex
+                  shrink-0
+                  items-center
+                  gap-2.5
                 "
+                aria-label="BellesCart Home"
               >
-                <svg
-                  className="h-5.5 w-5.5 text-white"
-                  fill="currentColor"
-                  viewBox="0 0 20 20"
-                  aria-hidden="true"
+
+                {/* Logo mark */}
+                <div
+                  className="
+                    relative
+                    flex
+                    h-10
+                    w-10
+                    items-center
+                    justify-center
+                    overflow-hidden
+                    rounded-full
+                    bg-[#21131c]
+                    shadow-[0_5px_18px_rgba(33,19,28,0.15)]
+                    transition-all
+                    duration-300
+                    group-hover:-translate-y-0.5
+                    group-hover:shadow-[0_8px_25px_rgba(33,19,28,0.2)]
+                  "
                 >
-                  <path d="M10.394 2.08a1 1 0 00-.788 0l-7 3a1 1 0 000 1.84L5.25 8.051a.999.999 0 01.226.1l7 3a1 1 0 00.788 0l7-3a1 1 0 000-1.84l-5.38-2.31z" />
-                </svg>
-              </div>
 
-              <span
-                className="
-                  hidden text-[22px] font-extrabold tracking-tight
-                  bg-gradient-to-r from-pink-600 to-purple-600
-                  bg-clip-text text-transparent
-                  sm:block
-                "
-              >
-                BellesCart
-              </span>
-            </Link>
+                  <div className="absolute inset-[3px] rounded-full border border-white/20" />
 
-            {/* ---------------------------------------------------
-                DESKTOP CENTER AREA
-            ---------------------------------------------------- */}
-            <div className="hidden min-w-0 flex-1 items-center justify-center gap-5 md:flex">
+                  <span className="relative font-serif text-lg italic text-white">
+                    B
+                  </span>
 
-              {/* Search */}
-              <div className="w-full max-w-md">
-                <SearchBar
-                  className="w-full"
-                  onSearch={handleSearch}
-                />
-              </div>
+                </div>
 
-              {/* Navigation */}
+                {/* Wordmark */}
+                <div className="hidden sm:block">
+
+                  <div className="text-[20px] font-semibold tracking-[-0.035em] text-gray-950">
+                    BellesCart
+                  </div>
+
+                  <div className="-mt-0.5 text-[7px] font-medium uppercase tracking-[0.35em] text-gray-400">
+                    Jewelry & more
+                  </div>
+
+                </div>
+
+              </Link>
+
+              {/* =================================================
+                  DESKTOP NAVIGATION
+              ================================================== */}
+
               {isLoggedIn && (
-                <div className="flex shrink-0 items-center gap-0.5">
+                <div className="ml-4 hidden items-center lg:flex">
 
-                  <Link
-                    href="/products"
-                    className="
-                      rounded-lg px-3 py-2
-                      text-sm font-medium text-gray-600
-                      transition-all duration-200
-                      hover:bg-pink-50 hover:text-pink-600
-                    "
-                  >
-                    Products
-                  </Link>
+                  <div className="h-6 w-px bg-gray-200" />
 
-                  <Link
-                    href="/wishlist"
-                    className="
-                      rounded-lg px-3 py-2
-                      text-sm font-medium text-gray-600
-                      transition-all duration-200
-                      hover:bg-pink-50 hover:text-pink-600
-                    "
-                  >
-                    Wishlist
-                  </Link>
+                  <div className="ml-4 flex items-center gap-1">
 
-                  <Link
-                    href="/orders"
-                    className="
-                      rounded-lg px-3 py-2
-                      text-sm font-medium text-gray-600
-                      transition-all duration-200
-                      hover:bg-pink-50 hover:text-pink-600
-                    "
-                  >
-                    Orders
-                  </Link>
-
-                  <Link
-                    href="/payments"
-                    className="
-                      rounded-lg px-3 py-2
-                      text-sm font-medium text-gray-600
-                      transition-all duration-200
-                      hover:bg-pink-50 hover:text-pink-600
-                    "
-                  >
-                    Payments
-                  </Link>
-
-                  <Link
-                    href="/wallet"
-                    className="
-                      flex items-center gap-1.5
-                      rounded-lg px-3 py-2
-                      text-sm font-medium text-gray-600
-                      transition-all duration-200
-                      hover:bg-pink-50 hover:text-pink-600
-                    "
-                  >
-                    Wallet
-
-                    {walletBalance > 0 && (
-                      <Badge
-                        variant="success"
-                        className="rounded-full px-2 py-0.5 text-[10px] font-semibold"
+                    {navItems.map((item) => (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        className="
+                          group
+                          relative
+                          rounded-full
+                          px-4
+                          py-2.5
+                          text-[13px]
+                          font-medium
+                          text-gray-600
+                          transition-all
+                          duration-200
+                          hover:bg-gray-50
+                          hover:text-gray-950
+                        "
                       >
-                        ₹{walletBalance.toFixed(0)}
-                      </Badge>
-                    )}
-                  </Link>
+                        {item.label}
+
+                        <span
+                          className="
+                            absolute
+                            bottom-1
+                            left-1/2
+                            h-0.5
+                            w-0
+                            -translate-x-1/2
+                            rounded-full
+                            bg-[#b63c71]
+                            transition-all
+                            duration-200
+                            group-hover:w-4
+                          "
+                        />
+                      </Link>
+                    ))}
+
+                    {/* Wallet */}
+                    <Link
+                      href="/wallet"
+                      className="
+                        group
+                        flex
+                        items-center
+                        gap-2
+                        rounded-full
+                        px-4
+                        py-2.5
+                        text-[13px]
+                        font-medium
+                        text-gray-600
+                        transition-all
+                        duration-200
+                        hover:bg-gray-50
+                        hover:text-gray-950
+                      "
+                    >
+
+                      <span>
+                        Wallet
+                      </span>
+
+                      {walletBalance > 0 && (
+                        <span
+                          className="
+                            rounded-full
+                            bg-[#f8edf3]
+                            px-2
+                            py-0.5
+                            text-[9px]
+                            font-bold
+                            text-[#a63368]
+                          "
+                        >
+                          ₹
+                          {walletBalance.toFixed(0)}
+                        </span>
+                      )}
+
+                    </Link>
+
+                  </div>
+
                 </div>
               )}
-            </div>
 
-            {/* ---------------------------------------------------
-                RIGHT ACTIONS
-            ---------------------------------------------------- */}
-            <div className="flex shrink-0 items-center gap-2">
+              {/* =================================================
+                  SEARCH
+              ================================================== */}
 
-              {/* Cart */}
-              {isLoggedIn && (
-                <Link
-                  href="/cart"
+              <div className="ml-auto hidden min-w-0 max-w-[390px] flex-1 md:block lg:ml-auto lg:max-w-[360px] xl:max-w-[420px]">
+
+                <div
                   className="
-                    group relative flex h-10 w-10 items-center justify-center
-                    rounded-xl
-                    text-gray-600
-                    transition-all duration-200
-                    hover:bg-pink-50 hover:text-pink-600
-                    focus:outline-none focus:ring-2 focus:ring-pink-500/30
+                    rounded-full
+                    border
+                    border-gray-200
+                    bg-gray-50/80
+                    px-1
+                    transition-all
+                    duration-200
+                    focus-within:border-gray-300
+                    focus-within:bg-white
+                    focus-within:shadow-[0_5px_25px_rgba(20,20,20,0.06)]
                   "
-                  aria-label={`Shopping cart${cartCount > 0 ? `, ${cartCount} items` : ''}`}
+                >
+                  <SearchBar
+                    className="w-full"
+                    onSearch={handleSearch}
+                  />
+                </div>
+
+              </div>
+
+              {/* =================================================
+                  RIGHT ACTIONS
+              ================================================== */}
+
+              <div className="ml-auto flex shrink-0 items-center gap-1.5 md:ml-3">
+
+                {/* Mobile search */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!isOpen) {
+                      setIsOpen(true);
+                    }
+                  }}
+                  className="
+                    flex
+                    h-10
+                    w-10
+                    items-center
+                    justify-center
+                    rounded-full
+                    text-gray-600
+                    transition-all
+                    hover:bg-gray-50
+                    hover:text-gray-950
+                    md:hidden
+                  "
+                  aria-label="Search"
                 >
                   <svg
-                    className="h-5 w-5 transition-transform duration-200 group-hover:scale-105"
+                    className="h-5 w-5"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
-                    aria-hidden="true"
                   >
+                    <circle
+                      cx="11"
+                      cy="11"
+                      r="7"
+                      strokeWidth="1.7"
+                    />
+
                     <path
                       strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={1.8}
-                      d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"
+                      strokeWidth="1.7"
+                      d="m20 20-4-4"
                     />
                   </svg>
+                </button>
 
-                  {cartCount > 0 && (
-                    <span
+                {/* Cart */}
+                {isLoggedIn && (
+                  <Link
+                    href="/cart"
+                    className="
+                      group
+                      relative
+                      flex
+                      h-10
+                      w-10
+                      items-center
+                      justify-center
+                      rounded-full
+                      text-gray-600
+                      transition-all
+                      duration-200
+                      hover:bg-[#fff4f8]
+                      hover:text-[#b63c71]
+                    "
+                    aria-label={`Shopping cart${
+                      cartCount > 0
+                        ? `, ${cartCount} items`
+                        : ''
+                    }`}
+                  >
+
+                    <svg
                       className="
-                        absolute -right-0.5 -top-0.5
-                        flex h-[19px] min-w-[19px] items-center justify-center
-                        rounded-full
-                        bg-gradient-to-r from-pink-500 to-purple-600
-                        px-1
-                        text-[10px] font-bold text-white
-                        shadow-[0_3px_8px_rgba(236,72,153,0.35)]
-                        ring-2 ring-white
+                        h-[19px]
+                        w-[19px]
+                        transition-transform
+                        duration-200
+                        group-hover:scale-105
                       "
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
                     >
-                      {cartCount > 99 ? '99+' : cartCount}
-                    </span>
-                  )}
-                </Link>
-              )}
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth="1.7"
+                        d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"
+                      />
+                    </svg>
 
-              {/* -------------------------------------------------
-                  DESKTOP PROFILE / AUTH
-              -------------------------------------------------- */}
-              <div className="hidden items-center md:flex">
+                    {cartCount > 0 && (
+                      <span
+                        className="
+                          absolute
+                          right-0
+                          top-0
+                          flex
+                          h-[18px]
+                          min-w-[18px]
+                          items-center
+                          justify-center
+                          rounded-full
+                          bg-[#b63c71]
+                          px-1
+                          text-[9px]
+                          font-bold
+                          text-white
+                          shadow-sm
+                          ring-2
+                          ring-white
+                        "
+                      >
+                        {cartCount > 99
+                          ? '99+'
+                          : cartCount}
+                      </span>
+                    )}
+
+                  </Link>
+                )}
+
+                {/* Profile */}
                 {isLoggedIn ? (
-                  <div className="ml-1 flex items-center border-l border-gray-200 pl-3">
+                  <Link
+                    href="/profile"
+                    className="
+                      group
+                      ml-1
+                      flex
+                      items-center
+                      gap-2.5
+                      rounded-full
+                      border
+                      border-gray-100
+                      bg-white
+                      py-1
+                      pl-1
+                      pr-2
+                      transition-all
+                      duration-200
+                      hover:border-gray-200
+                      hover:bg-gray-50
+                    "
+                  >
 
-                    {/* Profile */}
-                    <Link
-                      href="/profile"
-                      className="
-                        group flex items-center gap-2.5
-                        rounded-xl px-2 py-1.5
-                        transition-all duration-200
-                        hover:bg-gray-50
-                      "
-                    >
-                      {profileAvatar ? (
-                        <img
-                          src={profileAvatar}
-                          alt="Profile"
-                          className="
-                            h-9 w-9 rounded-full object-cover
-                            shadow-sm ring-2 ring-white
-                            transition-transform duration-200
-                            group-hover:scale-105
-                          "
-                        />
-                      ) : (
-                        <div
-                          className="
-                            flex h-9 w-9 items-center justify-center
-                            rounded-full
-                            bg-gradient-to-br from-pink-500 to-purple-600
-                            shadow-sm ring-2 ring-white
-                          "
-                        >
-                          <span className="text-sm font-bold text-white">
-                            {user?.name?.charAt(0)?.toUpperCase() || 'U'}
-                          </span>
-                        </div>
-                      )}
-
-                      <div className="hidden lg:block">
-                        <p className="text-[10px] font-medium uppercase tracking-wide text-gray-400">
-                          Welcome back
-                        </p>
-
-                        <p className="max-w-[110px] truncate text-sm font-semibold text-gray-800">
-                          {user?.name || 'User'}
-                        </p>
+                    {profileAvatar ? (
+                      <img
+                        src={profileAvatar}
+                        alt="Profile"
+                        className="
+                          h-8
+                          w-8
+                          rounded-full
+                          object-cover
+                          ring-1
+                          ring-gray-100
+                          transition-transform
+                          group-hover:scale-105
+                        "
+                      />
+                    ) : (
+                      <div
+                        className="
+                          flex
+                          h-8
+                          w-8
+                          items-center
+                          justify-center
+                          rounded-full
+                          bg-[#21131c]
+                        "
+                      >
+                        <span className="text-xs font-semibold text-white">
+                          {user?.name
+                            ?.charAt(0)
+                            ?.toUpperCase() ||
+                            'U'}
+                        </span>
                       </div>
-                    </Link>
+                    )}
 
-                    {/* Logout */}
-                    <button
-                      onClick={handleLogout}
+                    <div className="hidden min-w-0 xl:block">
+
+                      <p className="max-w-[100px] truncate text-[11px] font-semibold text-gray-800">
+                        {user?.name ||
+                          'Account'}
+                      </p>
+
+                      <p className="text-[8px] uppercase tracking-[0.15em] text-gray-400">
+                        Account
+                      </p>
+
+                    </div>
+
+                    <svg
                       className="
-                        ml-1 rounded-lg px-3 py-2
-                        text-sm font-medium text-gray-500
-                        transition-all duration-200
-                        hover:bg-red-50 hover:text-red-500
-                        focus:outline-none focus:ring-2 focus:ring-red-500/20
+                        hidden
+                        h-3.5
+                        w-3.5
+                        text-gray-300
+                        transition-transform
+                        group-hover:translate-y-0.5
+                        xl:block
                       "
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
                     >
-                      Logout
-                    </button>
-                  </div>
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth="1.8"
+                        d="m6 9 6 6 6-6"
+                      />
+                    </svg>
+
+                  </Link>
                 ) : (
-                  <div className="ml-1 flex items-center gap-1 border-l border-gray-200 pl-3">
+                  <div className="hidden items-center gap-1 md:flex">
 
                     <Link
                       href="/login"
                       className="
-                        rounded-lg px-3.5 py-2
-                        text-sm font-medium text-gray-600
-                        transition-all duration-200
-                        hover:bg-gray-50 hover:text-gray-900
+                        rounded-full
+                        px-4
+                        py-2.5
+                        text-[13px]
+                        font-medium
+                        text-gray-600
+                        transition-colors
+                        hover:text-gray-950
                       "
                     >
                       Login
@@ -360,519 +608,720 @@ export default function Navbar() {
                     <Link
                       href="/signup"
                       className="
-                        rounded-xl
-                        bg-gradient-to-r from-pink-500 to-purple-600
-                        px-4 py-2.5
-                        text-sm font-semibold text-white
-                        shadow-[0_5px_15px_rgba(236,72,153,0.22)]
-                        transition-all duration-200
+                        rounded-full
+                        bg-gray-950
+                        px-5
+                        py-2.5
+                        text-[13px]
+                        font-semibold
+                        text-white
+                        shadow-sm
+                        transition-all
+                        duration-200
                         hover:-translate-y-0.5
-                        hover:shadow-[0_7px_20px_rgba(236,72,153,0.3)]
+                        hover:bg-[#b63c71]
+                        hover:shadow-lg
                       "
                     >
-                      Sign Up
+                      Create account
                     </Link>
+
                   </div>
                 )}
-              </div>
 
-              {/* -------------------------------------------------
-                  MOBILE MENU BUTTON
-              -------------------------------------------------- */}
-              <button
-                type="button"
-                onClick={() => setIsOpen(!isOpen)}
-                className="
-                  flex h-10 w-10 items-center justify-center
-                  rounded-xl
-                  bg-gray-50 text-gray-600
-                  transition-all duration-200
-                  hover:bg-pink-50 hover:text-pink-600
-                  focus:outline-none focus:ring-2 focus:ring-pink-500/30
-                  md:hidden
-                "
-                aria-label={isOpen ? 'Close menu' : 'Open menu'}
-                aria-expanded={isOpen}
-              >
-                <svg
-                  className="h-5.5 w-5.5"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                  aria-hidden="true"
+                {/* Mobile menu */}
+                <button
+                  type="button"
+                  onClick={() =>
+                    setIsOpen(!isOpen)
+                  }
+                  className="
+                    flex
+                    h-10
+                    w-10
+                    items-center
+                    justify-center
+                    rounded-full
+                    bg-gray-50
+                    text-gray-700
+                    transition-all
+                    hover:bg-gray-100
+                    md:hidden
+                  "
+                  aria-label={
+                    isOpen
+                      ? 'Close menu'
+                      : 'Open menu'
+                  }
+                  aria-expanded={isOpen}
                 >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={1.8}
-                    d={
-                      isOpen
-                        ? 'M6 18L18 6M6 6l12 12'
-                        : 'M4 6h16M4 12h16M4 18h16'
-                    }
-                  />
-                </svg>
-                
-              </button>
-            </div>
-          </div>
-        </div>
-      </nav>
-
-      {/* =========================================================
-          MOBILE OVERLAY
-      ========================================================== */}
-      {isOpen && (
-        <div
-          className="
-            fixed inset-0 z-40
-            bg-black/35
-            backdrop-blur-[2px]
-            md:hidden
-          "
-          onClick={closeMobileMenu}
-          aria-hidden="true"
-        />
-      )}
-
-      {/* =========================================================
-          MOBILE DRAWER
-      ========================================================== */}
-      <aside
-        className={`
-          fixed inset-y-0 right-0 z-50
-          flex w-[330px] max-w-[88vw] flex-col
-          bg-white
-          shadow-[-15px_0_50px_rgba(0,0,0,0.12)]
-          transition-transform duration-300 ease-out
-          md:hidden
-          ${isOpen ? 'translate-x-0' : 'translate-x-full'}
-        `}
-        aria-hidden={!isOpen}
-      >
-
-        {/* -------------------------------------------------------
-            DRAWER HEADER
-        -------------------------------------------------------- */}
-        <div className="flex h-[72px] items-center justify-between border-b border-gray-100 px-5">
-
-          <Link
-            href={isLoggedIn ? '/dashboard' : '/'}
-            onClick={closeMobileMenu}
-            className="flex items-center gap-2.5"
-          >
-            <div
-              className="
-                flex h-9 w-9 items-center justify-center
-                rounded-xl
-                bg-gradient-to-br from-pink-500 to-purple-600
-                shadow-sm
-              "
-            >
-              <svg
-                className="h-5 w-5 text-white"
-                fill="currentColor"
-                viewBox="0 0 20 20"
-                aria-hidden="true"
-              >
-                <path d="M10.394 2.08a1 1 0 00-.788 0l-7 3a1 1 0 000 1.84L5.25 8.051a.999.999 0 01.226.1l7 3a1 1 0 00.788 0l7-3a1 1 0 000-1.84l-5.38-2.31z" />
-              </svg>
-            </div>
-
-            <span
-              className="
-                text-xl font-extrabold tracking-tight
-                bg-gradient-to-r from-pink-600 to-purple-600
-                bg-clip-text text-transparent
-              "
-            >
-              BellesCart
-            </span>
-          </Link>
-
-          <div className="flex items-center gap-1">
-
-            {isLoggedIn && (
-              <Link
-                href="/cart"
-                onClick={closeMobileMenu}
-                className="
-                  relative flex h-9 w-9 items-center justify-center
-                  rounded-lg text-gray-600
-                  hover:bg-pink-50 hover:text-pink-600
-                "
-                aria-label="Cart"
-              >
-                <svg
-                  className="h-5 w-5"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                  aria-hidden="true"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={1.8}
-                    d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"
-                  />
-                </svg>
-
-                {cartCount > 0 && (
-                  <span
-                    className="
-                      absolute right-0 top-0
-                      flex h-4 min-w-4 items-center justify-center
-                      rounded-full
-                      bg-pink-500 px-1
-                      text-[9px] font-bold text-white
-                      ring-2 ring-white
-                    "
-                  >
-                    {cartCount > 99 ? '99+' : cartCount}
-                  </span>
-                )}
-              </Link>
-            )}
-
-            <button
-              type="button"
-              onClick={closeMobileMenu}
-              className="
-                flex h-9 w-9 items-center justify-center
-                rounded-lg
-                text-gray-500
-                transition-colors
-                hover:bg-gray-100 hover:text-gray-800
-              "
-              aria-label="Close menu"
-            >
-              <svg
-                className="h-5 w-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-                aria-hidden="true"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={1.8}
-                  d="M6 18L18 6M6 6l12 12"
-                />
-              </svg>
-            </button>
-          </div>
-        </div>
-
-        {/* -------------------------------------------------------
-            DRAWER CONTENT
-        -------------------------------------------------------- */}
-        <div className="flex-1 overflow-y-auto">
-
-          <div className="p-5">
-
-            {/* Mobile Search */}
-            <div className="mb-6">
-              <SearchBar
-                className="w-full"
-                onSearch={(query) => {
-                  closeMobileMenu();
-                  handleSearch(query);
-                }}
-              />
-            </div>
-
-            {/* Main navigation */}
-            <div className="space-y-1">
-
-              <Link
-                href={isLoggedIn ? '/products' : '/products/guest'}
-                onClick={closeMobileMenu}
-                className="
-                  flex items-center gap-3
-                  rounded-xl px-4 py-3
-                  text-sm font-semibold text-gray-700
-                  transition-all duration-200
-                  hover:bg-pink-50 hover:text-pink-600
-                "
-              >
-                <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-gray-50">
                   <svg
                     className="h-5 w-5"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
-                    aria-hidden="true"
                   >
                     <path
                       strokeLinecap="round"
                       strokeLinejoin="round"
-                      strokeWidth={1.8}
+                      strokeWidth="1.7"
+                      d={
+                        isOpen
+                          ? 'M6 18L18 6M6 6l12 12'
+                          : 'M4 6h16M4 12h16M4 18h16'
+                      }
+                    />
+                  </svg>
+                </button>
+
+              </div>
+
+            </div>
+          </div>
+        </nav>
+      </header>
+
+      {/* =========================================================
+          MOBILE BACKDROP
+      ========================================================== */}
+
+      <div
+        className={`
+          fixed
+          inset-0
+          z-[55]
+          bg-black/30
+          backdrop-blur-sm
+          transition-opacity
+          duration-300
+          md:hidden
+          ${
+            isOpen
+              ? 'pointer-events-auto opacity-100'
+              : 'pointer-events-none opacity-0'
+          }
+        `}
+        onClick={closeMobileMenu}
+        aria-hidden="true"
+      />
+
+      {/* =========================================================
+          MOBILE DRAWER
+      ========================================================== */}
+
+      <aside
+        className={`
+          fixed
+          inset-y-0
+          right-0
+          z-[60]
+          flex
+          w-[350px]
+          max-w-[92vw]
+          flex-col
+          bg-white
+          shadow-[-25px_0_70px_rgba(0,0,0,0.16)]
+          transition-transform
+          duration-300
+          ease-out
+          md:hidden
+          ${
+            isOpen
+              ? 'translate-x-0'
+              : 'translate-x-full'
+          }
+        `}
+        aria-hidden={!isOpen}
+      >
+
+        {/* =======================================================
+            DRAWER HEADER
+        ======================================================== */}
+
+        <div className="flex h-[72px] shrink-0 items-center justify-between border-b border-gray-100 px-5">
+
+          <Link
+            href={
+              isLoggedIn
+                ? '/dashboard'
+                : '/'
+            }
+            onClick={closeMobileMenu}
+            className="flex items-center gap-2.5"
+          >
+
+            <div
+              className="
+                flex
+                h-9
+                w-9
+                items-center
+                justify-center
+                rounded-full
+                bg-[#21131c]
+              "
+            >
+              <span className="font-serif text-base italic text-white">
+                B
+              </span>
+            </div>
+
+            <div>
+              <div className="text-[19px] font-semibold tracking-tight text-gray-950">
+                BellesCart
+              </div>
+
+              <div className="-mt-0.5 text-[7px] uppercase tracking-[0.3em] text-gray-400">
+                Jewelry & more
+              </div>
+            </div>
+
+          </Link>
+
+          <button
+            type="button"
+            onClick={closeMobileMenu}
+            className="
+              flex
+              h-9
+              w-9
+              items-center
+              justify-center
+              rounded-full
+              bg-gray-50
+              text-gray-500
+              transition-colors
+              hover:bg-gray-100
+              hover:text-gray-900
+            "
+            aria-label="Close menu"
+          >
+            <svg
+              className="h-5 w-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="1.8"
+                d="M6 18L18 6M6 6l12 12"
+              />
+            </svg>
+          </button>
+
+        </div>
+
+        {/* =======================================================
+            DRAWER BODY
+        ======================================================== */}
+
+        <div className="flex-1 overflow-y-auto">
+
+          <div className="p-5">
+
+            {/* Mobile search */}
+            <div className="mb-7">
+
+              <p className="mb-2.5 px-1 text-[9px] font-bold uppercase tracking-[0.25em] text-gray-400">
+                Search
+              </p>
+
+              <div className="rounded-2xl border border-gray-200 bg-gray-50 px-1">
+                <SearchBar
+                  className="w-full"
+                  onSearch={(query) => {
+                    closeMobileMenu();
+                    handleSearch(query);
+                  }}
+                />
+              </div>
+
+            </div>
+
+            {/* Navigation label */}
+            <p className="mb-3 px-1 text-[9px] font-bold uppercase tracking-[0.25em] text-gray-400">
+              Explore
+            </p>
+
+            {/* Navigation */}
+            <div className="space-y-1">
+
+              {/* Shop */}
+              <Link
+                href={
+                  isLoggedIn
+                    ? '/products'
+                    : '/products/guest'
+                }
+                onClick={closeMobileMenu}
+                className="
+                  group
+                  flex
+                  items-center
+                  gap-4
+                  rounded-2xl
+                  px-3
+                  py-3
+                  transition-all
+                  hover:bg-[#fff6f9]
+                "
+              >
+
+                <div
+                  className="
+                    flex
+                    h-10
+                    w-10
+                    items-center
+                    justify-center
+                    rounded-xl
+                    bg-[#fdf0f5]
+                    text-[#b63c71]
+                    transition-transform
+                    group-hover:scale-105
+                  "
+                >
+                  <svg
+                    className="h-5 w-5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="1.7"
                       d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"
                     />
                   </svg>
+                </div>
+
+                <div className="flex-1">
+
+                  <p className="text-sm font-semibold text-gray-800">
+                    Shop
+                  </p>
+
+                  <p className="mt-0.5 text-[10px] text-gray-400">
+                    Explore our collection
+                  </p>
+
+                </div>
+
+                <span className="text-gray-300 transition-transform group-hover:translate-x-1 group-hover:text-[#b63c71]">
+                  →
                 </span>
-                Products
+
               </Link>
 
               {isLoggedIn && (
                 <>
+                  {/* Wishlist */}
                   <Link
                     href="/wishlist"
                     onClick={closeMobileMenu}
                     className="
-                      flex items-center gap-3
-                      rounded-xl px-4 py-3
-                      text-sm font-semibold text-gray-700
-                      transition-all duration-200
-                      hover:bg-pink-50 hover:text-pink-600
+                      group
+                      flex
+                      items-center
+                      gap-4
+                      rounded-2xl
+                      px-3
+                      py-3
+                      transition-all
+                      hover:bg-[#fff6f9]
                     "
                   >
-                    <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-gray-50">
+
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-pink-50 text-pink-600">
                       <svg
                         className="h-5 w-5"
                         fill="none"
                         stroke="currentColor"
                         viewBox="0 0 24 24"
-                        aria-hidden="true"
                       >
                         <path
                           strokeLinecap="round"
                           strokeLinejoin="round"
-                          strokeWidth={1.8}
-                          d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
+                          strokeWidth="1.7"
+                          d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 000-7.78z"
                         />
                       </svg>
+                    </div>
+
+                    <div className="flex-1">
+
+                      <p className="text-sm font-semibold text-gray-800">
+                        Wishlist
+                      </p>
+
+                      <p className="mt-0.5 text-[10px] text-gray-400">
+                        Your saved favorites
+                      </p>
+
+                    </div>
+
+                    <span className="text-gray-300 group-hover:translate-x-1 group-hover:text-pink-500">
+                      →
                     </span>
-                    Wishlist
+
                   </Link>
 
+                  {/* Orders */}
                   <Link
                     href="/orders"
                     onClick={closeMobileMenu}
                     className="
-                      flex items-center gap-3
-                      rounded-xl px-4 py-3
-                      text-sm font-semibold text-gray-700
-                      transition-all duration-200
-                      hover:bg-pink-50 hover:text-pink-600
+                      group
+                      flex
+                      items-center
+                      gap-4
+                      rounded-2xl
+                      px-3
+                      py-3
+                      transition-all
+                      hover:bg-blue-50/60
                     "
                   >
-                    <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-gray-50">
+
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
                       <svg
                         className="h-5 w-5"
                         fill="none"
                         stroke="currentColor"
                         viewBox="0 0 24 24"
-                        aria-hidden="true"
                       >
                         <path
                           strokeLinecap="round"
                           strokeLinejoin="round"
-                          strokeWidth={1.8}
+                          strokeWidth="1.7"
                           d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a3 3 0 016 0M9 5h6"
                         />
                       </svg>
+                    </div>
+
+                    <div className="flex-1">
+
+                      <p className="text-sm font-semibold text-gray-800">
+                        Orders
+                      </p>
+
+                      <p className="mt-0.5 text-[10px] text-gray-400">
+                        Track your purchases
+                      </p>
+
+                    </div>
+
+                    <span className="text-gray-300 group-hover:translate-x-1 group-hover:text-blue-500">
+                      →
                     </span>
-                    Orders
+
                   </Link>
 
+                  {/* Payments */}
                   <Link
                     href="/payments"
                     onClick={closeMobileMenu}
                     className="
-                      flex items-center gap-3
-                      rounded-xl px-4 py-3
-                      text-sm font-semibold text-gray-700
-                      transition-all duration-200
-                      hover:bg-pink-50 hover:text-pink-600
+                      group
+                      flex
+                      items-center
+                      gap-4
+                      rounded-2xl
+                      px-3
+                      py-3
+                      transition-all
+                      hover:bg-purple-50/60
                     "
                   >
-                    <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-gray-50">
+
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-purple-50 text-purple-600">
                       <svg
                         className="h-5 w-5"
                         fill="none"
                         stroke="currentColor"
                         viewBox="0 0 24 24"
-                        aria-hidden="true"
                       >
                         <path
                           strokeLinecap="round"
                           strokeLinejoin="round"
-                          strokeWidth={1.8}
+                          strokeWidth="1.7"
                           d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"
                         />
                       </svg>
+                    </div>
+
+                    <div className="flex-1">
+
+                      <p className="text-sm font-semibold text-gray-800">
+                        Payments
+                      </p>
+
+                      <p className="mt-0.5 text-[10px] text-gray-400">
+                        Payment history
+                      </p>
+
+                    </div>
+
+                    <span className="text-gray-300 group-hover:translate-x-1 group-hover:text-purple-500">
+                      →
                     </span>
-                    Payments
+
                   </Link>
 
+                  {/* Wallet */}
                   <Link
                     href="/wallet"
                     onClick={closeMobileMenu}
                     className="
-                      flex items-center gap-3
-                      rounded-xl px-4 py-3
-                      text-sm font-semibold text-gray-700
-                      transition-all duration-200
-                      hover:bg-pink-50 hover:text-pink-600
+                      group
+                      flex
+                      items-center
+                      gap-4
+                      rounded-2xl
+                      px-3
+                      py-3
+                      transition-all
+                      hover:bg-green-50/60
                     "
                   >
-                    <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-gray-50">
+
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-green-50 text-green-600">
                       <svg
                         className="h-5 w-5"
                         fill="none"
                         stroke="currentColor"
                         viewBox="0 0 24 24"
-                        aria-hidden="true"
                       >
                         <path
                           strokeLinecap="round"
                           strokeLinejoin="round"
-                          strokeWidth={1.8}
-                          d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"
+                          strokeWidth="1.7"
+                          d="M3 7h18a2 2 0 012 2v8a2 2 0 01-2 2H3a2 2 0 01-2-2V9a2 2 0 012-2z"
+                        />
+
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth="1.7"
+                          d="M16 13h.01"
                         />
                       </svg>
-                    </span>
+                    </div>
 
-                    <span className="flex-1">Wallet</span>
+                    <div className="flex-1">
 
-                    {walletBalance > 0 && (
-                      <Badge
-                        variant="success"
-                        className="rounded-full px-2 py-0.5 text-[10px]"
-                      >
-                        ₹{walletBalance.toFixed(0)}
-                      </Badge>
+                      <p className="text-sm font-semibold text-gray-800">
+                        Wallet
+                      </p>
+
+                      <p className="mt-0.5 text-[10px] text-gray-400">
+                        Your BellesCart balance
+                      </p>
+
+                    </div>
+
+                    {walletBalance > 0 ? (
+                      <span className="rounded-full bg-green-50 px-2.5 py-1 text-[9px] font-bold text-green-600">
+                        ₹
+                        {walletBalance.toFixed(0)}
+                      </span>
+                    ) : (
+                      <span className="text-gray-300 group-hover:translate-x-1">
+                        →
+                      </span>
                     )}
+
                   </Link>
 
-                  <Link
-                    href="/profile"
-                    onClick={closeMobileMenu}
-                    className="
-                      flex items-center gap-3
-                      rounded-xl px-4 py-3
-                      text-sm font-semibold text-gray-700
-                      transition-all duration-200
-                      hover:bg-pink-50 hover:text-pink-600
-                    "
-                  >
-                    <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-gray-50">
-                      <svg
-                        className="h-5 w-5"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                        aria-hidden="true"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={1.8}
-                          d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-                        />
-                      </svg>
-                    </span>
-                    Profile
-                  </Link>
                 </>
               )}
+
             </div>
+
+            {/* Divider */}
+            <div className="my-7 h-px bg-gray-100" />
+
+            {/* Account */}
+            {isLoggedIn && (
+              <>
+                <p className="mb-3 px-1 text-[9px] font-bold uppercase tracking-[0.25em] text-gray-400">
+                  Account
+                </p>
+
+                <Link
+                  href="/profile"
+                  onClick={closeMobileMenu}
+                  className="
+                    flex
+                    items-center
+                    gap-3
+                    rounded-2xl
+                    border
+                    border-gray-100
+                    bg-gray-50/70
+                    p-3
+                    transition-all
+                    hover:border-gray-200
+                    hover:bg-white
+                  "
+                >
+
+                  {profileAvatar ? (
+                    <img
+                      src={profileAvatar}
+                      alt="Profile"
+                      className="h-11 w-11 rounded-full object-cover"
+                    />
+                  ) : (
+                    <div className="flex h-11 w-11 items-center justify-center rounded-full bg-[#21131c]">
+                      <span className="text-sm font-semibold text-white">
+                        {user?.name
+                          ?.charAt(0)
+                          ?.toUpperCase() ||
+                          'U'}
+                      </span>
+                    </div>
+                  )}
+
+                  <div className="min-w-0 flex-1">
+
+                    <p className="text-[9px] uppercase tracking-[0.18em] text-gray-400">
+                      Signed in as
+                    </p>
+
+                    <p className="mt-1 truncate text-sm font-semibold text-gray-900">
+                      {user?.name ||
+                        'Account'}
+                    </p>
+
+                  </div>
+
+                  <span className="text-gray-300">
+                    →
+                  </span>
+
+                </Link>
+              </>
+            )}
+
           </div>
+
         </div>
 
-        {/* -------------------------------------------------------
-            MOBILE USER / AUTH SECTION
-        -------------------------------------------------------- */}
-        <div className="border-t border-gray-100 bg-gray-50/70 p-5">
+        {/* =======================================================
+            DRAWER FOOTER
+        ======================================================== */}
+
+        <div className="shrink-0 border-t border-gray-100 bg-gray-50/80 p-5">
 
           {isLoggedIn ? (
-            <div className="space-y-3">
+            <div className="space-y-2.5">
 
-              {/* User profile card */}
+              {/* Cart shortcut */}
               <Link
-                href="/profile"
+                href="/cart"
                 onClick={closeMobileMenu}
                 className="
-                  flex items-center gap-3
+                  flex
+                  items-center
+                  justify-between
                   rounded-2xl
-                  border border-pink-100
-                  bg-gradient-to-br from-pink-50 via-white to-purple-50
-                  p-3
-                  transition-all duration-200
-                  hover:border-pink-200
+                  bg-white
+                  px-4
+                  py-3.5
+                  text-sm
+                  font-semibold
+                  text-gray-800
+                  shadow-sm
+                  transition-all
+                  hover:shadow-md
                 "
               >
-                {profileAvatar ? (
-                  <img
-                    src={profileAvatar}
-                    alt="Profile"
-                    className="h-11 w-11 rounded-full object-cover shadow-sm"
-                  />
-                ) : (
-                  <div
-                    className="
-                      flex h-11 w-11 shrink-0 items-center justify-center
-                      rounded-full
-                      bg-gradient-to-br from-pink-500 to-purple-600
-                      shadow-sm
-                    "
+
+                <span className="flex items-center gap-2.5">
+
+                  <svg
+                    className="h-4.5 w-4.5 text-gray-500"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
                   >
-                    <span className="text-base font-bold text-white">
-                      {user?.name?.charAt(0)?.toUpperCase() || 'U'}
-                    </span>
-                  </div>
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="1.7"
+                      d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17"
+                    />
+                  </svg>
+
+                  Cart
+
+                </span>
+
+                {cartCount > 0 && (
+                  <span className="rounded-full bg-[#f9eaf1] px-2.5 py-1 text-[9px] font-bold text-[#b63c71]">
+                    {cartCount}
+                    {' '}
+                    {cartCount === 1
+                      ? 'item'
+                      : 'items'}
+                  </span>
                 )}
 
-                <div className="min-w-0">
-                  <p className="text-[10px] font-medium uppercase tracking-wide text-gray-400">
-                    Signed in as
-                  </p>
-
-                  <p className="truncate text-sm font-semibold text-gray-800">
-                    {user?.name || 'User'}
-                  </p>
-                </div>
               </Link>
 
+              {/* Logout */}
               <button
                 type="button"
                 onClick={handleLogout}
                 className="
-                  flex w-full items-center justify-center
-                  rounded-xl
-                  border border-gray-200
+                  flex
+                  w-full
+                  items-center
+                  justify-center
+                  rounded-2xl
+                  border
+                  border-gray-200
                   bg-white
-                  px-4 py-3
-                  text-sm font-semibold text-gray-600
-                  transition-all duration-200
+                  px-4
+                  py-3.5
+                  text-sm
+                  font-semibold
+                  text-gray-600
+                  transition-all
                   hover:border-red-100
                   hover:bg-red-50
                   hover:text-red-500
                 "
               >
-                Logout
+                Sign out
               </button>
+
             </div>
           ) : (
-            <div className="space-y-2.5">
+            <div className="grid grid-cols-2 gap-2.5">
 
               <Link
                 href="/login"
                 onClick={closeMobileMenu}
                 className="
-                  flex w-full items-center justify-center
-                  rounded-xl
-                  border border-gray-200
+                  flex
+                  items-center
+                  justify-center
+                  rounded-2xl
+                  border
+                  border-gray-200
                   bg-white
-                  px-4 py-3
-                  text-sm font-semibold text-gray-700
-                  transition-all duration-200
-                  hover:border-pink-200
-                  hover:bg-pink-50
-                  hover:text-pink-600
+                  px-4
+                  py-3.5
+                  text-sm
+                  font-semibold
+                  text-gray-700
+                  transition-all
+                  hover:border-gray-300
                 "
               >
                 Login
@@ -882,23 +1331,29 @@ export default function Navbar() {
                 href="/signup"
                 onClick={closeMobileMenu}
                 className="
-                  flex w-full items-center justify-center
-                  rounded-xl
-                  bg-gradient-to-r from-pink-500 to-purple-600
-                  px-4 py-3
-                  text-sm font-semibold text-white
-                  shadow-[0_5px_15px_rgba(236,72,153,0.2)]
-                  transition-all duration-200
-                  hover:-translate-y-0.5
-                  hover:shadow-[0_7px_20px_rgba(236,72,153,0.28)]
+                  flex
+                  items-center
+                  justify-center
+                  rounded-2xl
+                  bg-gray-950
+                  px-4
+                  py-3.5
+                  text-sm
+                  font-semibold
+                  text-white
+                  shadow-sm
+                  transition-all
+                  hover:bg-[#b63c71]
                 "
               >
-                Create Account
+                Sign up
               </Link>
 
             </div>
           )}
+
         </div>
+
       </aside>
     </>
   );
