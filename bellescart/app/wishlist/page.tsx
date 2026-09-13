@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect } from 'react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { useRequireUserAuth } from '@/auth/user';
 import Navbar from '@/components/Navbar/Navbar';
@@ -258,11 +259,13 @@ export default function WishlistPage() {
                     <div className="relative overflow-hidden rounded-2xl bg-white ring-1 ring-black/[0.05]">
                       <Link href={`/product/${item._id}`}>
                         <div className="relative aspect-[0.92] overflow-hidden bg-gray-100">
-                          {item.images && item.images.length > 0 ? (
-                            <img
-                              src={item.images[0]}
+                          {item.images && item.images.length > 0 && item.images[0]?.url ? (
+                            <Image
+                              src={item.images[0].url}
                               alt={item.name}
-                              className="h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-[1.04]"
+                              fill
+                              sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, (max-width: 1536px) 25vw, 20vw"
+                              className="object-cover transition-transform duration-500 ease-out group-hover:scale-[1.04]"
                             />
                           ) : (
                             <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-pink-50 to-purple-50">

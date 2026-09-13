@@ -95,6 +95,18 @@ export const orderService = {
     }
   },
 
+  // Get order by order number
+  getOrderByOrderNumber: async (orderNumber: string): Promise<OrderResponse> => {
+    try {
+      const response = await apiGet(`/orders/order-number/${orderNumber}`);
+      const data = await response.clone().json();
+      return data;
+    } catch (error) {
+      console.error('Error fetching order by number:', error);
+      throw error;
+    }
+  },
+
   // Cancel order
   cancelOrder: async (orderId: string): Promise<OrderResponse> => {
     try {

@@ -129,6 +129,45 @@ export class OrderController {
     }
   };
 
+  getOrderByOrderNumber = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const authReq = req as AuthRequest;
+      if (!authReq.user) {
+        res.status(401).json({
+          success: false,
+          error: 'User not authenticated'
+        });
+        return;
+      }
+
+      const order = await this._orderInteractor.getOrderByOrderNumber(req.params.orderNumber);
+
+      if (!order) {
+        res.status(404).json({
+          success: false,
+          error: 'Order not found'
+        });
+        return;
+      }
+
+      // Verify the order belongs to the authenticated user
+      if (order.user.toString() !== authReq.user._id.toString()) {
+        res.status(403).json({
+          success: false,
+          error: 'Access denied'
+        });
+        return;
+      }
+
+      res.status(200).json({
+        success: true,
+        data: { order }
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
   updateOrderStatus = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const { status, trackingNumber, estimatedDelivery } = req.body;

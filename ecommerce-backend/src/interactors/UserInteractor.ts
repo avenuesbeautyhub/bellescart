@@ -96,18 +96,25 @@ export class UserInteractor implements IUserInteractor {
 
   async refreshToken(refreshToken: string): Promise<{ user: Partial<IUser>; token: string; refreshToken: string }> {
     try {
+      console.log('Verifying refresh token...');
       // Verify the refresh token
       const decoded = verifyToken(refreshToken);
+      console.log('Refresh token verified for user ID:', decoded.id);
 
       // Find the user from the token
       const user = await this._userRepository.findById(decoded.id);
       if (!user) {
+        console.error('User not found for ID:', decoded.id);
         throw new Error('User not found');
       }
+
+      console.log('User found:', user.email);
 
       // Generate new tokens
       const newToken = generateToken(user);
       const newRefreshToken = generateRefreshToken(user);
+
+      console.log('New tokens generated successfully');
 
       // Return user data without sensitive information
       const userResponse = {
@@ -121,6 +128,7 @@ export class UserInteractor implements IUserInteractor {
 
       return { user: userResponse, token: newToken, refreshToken: newRefreshToken };
     } catch (error) {
+      console.error('Refresh token verification error:', error);
       throw new Error('Invalid or expired refresh token');
     }
   }

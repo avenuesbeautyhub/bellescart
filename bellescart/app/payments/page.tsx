@@ -139,7 +139,7 @@ export default function PaymentsPage() {
                     setSelectedStatus(e.target.value);
                     setCurrentPage(1);
                   }}
-                  className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500"
+                  className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 text-black"
                 >
                   <option value="all">All Statuses</option>
                   <option value="completed">Completed</option>

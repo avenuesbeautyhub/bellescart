@@ -85,7 +85,6 @@ export class OrderInteractor implements IOrderInteractor {
     }
 
     // Calculate totals
-    const tax = subtotal * 0.1; // 10% tax
     // Use calculated shipping fee from Shypfy if provided, otherwise use default logic
     const shipping = orderData.calculatedShippingFee !== undefined
       ? orderData.calculatedShippingFee
@@ -103,7 +102,7 @@ export class OrderInteractor implements IOrderInteractor {
       }
     }
 
-    const total = subtotal + tax + shipping - discount;
+    const total = subtotal + shipping - discount;
 
     // Generate order number
     const date = new Date();
@@ -121,8 +120,8 @@ export class OrderInteractor implements IOrderInteractor {
       shippingAddress: orderData.shippingAddress,
       billingAddress: orderData.billingAddress || orderData.shippingAddress,
       paymentMethod: orderData.paymentMethod,
+      paymentStatus: orderData.paymentMethod === 'cash_on_delivery' ? 'pending' : 'paid',
       subtotal,
-      tax,
       shipping,
       discount,
       total,

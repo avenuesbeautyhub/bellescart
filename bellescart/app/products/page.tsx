@@ -14,6 +14,12 @@ import {
   useBackendSearch,
 } from '@/hooks/user/useProductQueries';
 import { useDebounce } from '@/hooks/useDebounce';
+import {
+  useWishlist,
+  useAddToWishlist,
+  useRemoveFromWishlist,
+} from '@/hooks/user/useWishlistQueries';
+import { globalToast } from '@/utils/globalToast';
 
 export default function ProductsPage() {
   const router = useRouter();
@@ -22,6 +28,7 @@ export default function ProductsPage() {
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState('featured');
   const [mounted, setMounted] = useState(false);
+  const [initialCategoryParam, setInitialCategoryParam] = useState<string | null>(null);
 
   const { loaded, isAuthenticated } = useAuth();
 
@@ -73,9 +80,14 @@ export default function ProductsPage() {
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const searchParam = urlParams.get('search');
+    const categoryParam = urlParams.get('category');
 
     if (searchParam) {
       setSearchQuery(searchParam);
+    }
+
+    if (categoryParam) {
+      setInitialCategoryParam(categoryParam);
     }
   }, []);
 
@@ -173,6 +185,16 @@ export default function ProductsPage() {
     isLoading: isLoadingCategories,
   } = useCategories();
 
+  // ------------------------------------------------------------
+  // WISHLIST
+  // ------------------------------------------------------------
+
+  const { data: wishlistData } = useWishlist();
+  const addToWishlistMutation = useAddToWishlist();
+  const removeFromWishlistMutation = useRemoveFromWishlist();
+
+  const wishlistItems = wishlistData?.data?.wishlist || [];
+
   const products = debouncedSearch
     ? searchResults?.data?.products || []
     : productsData?.data?.products || [];
@@ -193,23 +215,19 @@ export default function ProductsPage() {
   // ------------------------------------------------------------
 
   useEffect(() => {
-    if (categories.length === 0) return;
-
-    const urlParams = new URLSearchParams(window.location.search);
-    const categoryParam = urlParams.get('category');
-
-    if (!categoryParam) return;
+    if (!initialCategoryParam || categories.length === 0) return;
 
     const category = categories.find(
       (cat: any) =>
-        cat.name.toLowerCase() === categoryParam.toLowerCase()
+        cat.name.toLowerCase() === initialCategoryParam.toLowerCase()
     );
 
     if (category) {
       setSelectedCategory(category.name);
       setSelectedCategoryId(category._id);
+      setInitialCategoryParam(null);
     }
-  }, [categories]);
+  }, [initialCategoryParam, categories]);
 
   // ------------------------------------------------------------
   // AUTH REDIRECT
@@ -341,6 +359,38 @@ export default function ProductsPage() {
 
   const handleSearch = (query: string) => {
     setSearchQuery(query);
+  };
+
+  // ------------------------------------------------------------
+  // WISHLIST
+  // ------------------------------------------------------------
+
+  const handleAddToWishlist = async (product: any) => {
+    try {
+      const isInWishlist = wishlistItems.some(
+        (item: any) => item._id === product._id || item === product._id
+      );
+
+      if (isInWishlist) {
+        await removeFromWishlistMutation.mutateAsync(product._id);
+        globalToast.general.success(
+          'Removed',
+          'Item removed from wishlist'
+        );
+      } else {
+        await addToWishlistMutation.mutateAsync(product._id);
+        globalToast.general.success(
+          'Added',
+          'Item added to wishlist'
+        );
+      }
+    } catch (error) {
+      console.error('Failed to update wishlist:', error);
+      globalToast.general.error(
+        'Error',
+        'Failed to update wishlist'
+      );
+    }
   };
 
   // ------------------------------------------------------------
@@ -1366,11 +1416,9 @@ export default function ProductsPage() {
                           'Add to cart clicked'
                         )
                       }
-                      onAddToWishlist={() =>
-                        console.log(
-                          'Add to wishlist clicked'
-                        )
-                      }
+                      onAddToWishlist={handleAddToWishlist}
+                      wishlistItems={wishlistItems}
+                      viewMode={viewMode}
                     />
                   </div>
 

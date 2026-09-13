@@ -1,5 +1,6 @@
 import { Wallet, IWallet } from '../models/Wallet';
 import { BaseRepository } from './BaseRepository';
+import mongoose from 'mongoose';
 
 export class WalletRepository extends BaseRepository<IWallet> {
   constructor() {
@@ -15,7 +16,7 @@ export class WalletRepository extends BaseRepository<IWallet> {
     if (existingWallet) {
       return existingWallet;
     }
-    return this.create({ user: userId, balance: 0 });
+    return this.create({ user: userId as any, balance: 0 });
   }
 
   async addTransaction(userId: string, transaction: {

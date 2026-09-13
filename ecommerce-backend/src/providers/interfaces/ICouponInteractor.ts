@@ -6,6 +6,7 @@ export interface ICouponInteractor {
   getCouponById(id: string): Promise<ICoupon | null>;
   updateCoupon(id: string, data: Partial<ICoupon>): Promise<ICoupon | null>;
   deleteCoupon(id: string): Promise<ICoupon | null>;
+  getActiveCoupons(): Promise<ICoupon[]>;
   validateCoupon(code: string, userId?: string, cartTotal?: number, cartCategory?: string): Promise<{
     valid: boolean;
     coupon?: ICoupon;

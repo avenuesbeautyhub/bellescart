@@ -7,12 +7,16 @@ interface ProductGridProps {
   products: Product[];
   onAddToCart?: (product: Product) => void;
   onAddToWishlist?: (product: Product) => void;
+  wishlistItems?: any[];
+  viewMode?: 'grid' | 'list';
 }
 
 export default function ProductGrid({
   products,
   onAddToCart,
   onAddToWishlist,
+  wishlistItems,
+  viewMode = 'grid',
 }: ProductGridProps) {
   const { isAuthenticated } = useAuth();
 
@@ -50,7 +54,9 @@ export default function ProductGrid({
 
   return (
     <div
-      className="
+      className={
+        viewMode === 'grid'
+          ? `
         grid
         grid-cols-2
         gap-x-3
@@ -64,7 +70,13 @@ export default function ProductGrid({
         xl:grid-cols-4
         xl:gap-x-7
         2xl:grid-cols-5
-      "
+      `
+          : `
+        grid
+        grid-cols-1
+        gap-4
+      `
+      }
     >
       {products.map((product) => (
         <ProductCard
@@ -73,6 +85,8 @@ export default function ProductGrid({
           onAddToCart={onAddToCart}
           onAddToWishlist={onAddToWishlist}
           isLoggedIn={isAuthenticated}
+          wishlistItems={wishlistItems}
+          viewMode={viewMode}
         />
       ))}
     </div>

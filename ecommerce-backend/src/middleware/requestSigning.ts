@@ -15,7 +15,7 @@ const logger = createLogger('RequestSigningMiddleware');
 const SIGNATURE_HEADER = 'X-Signature';
 const TIMESTAMP_HEADER = 'X-Timestamp';
 const NONCE_HEADER = 'X-Nonce';
-const SHARED_SECRET = process.env.REQUEST_SIGNING_SECRET || 'default-secret-change-in-production';
+const SHARED_SECRET = process.env.REQUEST_SIGNING_SECRET || 'reqsigningsecretforbelles';
 
 // Timestamp validation window (5 minutes)
 const TIMESTAMP_TOLERANCE = 5 * 60 * 1000;
@@ -58,6 +58,13 @@ const validateSignature = (req: Request): boolean => {
   const timestamp = req.headers[TIMESTAMP_HEADER.toLowerCase()] as string;
   const nonce = req.headers[NONCE_HEADER.toLowerCase()] as string;
 
+  console.log('Request signing validation for:', req.path);
+  console.log('Headers present:', {
+    hasSignature: !!signature,
+    hasTimestamp: !!timestamp,
+    hasNonce: !!nonce
+  });
+
   if (!signature || !timestamp || !nonce) {
     logger.warn('Missing signature headers', {
       requestId: req.id,
@@ -71,7 +78,7 @@ const validateSignature = (req: Request): boolean => {
   // Validate timestamp
   const requestTime = parseInt(timestamp, 10);
   const now = Date.now();
-  
+
   if (isNaN(requestTime) || Math.abs(now - requestTime) > TIMESTAMP_TOLERANCE) {
     logger.warn('Invalid timestamp', {
       requestId: req.id,
@@ -96,9 +103,35 @@ const validateSignature = (req: Request): boolean => {
   nonceStore.set(nonce, now);
 
   // Validate signature
-  const payload = JSON.stringify(req.body);
+  // For DELETE requests with no body or empty object, use empty string for consistency with frontend
+  let payload = '';
+  if (req.body) {
+    const bodyStr = JSON.stringify(req.body);
+    // If body is empty object '{}', treat as empty string
+    if (bodyStr !== '{}') {
+      payload = bodyStr;
+    }
+  }
   const expectedSignature = generateSignature(payload, timestamp, nonce);
-  
+
+  console.log('Signature validation details:', {
+    method: req.method,
+    path: req.path,
+    payloadLength: payload.length,
+    timestamp,
+    nonce: nonce.substring(0, 20) + '...',
+    match: signature === expectedSignature
+  });
+
+  console.log('Signature validation:', {
+    payload: payload.substring(0, 100) + '...',
+    timestamp,
+    nonce: nonce.substring(0, 20) + '...',
+    expectedSignature: expectedSignature.substring(0, 20) + '...',
+    receivedSignature: signature.substring(0, 20) + '...',
+    match: signature === expectedSignature
+  });
+
   if (signature !== expectedSignature) {
     logger.warn('Invalid signature', {
       requestId: req.id,
@@ -122,6 +155,14 @@ export const requestSigningMiddleware = (req: Request, res: Response, next: Next
     return;
   }
 
+  // Skip signature validation for FormData requests (multipart/form-data)
+  const contentType = req.headers['content-type'] || '';
+  if (contentType.includes('multipart/form-data')) {
+    logger.debug('Request signing skipped for FormData', { requestId: req.id, path: req.path });
+    next();
+    return;
+  }
+
   // Skip signature validation for non-sensitive endpoints
   const nonSensitivePaths = [
     '/auth/login',
@@ -130,12 +171,18 @@ export const requestSigningMiddleware = (req: Request, res: Response, next: Next
     '/auth/reset-password',
     '/auth/verify-otp',
     '/auth/resend-otp',
+    '/auth/refresh-token',
+    '/admin/login',
+    '/admin/register',
     '/cart',
     '/products',
     '/categories',
     '/public',
     '/profile',
-    '/csrf-token'
+    '/csrf-token',
+    '/wallet',
+    '/payment',
+    '/api/csrf-token' // Explicitly add API path
   ];
 
   const isNonSensitive = nonSensitivePaths.some(path => req.path === path || req.path.startsWith(path + '/'));

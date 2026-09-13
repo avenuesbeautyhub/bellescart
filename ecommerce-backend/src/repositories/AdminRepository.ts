@@ -1,6 +1,7 @@
 import { IAdmin, IUser, User } from '../models/User';
 import { Admin } from '../models/Admin';
 import { IAdminRepository } from '../providers/interfaces/IAdminRepository';
+import { Order } from '../models/Order';
 
 export class AdminRepository implements IAdminRepository {
   async findByEmail(email: string): Promise<IAdmin | null> {
@@ -116,21 +117,91 @@ export class AdminRepository implements IAdminRepository {
     activeUsers: number;
     totalOrders: number;
     totalRevenue: number;
+    pendingOrders?: number;
+    processingOrders?: number;
+    shippedOrders?: number;
+    deliveredOrders?: number;
+    cancelledOrders?: number;
+    todayOrders?: number;
+    todayRevenue?: number;
+    thisMonthOrders?: number;
+    thisMonthRevenue?: number;
+    averageOrderValue?: number;
   }> {
-    // This would typically involve aggregating data from multiple collections
-    // For now, returning mock data structure
-    const totalUsers = await Admin.countDocuments({ role: 'admin' });
-    const activeUsers = await Admin.countDocuments({ role: 'admin', isActive: true });
+    const totalUsers = await User.countDocuments({ role: 'user' });
+    const activeUsers = await User.countDocuments({ role: 'user', isActive: true });
 
-    // TODO: Implement actual order and revenue aggregation
-    const totalOrders = 0; // Would aggregate from Order collection
-    const totalRevenue = 0; // Would aggregate from Order collection
+    // Order statistics
+    const totalOrders = await Order.countDocuments();
+    const totalRevenueResult = await Order.aggregate([
+      { $match: { status: { $ne: 'cancelled' } } },
+      { $group: { _id: null, total: { $sum: '$totalAmount' } } }
+    ]);
+    const totalRevenue = totalRevenueResult[0]?.total || 0;
+
+    // Order status breakdown
+    const pendingOrders = await Order.countDocuments({ status: 'pending' });
+    const processingOrders = await Order.countDocuments({ status: 'processing' });
+    const shippedOrders = await Order.countDocuments({ status: 'shipped' });
+    const deliveredOrders = await Order.countDocuments({ status: 'delivered' });
+    const cancelledOrders = await Order.countDocuments({ status: 'cancelled' });
+
+    // Today's statistics
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    const todayOrders = await Order.countDocuments({
+      createdAt: { $gte: today, $lt: tomorrow }
+    });
+
+    const todayRevenueResult = await Order.aggregate([
+      {
+        $match: {
+          status: { $ne: 'cancelled' },
+          createdAt: { $gte: today, $lt: tomorrow }
+        }
+      },
+      { $group: { _id: null, total: { $sum: '$totalAmount' } } }
+    ]);
+    const todayRevenue = todayRevenueResult[0]?.total || 0;
+
+    // This month's statistics
+    const thisMonthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+    const thisMonthOrders = await Order.countDocuments({
+      createdAt: { $gte: thisMonthStart }
+    });
+
+    const thisMonthRevenueResult = await Order.aggregate([
+      {
+        $match: {
+          status: { $ne: 'cancelled' },
+          createdAt: { $gte: thisMonthStart }
+        }
+      },
+      { $group: { _id: null, total: { $sum: '$totalAmount' } } }
+    ]);
+    const thisMonthRevenue = thisMonthRevenueResult[0]?.total || 0;
+
+    // Average order value
+    const averageOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
 
     return {
       totalUsers,
       activeUsers,
       totalOrders,
-      totalRevenue
+      totalRevenue,
+      pendingOrders,
+      processingOrders,
+      shippedOrders,
+      deliveredOrders,
+      cancelledOrders,
+      todayOrders,
+      todayRevenue,
+      thisMonthOrders,
+      thisMonthRevenue,
+      averageOrderValue
     };
   }
 }

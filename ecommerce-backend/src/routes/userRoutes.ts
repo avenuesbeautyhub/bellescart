@@ -82,4 +82,20 @@ router.post('/coupons/validate/:code', couponController.validateCoupon.bind(coup
  */
 router.post('/coupons/apply/:code', couponController.applyCoupon.bind(couponController));
 
+/**
+ * @swagger
+ * /user/coupons/active:
+ *   get:
+ *     summary: Get all active coupons for users (user auth required)
+ *     tags: [User Coupons]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Active coupons retrieved successfully
+ *       401:
+ *         description: Unauthorized
+ */
+router.get('/coupons/active', couponController.getActiveCoupons.bind(couponController));
+
 export default router;

@@ -200,6 +200,9 @@ export default function AddProductPage() {
   const [images, setImages] =
     useState<ImagePreview[]>([]);
 
+  const [mainImageIndex, setMainImageIndex] =
+    useState<number>(0);
+
   const [isDragging, setIsDragging] =
     useState(false);
 
@@ -273,10 +276,16 @@ export default function AddProductPage() {
             .substring(2, 11),
       }));
 
-    setImages((prev) => [
-      ...prev,
-      ...newImages,
-    ]);
+    setImages((prev) => {
+      const updatedImages = [...prev, ...newImages];
+
+      // If this is the first image being added, set it as main
+      if (prev.length === 0 && newImages.length > 0) {
+        setMainImageIndex(0);
+      }
+
+      return updatedImages;
+    });
   };
 
   const handleImageSelect = (
@@ -324,9 +333,22 @@ export default function AddProductPage() {
         URL.revokeObjectURL(image.preview);
       }
 
-      return prev.filter(
+      const newImages = prev.filter(
         (item) => item.id !== id
       );
+
+      // If the removed image was the main image, reset to 0
+      const removedIndex = prev.findIndex(
+        (item) => item.id === id
+      );
+      if (removedIndex === mainImageIndex) {
+        setMainImageIndex(0);
+      } else if (removedIndex < mainImageIndex) {
+        // If an image before the main image was removed, adjust the index
+        setMainImageIndex(mainImageIndex - 1);
+      }
+
+      return newImages;
     });
   };
 
@@ -428,7 +450,7 @@ export default function AddProductPage() {
 
       formDataToSend.append(
         'mainImageIndex',
-        '0'
+        mainImageIndex.toString()
       );
 
       const result =
@@ -467,7 +489,7 @@ export default function AddProductPage() {
   };
 
   const mainImage =
-    images[0]?.preview || null;
+    images[mainImageIndex]?.preview || null;
 
   const statusStyle =
     getStatusStyle(formData.status);
@@ -846,8 +868,7 @@ export default function AddProductPage() {
                         </h3>
 
                         <span className="text-[10px] text-[#a0948f]">
-                          First image is the
-                          main image
+                          Click to set main image
                         </span>
                       </div>
 
@@ -856,11 +877,12 @@ export default function AddProductPage() {
                           (image, index) => (
                             <div
                               key={image.id}
-                              className={`group relative overflow-hidden rounded-2xl border bg-[#f5f0ec] ${
-                                index === 0
+                              className={`group relative overflow-hidden rounded-2xl border bg-[#f5f0ec] cursor-pointer ${
+                                index === mainImageIndex
                                   ? 'border-[#a57689] ring-2 ring-[#a57689]/10'
                                   : 'border-[#e5ddd8]'
                               }`}
+                              onClick={() => setMainImageIndex(index)}
                             >
                               <div className="aspect-square">
                                 <img
@@ -874,7 +896,7 @@ export default function AddProductPage() {
                                 />
                               </div>
 
-                              {index === 0 && (
+                              {index === mainImageIndex && (
                                 <span className="absolute left-2 top-2 flex items-center gap-1 rounded-full bg-[#351d2d] px-2.5 py-1 text-[8px] font-bold uppercase tracking-wider text-white">
                                   <StarIcon
                                     filled
@@ -885,11 +907,12 @@ export default function AddProductPage() {
 
                               <button
                                 type="button"
-                                onClick={() =>
+                                onClick={(e) => {
+                                  e.stopPropagation();
                                   removeImage(
                                     image.id
-                                  )
-                                }
+                                  );
+                                }}
                                 className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-white/95 text-red-500 shadow-sm transition hover:bg-red-50 sm:opacity-0 sm:group-hover:opacity-100"
                                 aria-label="Remove image"
                               >

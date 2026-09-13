@@ -38,6 +38,20 @@ export class CouponController {
     }
   }
 
+  async getActiveCoupons(req: Request, res: Response, next: NextFunction) {
+    try {
+      const coupons = await this._couponInteractor.getActiveCoupons();
+      
+      res.status(200).json({
+        success: true,
+        message: 'Active coupons retrieved successfully',
+        data: { coupons }
+      });
+    } catch (error: any) {
+      next(error);
+    }
+  }
+
   async getCouponById(req: Request, res: Response, next: NextFunction) {
     try {
       const { id } = req.params;

@@ -404,9 +404,12 @@ export class AuthController {
     try {
       const { refreshToken } = req.body;
 
+      console.log('Refresh token request received:', refreshToken ? refreshToken.substring(0, 20) + '...' : 'none');
+
       // Validate refresh token
       const refreshTokenValidation = validateRequiredString(refreshToken, 'Refresh token');
       if (!refreshTokenValidation.isValid) {
+        console.error('Refresh token validation failed:', refreshTokenValidation.message);
         res.status(400).json({
           success: false,
           error: refreshTokenValidation.message
@@ -415,13 +418,14 @@ export class AuthController {
       }
 
       const result = await this._userInteractor.refreshToken(refreshToken);
-      console.log('token refreshed!!!!')
+      console.log('Token refreshed successfully for user:', result.user?.email);
       res.status(200).json({
         success: true,
         message: 'Tokens refreshed successfully',
         data: result
       });
     } catch (error) {
+      console.error('Refresh token error:', error);
       next(error);
     }
   };

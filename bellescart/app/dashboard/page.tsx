@@ -19,6 +19,119 @@ import {
 } from '@/hooks/user/useProductQueries';
 import { usePublicCategories } from '@/hooks/user/usePublicProductQueries';
 import { SearchBar } from '@/components';
+import CouponSection from '@/components/CouponSection/CouponSection';
+
+
+/**
+ * Automatically cycles through all available product images with a
+ * smooth cross-fade. Rotation pauses while the customer hovers the card.
+ */
+function ProductImageCarousel({
+  product,
+  priority = false,
+}: {
+  product: any;
+  priority?: boolean;
+}) {
+  const [activeIndex, setActiveIndex] = useState(0);
+  const [isHovered, setIsHovered] = useState(false);
+
+  const images = React.useMemo(() => {
+    const productImages = Array.isArray(product?.images)
+      ? product.images
+        .filter((img: any) => img?.url)
+        .sort(
+          (a: any, b: any) =>
+            Number(Boolean(b?.isMain)) - Number(Boolean(a?.isMain))
+        )
+        .map((img: any) => img.url)
+      : [];
+
+    const fallback = product?.image;
+
+    // Remove duplicate URLs while preserving the main-image-first order.
+    return Array.from(
+      new Set<string>(
+        productImages.length > 0
+          ? productImages
+          : fallback
+            ? [fallback]
+            : []
+      )
+    );
+  }, [product]);
+
+  useEffect(() => {
+    if (images.length <= 1 || isHovered) return;
+
+    // Add random initial delay (0-5000ms) so carousels don't all change at once
+    const randomDelay = Math.random() * 5000;
+
+    const timeout = window.setTimeout(() => {
+      const interval = window.setInterval(() => {
+        setActiveIndex((current) => (current + 1) % images.length);
+      }, 5000);
+
+      return () => window.clearInterval(interval);
+    }, randomDelay);
+
+    return () => window.clearTimeout(timeout);
+  }, [images.length, isHovered]);
+
+  useEffect(() => {
+    setActiveIndex(0);
+  }, [product?._id]);
+
+  if (images.length === 0) {
+    return (
+      <div className="absolute inset-0 flex items-center justify-center text-gray-300">
+        No image
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className="absolute inset-0"
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+    >
+      {images.map((image: string, index: number) => (
+        <Image
+          key={`${image}-${index}`}
+          src={image}
+          alt={product?.name || "Product image"}
+          fill
+          sizes="(max-width: 640px) 50vw, (max-width: 1024px) 50vw, 25vw"
+          priority={priority && index === 0}
+          loading={priority && index === 0 ? "eager" : "lazy"}
+          className={`
+            object-cover
+            transition-opacity duration-1000 ease-in-out
+            ${index === activeIndex ? "opacity-100" : "opacity-0"}
+          `}
+        />
+      ))}
+
+      {images.length > 1 && (
+        <div className="pointer-events-none absolute bottom-3 left-1/2 z-10 flex -translate-x-1/2 items-center gap-1.5 rounded-full bg-black/20 px-2.5 py-1.5 backdrop-blur-sm">
+          {images.map((_: string, index: number) => (
+            <span
+              key={index}
+              className={`
+                h-1.5 rounded-full transition-all duration-500
+                ${index === activeIndex
+                  ? "w-4 bg-white"
+                  : "w-1.5 bg-white/50"
+                }
+              `}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -67,6 +180,21 @@ export default function DashboardPage() {
   const featuredProducts =
     featuredData?.data?.products || [];
 
+  // Randomly select 4 featured products each time
+  const randomFeaturedProducts = React.useMemo(() => {
+    if (featuredProducts.length === 0) return [];
+
+    // Shuffle array using Fisher-Yates algorithm
+    const shuffled = [...featuredProducts];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+
+    // Return first 4 items
+    return shuffled.slice(0, 4);
+  }, [featuredProducts]);
+
   const categories =
     categoriesData?.data?.categories || [];
 
@@ -102,19 +230,19 @@ export default function DashboardPage() {
     categoryName: string
   ) => {
     const categoryImages: Record<string, string> = {
-      Rings:
+      Ring:
         'https://images.unsplash.com/photo-1605100804763-247f67b3557e?auto=format&fit=crop&w=900&q=85',
 
-      Necklaces:
+      Necklace:
         'https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?auto=format&fit=crop&w=900&q=85',
 
-      Earrings:
+      Earring:
         'https://images.unsplash.com/photo-1535632066927-ab7c9ab60908?auto=format&fit=crop&w=900&q=85',
 
-      Bracelets:
+      Bracelet:
         'https://images.unsplash.com/photo-1611591437281-460bfbe1220a?auto=format&fit=crop&w=900&q=85',
 
-      Anklets:
+      Anklet:
         'https://images.unsplash.com/photo-1611652022419-a9419f74343d?auto=format&fit=crop&w=900&q=85',
 
       Pendants:
@@ -141,7 +269,7 @@ export default function DashboardPage() {
     return Math.round(
       ((product.originalPrice - product.price) /
         product.originalPrice) *
-        100
+      100
     );
   };
 
@@ -187,10 +315,9 @@ export default function DashboardPage() {
             text-gray-950
             transition-opacity
             duration-700
-            ${
-              showLoading
-                ? 'opacity-0'
-                : 'opacity-100'
+            ${showLoading
+              ? 'opacity-0'
+              : 'opacity-100'
             }
           `}
         >
@@ -540,6 +667,57 @@ export default function DashboardPage() {
             </section>
 
             {/* =========================================================
+                ACTIVE COUPONS SECTION
+            ========================================================== */}
+            <section className="relative overflow-hidden bg-gradient-to-b from-[#fff7fa] via-white to-white px-5 py-16 sm:px-8 lg:px-10">
+              {/* Ambient decoration */}
+              <div className="pointer-events-none absolute -left-32 top-10 h-72 w-72 rounded-full bg-pink-200/20 blur-3xl" />
+              <div className="pointer-events-none absolute -right-32 bottom-0 h-80 w-80 rounded-full bg-purple-200/20 blur-3xl" />
+
+              <div className="relative mx-auto max-w-7xl">
+                {/* Section heading */}
+                <div className="mb-9 flex flex-col justify-between gap-5 sm:flex-row sm:items-end">
+                  <div>
+                    <div className="mb-4 flex items-center gap-3">
+                      <span className="h-px w-10 bg-gradient-to-r from-pink-500 to-purple-500" />
+
+                      <span className="text-[10px] font-bold uppercase tracking-[0.32em] text-[#b63c71]">
+                        Limited time offers
+                      </span>
+                    </div>
+
+                    <h2 className="text-3xl font-medium tracking-[-0.04em] text-gray-950 sm:text-4xl">
+                      Save a little,
+                      <span className="ml-2 font-serif italic text-[#b63c71]">
+                        shop beautifully.
+                      </span>
+                    </h2>
+
+                    <p className="mt-3 max-w-xl text-sm leading-6 text-gray-500">
+                      Exclusive offers curated for you. Use these coupons before
+                      they disappear.
+                    </p>
+                  </div>
+
+                  {/* Decorative offer indicator */}
+                  <div className="hidden items-center gap-2 rounded-full border border-pink-100 bg-white px-4 py-2 shadow-sm sm:flex">
+                    <span className="relative flex h-2 w-2">
+                      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-pink-400 opacity-60" />
+                      <span className="relative inline-flex h-2 w-2 rounded-full bg-pink-500" />
+                    </span>
+
+                    <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-gray-500">
+                      Offers ending soon
+                    </span>
+                  </div>
+                </div>
+
+                <CouponSection maxCoupons={3} />
+              </div>
+            </section>
+
+
+            {/* =========================================================
                 CATEGORY DISCOVERY
             ========================================================== */}
             <section className="px-5 py-24 sm:px-8 lg:px-10">
@@ -665,7 +843,7 @@ export default function DashboardPage() {
             </section>
 
             {/* =========================================================
-                FEATURED PRODUCTS
+                FEATURED PRODUCTS (WITH CAROUSEL)
             ========================================================== */}
             <section className="relative bg-white px-5 py-24 sm:px-8 lg:px-10">
 
@@ -722,7 +900,7 @@ export default function DashboardPage() {
                 ) : (
                   <div className="grid grid-cols-2 gap-x-4 gap-y-12 lg:grid-cols-4 lg:gap-7">
 
-                    {featuredProducts.map(
+                    {randomFeaturedProducts.map(
                       (
                         product: any,
                         index: number
@@ -750,24 +928,10 @@ export default function DashboardPage() {
 
                               <div className="relative aspect-[4/5] overflow-hidden rounded-3xl bg-[#f5f3f4]">
 
-                                {mainImage ? (
-                                  <Image
-                                    src={mainImage}
-                                    alt={
-                                      product.name
-                                    }
-                                    fill
-                                    sizes="(max-width: 640px) 50vw, (max-width: 1024px) 50vw, 25vw"
-                                    className="object-cover transition-transform duration-700 ease-out group-hover:scale-105"
-                                    priority={
-                                      index < 4
-                                    }
-                                  />
-                                ) : (
-                                  <div className="absolute inset-0 flex items-center justify-center text-gray-300">
-                                    No image
-                                  </div>
-                                )}
+                                <ProductImageCarousel
+                                  product={product}
+                                  priority={true}
+                                />
 
                                 {/* Image overlay */}
                                 <div className="absolute inset-0 bg-black/0 transition-colors duration-300 group-hover:bg-black/5" />
@@ -910,37 +1074,38 @@ export default function DashboardPage() {
             </section>
 
             {/* =========================================================
-                NEW ARRIVALS
+                NEW ARRIVALS (WITHOUT CAROUSEL)
             ========================================================== */}
-            <section className="bg-[#f7f3f6] px-5 py-24 sm:px-8 lg:px-10">
+            <section className="relative bg-[#faf8f9] px-5 py-24 sm:px-8 lg:px-10">
+
+              <div className="absolute left-0 top-0 h-px w-full bg-gradient-to-r from-transparent via-gray-200 to-transparent" />
 
               <div className="mx-auto max-w-7xl">
 
                 <div className="mb-12 flex items-end justify-between gap-5">
 
                   <div>
-                    <p className="mb-3 text-[10px] font-bold uppercase tracking-[0.3em] text-purple-500">
-                      Just landed
+                    <p className="mb-3 text-[10px] font-bold uppercase tracking-[0.3em] text-[#b63c71]">
+                      Just arrived
                     </p>
 
                     <h2 className="text-3xl font-medium tracking-[-0.03em] text-gray-950 sm:text-4xl lg:text-5xl">
-                      New,
+                      New
                       <span className="font-serif italic">
-                        {" "}now.
+                        {" "}additions.
                       </span>
                     </h2>
 
                     <p className="mt-4 text-sm text-gray-500">
-                      Fresh pieces waiting to become
-                      part of your collection.
+                      Fresh pieces we know you'll love.
                     </p>
                   </div>
 
                   <Link
-                    href="/products?sort=newest"
+                    href="/products"
                     className="group hidden items-center text-sm font-semibold text-gray-900 sm:flex"
                   >
-                    See new arrivals
+                    View all
                     <span className="ml-2 transition-transform group-hover:translate-x-1">
                       →
                     </span>
@@ -953,10 +1118,10 @@ export default function DashboardPage() {
                     {[1, 2, 3, 4].map(
                       (item) => (
                         <div key={item}>
-                          <div className="aspect-[4/5] animate-pulse rounded-3xl bg-white" />
+                          <div className="aspect-[4/5] animate-pulse rounded-3xl bg-gray-100" />
                           <div className="mt-4 space-y-3">
-                            <div className="h-4 animate-pulse rounded bg-white" />
-                            <div className="h-5 w-24 animate-pulse rounded bg-white" />
+                            <div className="h-4 animate-pulse rounded bg-gray-100" />
+                            <div className="h-5 w-24 animate-pulse rounded bg-gray-100" />
                           </div>
                         </div>
                       )
@@ -974,6 +1139,12 @@ export default function DashboardPage() {
                         const mainImage =
                           getProductImage(product);
 
+                        const discount =
+                          getDiscount(product);
+
+                        const rating =
+                          getRating(product);
+
                         return (
                           <Link
                             key={
@@ -985,31 +1156,33 @@ export default function DashboardPage() {
                           >
                             <article>
 
-                              <div className="relative aspect-[4/5] overflow-hidden rounded-3xl bg-white shadow-sm">
+                              <div className="relative aspect-[4/5] overflow-hidden rounded-3xl bg-[#f5f3f4]">
 
-                                {mainImage ? (
-                                  <Image
-                                    src={mainImage}
-                                    alt={
-                                      product.name
-                                    }
-                                    fill
-                                    sizes="(max-width: 640px) 50vw, (max-width: 1024px) 50vw, 25vw"
-                                    className="object-cover transition-transform duration-700 ease-out group-hover:scale-105"
-                                    priority={
-                                      index < 4
-                                    }
-                                  />
-                                ) : (
-                                  <div className="absolute inset-0 flex items-center justify-center text-gray-300">
-                                    No image
-                                  </div>
-                                )}
+                                {/* Static image (no carousel) */}
+                                <Image
+                                  src={mainImage}
+                                  alt={product.name}
+                                  fill
+                                  sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+                                  className="object-cover transition-transform duration-700 ease-out group-hover:scale-105"
+                                />
 
-                                <span className="absolute left-3 top-3 rounded-full bg-gray-950 px-3 py-1.5 text-[9px] font-bold uppercase tracking-[0.15em] text-white shadow-lg">
+                                {/* Image overlay */}
+                                <div className="absolute inset-0 bg-black/0 transition-colors duration-300 group-hover:bg-black/5" />
+
+                                {/* New badge */}
+                                <span className="absolute left-3 top-3 rounded-full bg-[#b63c71] px-3 py-1.5 text-[9px] font-bold uppercase tracking-wider text-white shadow-lg">
                                   New
                                 </span>
 
+                                {/* Badge */}
+                                {discount && (
+                                  <span className="absolute right-3 top-3 rounded-full bg-white px-3 py-1.5 text-[9px] font-bold uppercase tracking-wider text-[#b63c71] shadow-lg">
+                                    {discount}% off
+                                  </span>
+                                )}
+
+                                {/* Floating arrow */}
                                 <div className="absolute bottom-4 right-4 flex h-10 w-10 translate-y-3 items-center justify-center rounded-full bg-white/95 text-gray-900 opacity-0 shadow-xl transition-all duration-300 group-hover:translate-y-0 group-hover:opacity-100">
                                   →
                                 </div>
@@ -1018,18 +1191,43 @@ export default function DashboardPage() {
 
                               <div className="pt-5">
 
-                                <h3 className="line-clamp-2 text-sm font-semibold leading-5 text-gray-900 transition-colors group-hover:text-purple-600">
-                                  {product.name}
-                                </h3>
+                                <div className="flex items-start justify-between gap-3">
 
-                                <div className="mt-2 flex items-center justify-between">
+                                  <h3 className="line-clamp-2 text-sm font-semibold leading-5 text-gray-900 transition-colors group-hover:text-[#b63c71]">
+                                    {product.name}
+                                  </h3>
 
-                                  <p className="text-base font-bold text-gray-950">
+                                </div>
+
+                                <div className="mt-2 flex items-center gap-2">
+
+                                  <span className="text-base font-bold text-gray-950">
                                     ₹{product.price}
-                                  </p>
+                                  </span>
+
+                                  {discount && (
+                                    <span className="text-xs text-gray-400 line-through">
+                                      ₹
+                                      {
+                                        product.originalPrice
+                                      }
+                                    </span>
+                                  )}
+
+                                </div>
+
+                                <div className="mt-2 flex items-center gap-1.5">
+
+                                  <span className="text-[11px] font-medium text-gray-500">
+                                    {rating}
+                                  </span>
+
+                                  <span className="text-[11px] text-amber-400">
+                                    ★
+                                  </span>
 
                                   <span className="text-[10px] text-gray-400">
-                                    New arrival
+                                    Loved by customers
                                   </span>
 
                                 </div>
@@ -1046,10 +1244,10 @@ export default function DashboardPage() {
                 )}
 
                 <Link
-                  href="/products?sort=newest"
-                  className="mt-10 block rounded-full border border-gray-300 bg-white py-3 text-center text-sm font-semibold text-gray-900 transition-all hover:border-gray-950 hover:bg-gray-950 hover:text-white sm:hidden"
+                  href="/products"
+                  className="mt-10 block rounded-full border border-gray-200 py-3 text-center text-sm font-semibold text-gray-900 transition-colors hover:border-gray-900 hover:bg-gray-950 hover:text-white sm:hidden"
                 >
-                  Explore new arrivals →
+                  View all new arrivals →
                 </Link>
 
               </div>

@@ -2952,17 +2952,9 @@ export default function CheckoutPage() {
           </div>
 
           <Button
-            type="button"
+            type="submit"
             size="lg"
             disabled={isSubmitting}
-            onClick={() => {
-              const form =
-                document.querySelector(
-                  'form'
-                ) as HTMLFormElement | null;
-
-              form?.requestSubmit();
-            }}
             className="shrink-0 rounded-xl px-6 shadow-lg shadow-pink-500/20"
           >
 

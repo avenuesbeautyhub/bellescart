@@ -17,6 +17,8 @@ interface ProductCardProps {
   onAddToCart?: (product: Product) => void;
   onAddToWishlist?: (product: Product) => void;
   isLoggedIn?: boolean;
+  wishlistItems?: any[];
+  viewMode?: 'grid' | 'list';
 }
 
 export default function ProductCard({
@@ -24,6 +26,8 @@ export default function ProductCard({
   onAddToCart,
   onAddToWishlist,
   isLoggedIn,
+  wishlistItems,
+  viewMode = 'grid',
 }: ProductCardProps) {
   const { loaded, isAuthenticated } = useRequireUserAuth();
 
@@ -129,18 +133,23 @@ export default function ProductCard({
   const rating = product.rating || 4;
   const reviewCount = product.reviews || 12;
 
+  // Check if product is in wishlist
+  const isInWishlist = wishlistItems?.some(
+    (item: any) => item._id === product._id || item === product._id
+  ) || false;
+
   return (
-    <article className="group relative min-w-0">
+    <article className={`group relative min-w-0 ${viewMode === 'list' ? 'flex gap-4 bg-white rounded-2xl border border-gray-100 p-4' : ''}`}>
       {/* =========================================================
           IMAGE
       ========================================================== */}
-      <div className="relative overflow-hidden rounded-[22px] bg-[#f6f4f1]">
+      <div className={`relative overflow-hidden ${viewMode === 'list' ? 'flex-shrink-0 w-24 h-24 rounded-xl' : 'rounded-[22px]'} bg-[#f6f4f1]`}>
         <Link
           href={`/product/${product._id}`}
           className="block"
           aria-label={`View ${product.name}`}
         >
-          <div className="relative aspect-[0.84] overflow-hidden">
+          <div className={`relative ${viewMode === 'list' ? 'aspect-square' : 'aspect-[0.84]'} overflow-hidden`}>
             {mainImage ? (
               <Image
                 src={mainImage}
@@ -247,29 +256,32 @@ export default function ProductCard({
             onAddToWishlist?.(product);
           }}
           disabled={!isLoggedIn}
-          aria-label={`Add ${product.name} to wishlist`}
-          className="
+          aria-label={isInWishlist ? `Remove ${product.name} from wishlist` : `Add ${product.name} to wishlist`}
+          className={`
             absolute right-3 top-3 z-20
             flex h-9 w-9 items-center justify-center
             rounded-full
             border border-white/80
             bg-white/90
-            text-gray-800
             shadow-sm
             backdrop-blur-md
             transition-all duration-300
             hover:scale-105
             hover:bg-white
-            hover:text-[#b45370]
             active:scale-95
             disabled:cursor-not-allowed
             disabled:opacity-50
             sm:h-10 sm:w-10
-          "
+            ${
+              isInWishlist
+                ? 'text-[#b45370]'
+                : 'text-gray-800 hover:text-[#b45370]'
+            }
+          `}
         >
           <svg
             className="h-[17px] w-[17px] sm:h-[18px] sm:w-[18px]"
-            fill="none"
+            fill={isInWishlist ? 'currentColor' : 'none'}
             stroke="currentColor"
             viewBox="0 0 24 24"
           >
@@ -356,7 +368,7 @@ export default function ProductCard({
       {/* =========================================================
           PRODUCT INFORMATION
       ========================================================== */}
-      <div className="px-0.5 pt-4">
+      <div className={`${viewMode === 'list' ? 'flex-1 flex flex-col justify-center min-w-0' : 'px-0.5 pt-4'}`}>
         {/* Category */}
         {product.category && (
           <Link

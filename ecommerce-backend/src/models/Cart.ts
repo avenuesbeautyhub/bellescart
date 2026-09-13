@@ -13,7 +13,6 @@ export interface ICart extends Document {
   user: mongoose.Types.ObjectId;
   items: ICartItem[];
   subtotal: number;
-  tax: number;
   shipping: number;
   discount: number;
   total: number;
@@ -67,12 +66,6 @@ const cartSchema = new Schema<ICart>({
     min: [0, 'Subtotal cannot be negative'],
     default: 0
   },
-  tax: {
-    type: Number,
-    required: true,
-    min: [0, 'Tax cannot be negative'],
-    default: 0
-  },
   shipping: {
     type: Number,
     required: true,
@@ -109,7 +102,7 @@ const cartSchema = new Schema<ICart>({
 // Calculate totals before saving
 cartSchema.pre('save', function (next) {
   this.subtotal = this.items.reduce((sum, item) => sum + item.total, 0);
-  this.total = this.subtotal + this.tax + this.shipping - this.discount - (this.couponDiscount || 0);
+  this.total = this.subtotal + this.shipping - this.discount - (this.couponDiscount || 0);
 
   // Update expiration time
   this.expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);

@@ -59,6 +59,10 @@ export class CouponInteractor implements ICouponInteractor {
     return await this._couponRepository.findAll({ sort: { createdAt: -1 } });
   }
 
+  async getActiveCoupons(): Promise<ICoupon[]> {
+    return await this._couponRepository.findActiveCoupons();
+  }
+
   async getCouponById(id: string): Promise<ICoupon | null> {
     return await this._couponRepository.findById(id);
   }

@@ -229,6 +229,9 @@ export default function EditProductPage({
   const [newImages, setNewImages] =
     useState<ImagePreview[]>([]);
 
+  const [mainImageIndex, setMainImageIndex] =
+    useState<number>(0);
+
   const [isDragging, setIsDragging] =
     useState(false);
 
@@ -261,6 +264,10 @@ export default function EditProductPage({
     });
 
     setExistingImages(product.images || []);
+
+    // Set main image index to the image with isMain: true, or 0 by default
+    const mainImageIdx = product.images?.findIndex((img: any) => img.isMain) ?? 0;
+    setMainImageIndex(mainImageIdx);
   }, [product]);
 
   useEffect(() => {
@@ -318,10 +325,16 @@ export default function EditProductPage({
             .substring(2, 11),
       }));
 
-    setNewImages((prev) => [
-      ...prev,
-      ...previews,
-    ]);
+    setNewImages((prev) => {
+      const updatedImages = [...prev, ...previews];
+
+      // If there are no existing images and this is the first image, set it as main
+      if (existingImages.length === 0 && prev.length === 0 && previews.length > 0) {
+        setMainImageIndex(0);
+      }
+
+      return updatedImages;
+    });
   };
 
   const handleImageSelect = (
@@ -369,18 +382,44 @@ export default function EditProductPage({
         URL.revokeObjectURL(image.preview);
       }
 
-      return prev.filter(
+      const newImages = prev.filter(
         (item) => item.id !== id
       );
+
+      // Adjust mainImageIndex if needed
+      const removedIndex = prev.findIndex(
+        (item) => item.id === id
+      );
+      const absoluteRemovedIndex = existingImages.length + removedIndex;
+
+      if (mainImageIndex === absoluteRemovedIndex) {
+        // If the removed image was the main image, reset to 0
+        setMainImageIndex(0);
+      } else if (mainImageIndex > absoluteRemovedIndex) {
+        // If an image before the main image was removed, adjust the index
+        setMainImageIndex(mainImageIndex - 1);
+      }
+
+      return newImages;
     });
   };
 
   const removeExistingImage = (
     index: number
   ) => {
-    setExistingImages((prev) =>
-      prev.filter((_, i) => i !== index)
-    );
+    setExistingImages((prev) => {
+      const newImages = prev.filter((_, i) => i !== index);
+
+      // If the removed image was the main image, reset to 0
+      if (index === mainImageIndex) {
+        setMainImageIndex(0);
+      } else if (index < mainImageIndex) {
+        // If an image before the main image was removed, adjust the index
+        setMainImageIndex(mainImageIndex - 1);
+      }
+
+      return newImages;
+    });
   };
 
   const handleSubmit = async (
@@ -462,6 +501,11 @@ export default function EditProductPage({
           image.file
         );
       });
+
+      formDataToSend.append(
+        'mainImageIndex',
+        mainImageIndex.toString()
+      );
 
       const response =
         await updateProductMutation.mutateAsync(
@@ -936,7 +980,7 @@ export default function EditProductPage({
                         </h3>
 
                         <span className="text-[10px] text-[#a0948f]">
-                          Click × to remove
+                          Click to set main image
                         </span>
                       </div>
 
@@ -945,12 +989,21 @@ export default function EditProductPage({
                           (image, index) => (
                             <div
                               key={`${image.url}-${index}`}
-                              className={`group relative overflow-hidden rounded-2xl border ${
-                                image.isMain ||
-                                index === 0
+                              className={`group relative overflow-hidden rounded-2xl border cursor-pointer ${
+                                index === mainImageIndex
                                   ? 'border-[#a57689] ring-2 ring-[#a57689]/10'
                                   : 'border-[#e5ddd8]'
                               }`}
+                              onClick={() => {
+                                setMainImageIndex(index);
+                                // Update isMain flag immediately for visual feedback
+                                setExistingImages((prev) =>
+                                  prev.map((img, i) => ({
+                                    ...img,
+                                    isMain: i === index
+                                  }))
+                                );
+                              }}
                             >
                               <div className="aspect-square bg-[#f4efec]">
                                 <img
@@ -968,8 +1021,7 @@ export default function EditProductPage({
                                 />
                               </div>
 
-                              {(image.isMain ||
-                                index === 0) && (
+                              {index === mainImageIndex && (
                                 <span className="absolute left-2 top-2 rounded-full bg-[#351d2d] px-2 py-1 text-[8px] font-bold uppercase tracking-wider text-white">
                                   Main
                                 </span>
@@ -977,11 +1029,12 @@ export default function EditProductPage({
 
                               <button
                                 type="button"
-                                onClick={() =>
+                                onClick={(e) => {
+                                  e.stopPropagation();
                                   removeExistingImage(
                                     index
-                                  )
-                                }
+                                  );
+                                }}
                                 className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-white/95 text-[#8b696f] opacity-100 shadow-sm transition hover:bg-red-50 hover:text-red-600 sm:opacity-0 sm:group-hover:opacity-100"
                                 aria-label="Remove image"
                               >
@@ -1010,7 +1063,7 @@ export default function EditProductPage({
                         </h3>
 
                         <span className="text-[10px] text-[#a0948f]">
-                          Not uploaded yet
+                          Set main after upload
                         </span>
                       </div>
 

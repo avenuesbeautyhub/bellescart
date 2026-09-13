@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useMemo, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 
 import { useRequireUserAuth } from '@/auth/user';
@@ -143,6 +143,7 @@ const getStatusTone = (status?: string) => {
 
 export default function OrdersPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   const { loaded, isAuthenticated } = useRequireUserAuth();
 
@@ -166,6 +167,15 @@ export default function OrdersPage() {
   useEffect(() => {
     initializeCsrfToken();
   }, []);
+
+  // Handle order number from email link
+  useEffect(() => {
+    const orderNumber = searchParams.get('id');
+    if (orderNumber) {
+      // Set search query to find the specific order
+      setSearchQuery(orderNumber);
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -209,7 +219,8 @@ export default function OrdersPage() {
 
         const matchesId =
           order._id?.toLowerCase().includes(query) ||
-          order.id?.toLowerCase().includes(query);
+          order.id?.toLowerCase().includes(query) ||
+          order.orderNumber?.toLowerCase().includes(query);
 
         const matchesStatus =
           order.status?.toLowerCase().includes(query);

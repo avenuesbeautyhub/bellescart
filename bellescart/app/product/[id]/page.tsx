@@ -19,6 +19,11 @@ import {
   useAddToCart,
   useUpdateCartItem,
 } from '@/hooks/user/useCartQueries';
+import {
+  useWishlist,
+  useAddToWishlist,
+  useRemoveFromWishlist,
+} from '@/hooks/user/useWishlistQueries';
 
 export default function ProductPage({
   params,
@@ -40,6 +45,16 @@ export default function ProductPage({
 
   const addToCartMutation = useAddToCart();
   const updateCartItemMutation = useUpdateCartItem();
+
+  // ------------------------------------------------------------
+  // WISHLIST
+  // ------------------------------------------------------------
+
+  const { data: wishlistData } = useWishlist();
+  const addToWishlistMutation = useAddToWishlist();
+  const removeFromWishlistMutation = useRemoveFromWishlist();
+
+  const wishlistItems = wishlistData?.data?.wishlist || [];
 
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [quantity, setQuantity] = useState(1);
@@ -74,6 +89,11 @@ export default function ProductPage({
   const cartItemId = cartItem?._id || null;
   const cartQuantity = cartItem?.quantity || 0;
 
+  // Check if product is in wishlist
+  const isInWishlist = product ? wishlistItems.some(
+    (item: any) => item._id === product._id || item === product._id
+  ) : false;
+
   useEffect(() => {
     if (!product) return;
 
@@ -93,7 +113,7 @@ export default function ProductPage({
     } else {
       setQuantity(1);
     }
-  }, [isInCart, cartQuantity]);
+  }, [isInCart, cartQuantity, product?._id, wishlistItems]);
 
   if (!loaded) {
     return (
@@ -232,8 +252,30 @@ export default function ProductPage({
     );
   };
 
-  const handleAddToWishlist = () => {
-    console.log('Add to wishlist:', product);
+  const handleAddToWishlist = async () => {
+    if (!product) return;
+
+    try {
+      if (isInWishlist) {
+        await removeFromWishlistMutation.mutateAsync(product._id);
+        globalToast.general.success(
+          'Removed',
+          'Item removed from wishlist'
+        );
+      } else {
+        await addToWishlistMutation.mutateAsync(product._id);
+        globalToast.general.success(
+          'Added',
+          'Item added to wishlist'
+        );
+      }
+    } catch (error) {
+      console.error('Failed to update wishlist:', error);
+      globalToast.general.error(
+        'Error',
+        'Failed to update wishlist'
+      );
+    }
   };
 
   return (
@@ -371,12 +413,14 @@ export default function ProductPage({
                       <button
                         type="button"
                         onClick={handleAddToWishlist}
-                        aria-label="Add to wishlist"
-                        className="absolute right-4 top-4 flex h-11 w-11 items-center justify-center rounded-full bg-white/90 text-gray-700 shadow-sm backdrop-blur-md transition hover:scale-105 hover:text-[#a45b70] sm:right-5 sm:top-5"
+                        aria-label={isInWishlist ? "Remove from wishlist" : "Add to wishlist"}
+                        className={`absolute right-4 top-4 flex h-11 w-11 items-center justify-center rounded-full bg-white/90 shadow-sm backdrop-blur-md transition hover:scale-105 sm:right-5 sm:top-5 ${
+                          isInWishlist ? 'text-[#a45b70]' : 'text-gray-700 hover:text-[#a45b70]'
+                        }`}
                       >
                         <svg
                           className="h-5 w-5"
-                          fill="none"
+                          fill={isInWishlist ? 'currentColor' : 'none'}
                           stroke="currentColor"
                           viewBox="0 0 24 24"
                         >
@@ -661,12 +705,14 @@ export default function ProductPage({
                     <button
                       type="button"
                       onClick={handleAddToWishlist}
-                      aria-label="Add to wishlist"
-                      className="flex h-12 w-12 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-500 transition hover:border-[#e8cbd4] hover:bg-[#fcf5f7] hover:text-[#a45b70]"
+                      aria-label={isInWishlist ? "Remove from wishlist" : "Add to wishlist"}
+                      className={`flex h-12 w-12 items-center justify-center rounded-full border border-gray-200 bg-white transition hover:border-[#e8cbd4] hover:bg-[#fcf5f7] ${
+                        isInWishlist ? 'text-[#a45b70]' : 'text-gray-500 hover:text-[#a45b70]'
+                      }`}
                     >
                       <svg
                         className="h-5 w-5"
-                        fill="none"
+                        fill={isInWishlist ? 'currentColor' : 'none'}
                         stroke="currentColor"
                         viewBox="0 0 24 24"
                       >
