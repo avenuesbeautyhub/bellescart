@@ -69,6 +69,19 @@ export const useUserAuth = () => {
       // No tokens, set loaded to true to allow redirect
       setLoaded(true);
     }
+
+    // Listen for auth state changes (login/logout) to update loaded state
+    const handleAuthStateChange = () => {
+      const newToken = getUserToken();
+      const newRefreshToken = getUserRefreshToken();
+      setLoaded(true); // Always set loaded to true on auth state change
+    };
+
+    window.addEventListener('auth-state-changed', handleAuthStateChange);
+
+    return () => {
+      window.removeEventListener('auth-state-changed', handleAuthStateChange);
+    };
   }, []);
 
   // Get authentication status from tokens only
@@ -98,6 +111,7 @@ export const useAuth = () => {
   const [user, setUser] = useState<User | null>(null);
   const [loaded, setLoaded] = useState(false);
   const hasFetched = useRef(false);
+  const fetchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     const updateAuthState = async () => {
@@ -109,34 +123,45 @@ export const useAuth = () => {
 
       // Only fetch if we have a token and haven't fetched yet
       if (token && !hasFetched.current) {
-        hasFetched.current = true;
-        try {
-          const response = await authService.getCurrentUser();
-          if (response.success && response.data) {
-            // Map backend _id to frontend id
-            const userData = {
-              ...response.data,
-              id: response.data._id || response.data.id
-            };
-            setUser(userData as User);
-          } else {
-            // If token is invalid, clear it
-            setUser(null);
-          }
-        } catch (error) {
-          console.error('Failed to fetch current user:', error);
-          // Don't set user to null on error during development
-          // This prevents redirect to login on API errors
-          if (process.env.NODE_ENV === 'development') {
-            console.warn('Development mode: Keeping auth state on API error');
-          } else {
-            setUser(null);
-          }
+        // Add debounce to prevent rapid successive calls
+        if (fetchTimeoutRef.current) {
+          clearTimeout(fetchTimeoutRef.current);
         }
+
+        fetchTimeoutRef.current = setTimeout(async () => {
+          hasFetched.current = true;
+          try {
+            const response = await authService.getCurrentUser();
+            if (response.success && response.data) {
+              // Map backend _id to frontend id
+              const userData = {
+                ...response.data,
+                id: response.data._id || response.data.id
+              };
+              setUser(userData as User);
+            } else {
+              // If token is invalid, clear it
+              setUser(null);
+            }
+          } catch (error) {
+            console.error('Failed to fetch current user:', error);
+            // Don't set user to null on error during development
+            // This prevents redirect to login on API errors
+            if (process.env.NODE_ENV === 'development') {
+              console.warn('Development mode: Keeping auth state on API error');
+            } else {
+              setUser(null);
+            }
+          }
+        }, 500); // 500ms debounce to reduce API call frequency
       } else if (!token) {
         // No token, clear user
         setUser(null);
         hasFetched.current = false; // Reset for when user logs in
+        if (fetchTimeoutRef.current) {
+          clearTimeout(fetchTimeoutRef.current);
+          fetchTimeoutRef.current = null;
+        }
       }
     };
 
@@ -146,6 +171,10 @@ export const useAuth = () => {
     const handleStorageChange = () => {
       setUser(null); // Reset user on storage change, will refetch
       hasFetched.current = false; // Allow refetch
+      if (fetchTimeoutRef.current) {
+        clearTimeout(fetchTimeoutRef.current);
+        fetchTimeoutRef.current = null;
+      }
       updateAuthState();
     };
 
@@ -153,6 +182,10 @@ export const useAuth = () => {
     const handleAuthStateChange = () => {
       setUser(null); // Reset user on auth change, will refetch
       hasFetched.current = false; // Allow refetch
+      if (fetchTimeoutRef.current) {
+        clearTimeout(fetchTimeoutRef.current);
+        fetchTimeoutRef.current = null;
+      }
       updateAuthState();
     };
 
@@ -162,6 +195,9 @@ export const useAuth = () => {
     return () => {
       window.removeEventListener('storage', handleStorageChange);
       window.removeEventListener('auth-state-changed', handleAuthStateChange);
+      if (fetchTimeoutRef.current) {
+        clearTimeout(fetchTimeoutRef.current);
+      }
     };
   }, []); // Empty dependency array - only run on mount
 
@@ -259,10 +295,15 @@ export const useAuthActions = () => {
   const logout = () => {
     clearUserSession();
 
-    // Clear login-related flags
+    // Clear all user-related items from localStorage on logout
     if (typeof window !== 'undefined') {
       localStorage.removeItem('justLoggedIn');
       localStorage.removeItem('welcomeShown');
+      localStorage.removeItem('bellescart_theme');
+      localStorage.removeItem('bellescart_language');
+      localStorage.removeItem('bellescart_csrf_token');
+      localStorage.removeItem('bellescart_user');
+      localStorage.removeItem('bellescart_user_data');
       window.dispatchEvent(new Event('auth-state-changed'));
       window.dispatchEvent(new Event('storage'));
     }

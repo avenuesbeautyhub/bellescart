@@ -53,6 +53,10 @@ class ProductService {
     status?: string;
     sort?: string;
     order?: string;
+    minPrice?: number;
+    maxPrice?: number;
+    brands?: string[];
+    inStockOnly?: boolean;
   }): Promise<ProductResponse> {
     try {
       const searchParams = new URLSearchParams();
@@ -64,6 +68,12 @@ class ProductService {
       if (params?.status) searchParams.set('status', params.status);
       if (params?.sort) searchParams.set('sort', params.sort);
       if (params?.order) searchParams.set('order', params.order);
+      if (params?.minPrice) searchParams.set('minPrice', params.minPrice.toString());
+      if (params?.maxPrice) searchParams.set('maxPrice', params.maxPrice.toString());
+      if (params?.brands && params.brands.length > 0) {
+        params.brands.forEach(brand => searchParams.append('brands', brand));
+      }
+      if (params?.inStockOnly) searchParams.set('inStockOnly', 'true');
 
       const queryString = searchParams.toString();
       const url = queryString ? `/products?${queryString}` : '/products';

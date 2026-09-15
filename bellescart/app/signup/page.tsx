@@ -100,6 +100,10 @@ export default function SignupPage() {
           toast.showToast(
             toastMessages.auth.signupSuccess()
           );
+          toast.showToast(toastMessages.general.info(
+            'Check your email for OTP',
+            'If you don\'t find the OTP in your inbox, please check your spam/junk folder'
+          ));
 
           setTimeout(() => {
             router.push(

@@ -55,10 +55,7 @@ export default function LoginPage() {
       });
 
       toast.showToast(toastMessages.auth.loginSuccess(user?.name));
-      toast.showToast(toastMessages.general.info(
-        'Check your email for OTP',
-        'If you don\'t find the OTP in your inbox, please check your spam/junk folder'
-      ));
+   
       router.replace('/dashboard');
     } catch (err) {
       toast.showToast(

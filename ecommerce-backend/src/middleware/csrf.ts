@@ -50,6 +50,16 @@ export const csrfMiddleware = (req: Request, res: Response, next: NextFunction):
     return;
   }
 
+  // Skip CSRF validation for preferences endpoints (user settings)
+  if (req.path.startsWith('/preferences')) {
+    logger.debug('CSRF skipped for preferences path', { requestId: req.id, path: req.path });
+    next();
+    return;
+  }
+
+  // Note: wallet and payment endpoints require CSRF protection for security
+  // They are NOT skipped - must include valid CSRF token
+
   // Get CSRF token from header
   const csrfToken = req.headers['x-csrf-token'] as string;
   

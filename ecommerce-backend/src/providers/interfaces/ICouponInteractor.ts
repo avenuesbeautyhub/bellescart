@@ -7,13 +7,13 @@ export interface ICouponInteractor {
   updateCoupon(id: string, data: Partial<ICoupon>): Promise<ICoupon | null>;
   deleteCoupon(id: string): Promise<ICoupon | null>;
   getActiveCoupons(): Promise<ICoupon[]>;
-  validateCoupon(code: string, userId?: string, cartTotal?: number, cartCategory?: string): Promise<{
+  validateCoupon(code: string, userId?: string, cartTotal?: number, cartCategory?: string, cartCategories?: string[]): Promise<{
     valid: boolean;
     coupon?: ICoupon;
     discountAmount?: number;
     error?: string;
   }>;
-  applyCoupon(code: string, userId: string, cartTotal: number, cartCategory?: string): Promise<{
+  applyCoupon(code: string, userId: string, cartTotal: number, cartCategory?: string, cartCategories?: string[]): Promise<{
     success: boolean;
     coupon?: ICoupon;
     discountAmount: number;

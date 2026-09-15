@@ -6,6 +6,7 @@ import Navbar from '@/components/Navbar/Navbar';
 import Footer from '@/components/Footer/Footer';
 import ProductGrid from '@/components/ProductGrid/ProductGrid';
 import Loader from '@/components/ui/Loader';
+import ProductSkeleton from '@/components/ui/ProductSkeleton';
 import { SearchBar } from '@/components';
 import { useAuth } from '@/auth/user';
 import {
@@ -139,12 +140,15 @@ export default function ProductsPage() {
             : 'asc',
         page: currentPage,
         limit: itemsPerPage,
+        brands: selectedBrands.length > 0 ? selectedBrands : undefined,
+        inStockOnly: inStockOnly,
       }
     : undefined;
 
   const {
     data: searchResults,
     isLoading: isSearchLoading,
+    isFetching: isFetchingSearch,
   } = useBackendSearch(searchParams);
 
   // ------------------------------------------------------------
@@ -154,6 +158,7 @@ export default function ProductsPage() {
   const {
     data: productsData,
     isLoading: isLoadingProducts,
+    isFetching: isFetchingProducts,
   } = useProducts({
     category: selectedCategoryId || undefined,
     sort:
@@ -174,6 +179,14 @@ export default function ProductsPage() {
         : 'asc',
     page: currentPage,
     limit: itemsPerPage,
+    minPrice: priceRange.min
+      ? parseFloat(priceRange.min)
+      : undefined,
+    maxPrice: priceRange.max
+      ? parseFloat(priceRange.max)
+      : undefined,
+    brands: selectedBrands.length > 0 ? selectedBrands : undefined,
+    inStockOnly: inStockOnly,
   });
 
   // ------------------------------------------------------------
@@ -209,6 +222,10 @@ export default function ProductsPage() {
     (debouncedSearch
       ? isSearchLoading
       : isLoadingProducts) || isLoadingCategories;
+
+  const isFetching = debouncedSearch
+    ? isFetchingSearch
+    : isFetchingProducts;
 
   // ------------------------------------------------------------
   // CATEGORY FROM URL
@@ -266,7 +283,7 @@ export default function ProductsPage() {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [debouncedSearch, selectedCategoryId, sortBy]);
+  }, [debouncedSearch, selectedCategoryId, sortBy, selectedBrands, inStockOnly, priceRange]);
 
   // ------------------------------------------------------------
   // CATEGORY URL
@@ -306,7 +323,7 @@ export default function ProductsPage() {
     });
 
     return Array.from(brandSet).sort();
-  }, [products, debouncedSearch]);
+  }, [products, debouncedSearch, selectedBrands, inStockOnly, priceRange]);
 
   // ------------------------------------------------------------
   // PAGINATION
@@ -1288,7 +1305,7 @@ export default function ProductsPage() {
 
                   {/* Updating */}
 
-                  {isLoading && products.length > 0 && (
+                  {isFetching && products.length > 0 && (
                     <div className="mr-2 hidden items-center gap-2 text-xs text-gray-400 sm:flex">
                       <span className="h-3 w-3 animate-spin rounded-full border-2 border-gray-200 border-t-pink-500" />
                       Updating
@@ -1388,10 +1405,21 @@ export default function ProductsPage() {
                   SEARCH LOADING
               ================================================== */}
 
-              {debouncedSearch && isSearchLoading && (
+              {debouncedSearch && isFetchingSearch && (
                 <div className="mb-5 flex items-center justify-center gap-2 rounded-xl border border-gray-100 bg-white py-3 text-xs text-gray-500">
                   <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-gray-200 border-t-pink-500" />
                   Finding the best matches...
+                </div>
+              )}
+
+              {/* =================================================
+                  FILTER LOADING INDICATOR
+              ================================================== */}
+
+              {isFetching && !debouncedSearch && (
+                <div className="mb-5 flex items-center justify-center gap-2 rounded-xl border border-gray-100 bg-white py-3 text-xs text-gray-500">
+                  <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-gray-200 border-t-pink-500" />
+                  Updating results...
                 </div>
               )}
 

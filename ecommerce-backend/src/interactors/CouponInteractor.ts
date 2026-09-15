@@ -112,7 +112,7 @@ export class CouponInteractor implements ICouponInteractor {
     return await this._couponRepository.delete(id);
   }
 
-  async validateCoupon(code: string, userId?: string, cartTotal?: number, cartCategory?: string): Promise<{
+  async validateCoupon(code: string, userId?: string, cartTotal?: number, cartCategory?: string, cartCategories?: string[]): Promise<{
     valid: boolean;
     coupon?: ICoupon;
     discountAmount?: number;
@@ -137,12 +137,26 @@ export class CouponInteractor implements ICouponInteractor {
       };
     }
 
-    // Check category restriction
-    if (coupon.category && cartCategory && coupon.category !== cartCategory) {
-      return { 
-        valid: false, 
-        error: `Coupon is only valid for ${coupon.category} category` 
-      };
+    // Check category restriction - if coupon has a category restriction, 
+    // check if ANY item in the cart matches that category
+    if (coupon.category) {
+      // If cartCategories array is provided, check if coupon category is in the array
+      if (cartCategories && cartCategories.length > 0) {
+        const hasMatchingCategory = cartCategories.includes(coupon.category);
+        if (!hasMatchingCategory) {
+          return { 
+            valid: false, 
+            error: `Coupon is only valid for ${coupon.category} category. Your cart contains: ${cartCategories.join(', ')}` 
+          };
+        }
+      } 
+      // Fallback to single category check for backward compatibility
+      else if (cartCategory && coupon.category !== cartCategory) {
+        return { 
+          valid: false, 
+          error: `Coupon is only valid for ${coupon.category} category` 
+        };
+      }
     }
 
     // Check usage limit
@@ -175,13 +189,13 @@ export class CouponInteractor implements ICouponInteractor {
     };
   }
 
-  async applyCoupon(code: string, userId: string, cartTotal: number, cartCategory?: string): Promise<{
+  async applyCoupon(code: string, userId: string, cartTotal: number, cartCategory?: string, cartCategories?: string[]): Promise<{
     success: boolean;
     coupon?: ICoupon;
     discountAmount: number;
     error?: string;
   }> {
-    const validation = await this.validateCoupon(code, userId, cartTotal, cartCategory);
+    const validation = await this.validateCoupon(code, userId, cartTotal, cartCategory, cartCategories);
     
     if (!validation.valid) {
       return { 

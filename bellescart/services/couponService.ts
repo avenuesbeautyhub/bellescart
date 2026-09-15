@@ -5,6 +5,7 @@ import { apiPost, apiGet } from './apiInterceptor';
 export interface CouponValidationRequest {
   cartTotal?: number;
   cartCategory?: string;
+  cartCategories?: string[];
 }
 
 export interface CouponValidationResponse {
@@ -21,6 +22,7 @@ export interface CouponValidationResponse {
 export interface CouponApplyRequest {
   cartTotal: number;
   cartCategory?: string;
+  cartCategories?: string[];
 }
 
 export interface CouponApplyResponse {
@@ -66,7 +68,8 @@ class CouponService {
   async validateCoupon(code: string, requestData: CouponValidationRequest): Promise<CouponValidationResponse> {
     try {
       const response = await apiPost(`/user/coupons/validate/${code}`, requestData);
-      const result = await response.json();
+      const clonedResponse = response.clone();
+      const result = await clonedResponse.json();
       return result;
     } catch (error) {
       console.error('Validate coupon error:', error);
@@ -77,7 +80,8 @@ class CouponService {
   async applyCoupon(code: string, requestData: CouponApplyRequest): Promise<CouponApplyResponse> {
     try {
       const response = await apiPost(`/user/coupons/apply/${code}`, requestData);
-      const result = await response.json();
+      const clonedResponse = response.clone();
+      const result = await clonedResponse.json();
       return result;
     } catch (error) {
       console.error('Apply coupon error:', error);
@@ -88,7 +92,8 @@ class CouponService {
   async getActiveCoupons(): Promise<ActiveCouponsResponse> {
     try {
       const response = await apiGet('/user/coupons/active');
-      const result = await response.json();
+      const clonedResponse = response.clone();
+      const result = await clonedResponse.json();
       return result;
     } catch (error) {
       console.error('Get active coupons error:', error);

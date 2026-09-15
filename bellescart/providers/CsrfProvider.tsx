@@ -5,8 +5,11 @@ import { initializeCsrfToken } from '@/services/apiInterceptor';
 
 export function CsrfProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
-    // Initialize CSRF token when the app loads
-    initializeCsrfToken();
+    // Delay CSRF token initialization to prevent rate limiting
+    const timer = setTimeout(() => {
+      initializeCsrfToken();
+    }, 200); // 200ms delay for CSRF token fetch
+    return () => clearTimeout(timer);
   }, []);
 
   return <>{children}</>;

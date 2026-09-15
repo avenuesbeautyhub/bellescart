@@ -124,14 +124,15 @@ export class CouponController {
   async validateCoupon(req: Request, res: Response, next: NextFunction) {
     try {
       const { code } = req.params;
-      const { cartTotal, cartCategory } = req.body;
+      const { cartTotal, cartCategory, cartCategories } = req.body;
       const userId = (req as any).user?.id; // Get user ID from auth middleware if available
       
       const validation = await this._couponInteractor.validateCoupon(
         code, 
         userId, 
         cartTotal, 
-        cartCategory
+        cartCategory,
+        cartCategories
       );
       
       return res.status(200).json({
@@ -147,7 +148,7 @@ export class CouponController {
   async applyCoupon(req: Request, res: Response, next: NextFunction) {
     try {
       const { code } = req.params;
-      const { cartTotal, cartCategory } = req.body;
+      const { cartTotal, cartCategory, cartCategories } = req.body;
       const userId = (req as any).user?.id; // Get user ID from auth middleware
       
       if (!userId) {
@@ -161,7 +162,8 @@ export class CouponController {
         code, 
         userId, 
         cartTotal, 
-        cartCategory
+        cartCategory,
+        cartCategories
       );
       
       return res.status(200).json({

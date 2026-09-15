@@ -180,8 +180,7 @@ export const requestSigningMiddleware = (req: Request, res: Response, next: Next
     '/public',
     '/profile',
     '/csrf-token',
-    '/wallet',
-    '/payment',
+    '/preferences',
     '/api/csrf-token' // Explicitly add API path
   ];
 
@@ -216,7 +215,10 @@ export const requestSigningMiddleware = (req: Request, res: Response, next: Next
 export const SENSITIVE_ENDPOINTS = [
   '/payment/verify',
   '/payment/create-intent',
+  '/payment/confirm',
+  '/payment/cancel',
+  '/wallet/credit',
+  '/wallet/debit',
   '/orders',
-  '/wallet',
   '/admin'
 ];

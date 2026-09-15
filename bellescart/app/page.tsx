@@ -20,6 +20,7 @@ export default function Home() {
   const router = useRouter();
   const { isAuthenticated, loaded } = useAuth();
 
+  // Stagger API calls to prevent rate limiting
   const {
     data: featuredProductsData,
     isLoading: isLoadingProducts,

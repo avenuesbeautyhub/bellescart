@@ -144,6 +144,20 @@ class AuthService {
 
   logout(): void {
     this.clearTokens();
+    // Clear all user-related items from localStorage on logout
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('bellescart_theme');
+      localStorage.removeItem('bellescart_language');
+      localStorage.removeItem('bellescart_csrf_token');
+      localStorage.removeItem('bellescart_user');
+      localStorage.removeItem('bellescart_user_data');
+      localStorage.removeItem('justLoggedIn');
+      localStorage.removeItem('welcomeShown');
+      // Dispatch auth state change event so providers know user logged out
+      window.dispatchEvent(new Event('auth-state-changed'));
+      window.dispatchEvent(new Event('storage'));
+      window.location.href = '/login';
+    }
   }
 
   async getCurrentUser(): Promise<ApiResponse<UserProfile>> {
@@ -159,7 +173,9 @@ class AuthService {
       },
     });
 
-    const result = await response.json();
+    // Clone the response before reading to prevent "body stream already read" errors
+    const clonedResponse = response.clone();
+    const result = await clonedResponse.json();
 
     // Map backend _id to frontend id
     if (result.success && result.data) {

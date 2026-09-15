@@ -42,7 +42,14 @@ export const getTimestamp = (): string => {
 export const isSensitiveEndpoint = (url: string): boolean => {
   const sensitiveEndpoints = [
     '/orders',
-    '/admin'
+    '/admin',
+    '/payment/verify',
+    '/payment/create-intent',
+    '/payment/create-record',
+    '/payment/confirm',
+    '/payment/cancel',
+    '/wallet/credit',
+    '/wallet/debit'
   ];
 
   // Skip auth endpoints (including refresh-token)
@@ -55,8 +62,16 @@ export const isSensitiveEndpoint = (url: string): boolean => {
     return false;
   }
 
-  // Skip wallet and payment endpoints for now (they work without signing)
-  if (url.includes('/wallet') || url.includes('/payment')) {
+  // Skip read-only wallet and payment endpoints (GET requests)
+  if (url.includes('/wallet') && !url.includes('/credit') && !url.includes('/debit')) {
+    return false;
+  }
+  if (url.includes('/payment') && !url.includes('/verify') && !url.includes('/create-intent') && !url.includes('/create-record') && !url.includes('/confirm') && !url.includes('/cancel')) {
+    return false;
+  }
+
+  // Skip preferences endpoints
+  if (url.includes('/preferences')) {
     return false;
   }
 

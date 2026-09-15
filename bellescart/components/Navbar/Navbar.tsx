@@ -19,17 +19,37 @@ import { useWalletBalance } from '@/hooks/user/useWalletQueries';
 
 import { SearchBar } from '@/components';
 import Badge from '@/components/ui/Badge';
+import { useLanguage } from '@/contexts/LanguageContext';
+import { globalToast } from '@/utils/globalToast';
 
 export default function Navbar() {
   const router = useRouter();
+  const { t } = useLanguage();
 
   const [isOpen, setIsOpen] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
+  const [delayedQueriesEnabled, setDelayedQueriesEnabled] = useState(false);
 
   const {
     user,
     isAuthenticated,
     loaded,
   } = useAuth();
+
+  // Prevent hydration mismatch by only rendering language-dependent content after mount
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  // Delay non-critical queries to prevent rate limiting
+  useEffect(() => {
+    if (isAuthenticated && loaded && isMounted) {
+      const timer = setTimeout(() => {
+        setDelayedQueriesEnabled(true);
+      }, 500); // 500ms delay for secondary queries
+      return () => clearTimeout(timer);
+    }
+  }, [isAuthenticated, loaded, isMounted]);
 
   const { logout } = useAuthActions();
 
@@ -51,7 +71,7 @@ export default function Navbar() {
     data: walletBalanceData,
   } = useWalletBalance({
     enabled:
-      isAuthenticated && loaded,
+      isAuthenticated && loaded && delayedQueriesEnabled, // Stagger this query
   });
 
   const cartCount = useMemo(() => {
@@ -77,8 +97,11 @@ export default function Navbar() {
 
   const handleLogout = () => {
     setIsOpen(false);
-    logout();
-    router.push('/login');
+    globalToast.auth.logoutSuccess();
+    // Small delay to allow toast to show before redirect
+    setTimeout(() => {
+      logout();
+    }, 300);
   };
 
   const handleSearch = (query: string) => {
@@ -131,19 +154,19 @@ export default function Navbar() {
 
   const navItems = [
     {
-      label: 'Shop',
+      label: isMounted ? t('products') : 'Products',
       href: '/products',
     },
     {
-      label: 'Wishlist',
+      label: isMounted ? t('wishlist') : 'Wishlist',
       href: '/wishlist',
     },
     {
-      label: 'Orders',
+      label: isMounted ? t('orders') : 'Orders',
       href: '/orders',
     },
     {
-      label: 'Payments',
+      label: isMounted ? t('payments') : 'Payments',
       href: '/payments',
     },
   ];
@@ -308,7 +331,7 @@ export default function Navbar() {
                     >
 
                       <span>
-                        Wallet
+                        {isMounted ? t('wallet') : 'Wallet'}
                       </span>
 
                       {walletBalance > 0 && (
@@ -558,7 +581,7 @@ export default function Navbar() {
                       </p>
 
                       <p className="text-[8px] uppercase tracking-[0.15em] text-gray-400">
-                        Account
+                        {isMounted ? t('account') : 'Account'}
                       </p>
 
                     </div>
@@ -602,7 +625,7 @@ export default function Navbar() {
                         hover:text-gray-950
                       "
                     >
-                      Login
+                      {isMounted ? t('login') : 'Login'}
                     </Link>
 
                     <Link
@@ -623,7 +646,7 @@ export default function Navbar() {
                         hover:shadow-lg
                       "
                     >
-                      Create account
+                      {isMounted ? t('signup') : 'Sign Up'}
                     </Link>
 
                   </div>
@@ -825,7 +848,7 @@ export default function Navbar() {
             <div className="mb-7">
 
               <p className="mb-2.5 px-1 text-[9px] font-bold uppercase tracking-[0.25em] text-gray-400">
-                Search
+                {isMounted ? t('search') : 'Search'}
               </p>
 
               <div className="rounded-2xl border border-gray-200 bg-gray-50 px-1">
@@ -901,7 +924,7 @@ export default function Navbar() {
                 <div className="flex-1">
 
                   <p className="text-sm font-semibold text-gray-800">
-                    Shop
+                    {isMounted ? t('products') : 'Products'}
                   </p>
 
                   <p className="mt-0.5 text-[10px] text-gray-400">
@@ -954,7 +977,7 @@ export default function Navbar() {
                     <div className="flex-1">
 
                       <p className="text-sm font-semibold text-gray-800">
-                        Wishlist
+                        {isMounted ? t('wishlist') : 'Wishlist'}
                       </p>
 
                       <p className="mt-0.5 text-[10px] text-gray-400">
@@ -1114,7 +1137,7 @@ export default function Navbar() {
                     <div className="flex-1">
 
                       <p className="text-sm font-semibold text-gray-800">
-                        Wallet
+                        {isMounted ? t('wallet') : 'Wallet'}
                       </p>
 
                       <p className="mt-0.5 text-[10px] text-gray-400">
@@ -1148,7 +1171,7 @@ export default function Navbar() {
             {isLoggedIn && (
               <>
                 <p className="mb-3 px-1 text-[9px] font-bold uppercase tracking-[0.25em] text-gray-400">
-                  Account
+                  {isMounted ? t('account') : 'Account'}
                 </p>
 
                 <Link
@@ -1257,7 +1280,7 @@ export default function Navbar() {
                     />
                   </svg>
 
-                  Cart
+                  {isMounted ? t('cart') : 'Cart'}
 
                 </span>
 
@@ -1297,7 +1320,7 @@ export default function Navbar() {
                   hover:text-red-500
                 "
               >
-                Sign out
+                {isMounted ? t('logout') : 'Sign out'}
               </button>
 
             </div>
@@ -1324,7 +1347,7 @@ export default function Navbar() {
                   hover:border-gray-300
                 "
               >
-                Login
+                {isMounted ? t('login') : 'Login'}
               </Link>
 
               <Link
@@ -1346,7 +1369,7 @@ export default function Navbar() {
                   hover:bg-[#b63c71]
                 "
               >
-                Sign up
+                {isMounted ? t('signup') : 'Sign Up'}
               </Link>
 
             </div>

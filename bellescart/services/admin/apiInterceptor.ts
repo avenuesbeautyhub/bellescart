@@ -161,7 +161,7 @@ export const adminApiFetch = async (url: string, options: RequestInit = {}): Pro
 
     // If we get a 401 (Unauthorized), clear auth and redirect
     if (response.status === 401) {
-      const errorData = await response.json();
+      const errorData = await response.clone().json();
       console.warn('Admin auth error:', errorData);
 
       clearAdminSession();
@@ -177,7 +177,7 @@ export const adminApiFetch = async (url: string, options: RequestInit = {}): Pro
 
     // Handle other HTTP errors
     if (response.status >= 400) {
-      const errorData = await response.json();
+      const errorData = await response.clone().json();
       console.error('Admin API Error:', {
         status: response.status,
         errorData,

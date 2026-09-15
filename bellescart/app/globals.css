@@ -11,6 +11,23 @@
   --brand-muted: #f3f4f6;
 }
 
+/* Dark theme CSS variables (applied via body class) */
+body.dark {
+  --background: #0a0a0a;
+  --foreground: #ededed;
+  --surface: #1a1a1a;
+  --card: #1a1a1a;
+  --border: #333333;
+}
+
+/* Fallback to system preference only when no explicit theme is set */
+@media (prefers-color-scheme: dark) {
+  :root:not(.light):not(.dark) {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+
 /* eslint-disable-next-line css-unknown-at-rule -- Tailwind CSS v4 @theme rule */
 @theme inline {
   --color-background: var(--background);
@@ -19,18 +36,61 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
   transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Dark theme overrides for common Tailwind classes */
+body.dark {
+  background-color: var(--background);
+  color: var(--foreground);
+}
+
+body.dark .bg-white {
+  background-color: var(--card) !important;
+}
+
+body.dark .bg-gray-50 {
+  background-color: var(--surface) !important;
+}
+
+body.dark .bg-gray-100 {
+  background-color: #2a2a2a !important;
+}
+
+body.dark .text-gray-950 {
+  color: var(--foreground) !important;
+}
+
+body.dark .text-gray-900 {
+  color: #e5e5e5 !important;
+}
+
+body.dark .text-gray-800 {
+  color: #d4d4d4 !important;
+}
+
+body.dark .text-gray-600 {
+  color: #a3a3a3 !important;
+}
+
+body.dark .text-gray-400 {
+  color: #737373 !important;
+}
+
+body.dark .border-gray-100 {
+  border-color: var(--border) !important;
+}
+
+body.dark .border-gray-200 {
+  border-color: #404040 !important;
+}
+
+body.dark .border-gray-300 {
+  border-color: #4a4a4a !important;
 }
 
 /* Smooth page transitions */

@@ -4,7 +4,7 @@ import { Request, Response, NextFunction } from 'express';
 // General API rate limiter - applies to all API routes
 export const apiRateLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // Limit each IP to 100 requests per windowMs
+  max: process.env.NODE_ENV === 'development' ? 1000 : 100, // Higher limit for development
   message: {
     success: false,
     error: 'Too many requests from this IP, please try again after 15 minutes'
@@ -68,7 +68,7 @@ export const shippingRateLimiter = rateLimit({
 // Rate limiter for public endpoints (products, categories)
 export const publicRateLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 500, // Higher limit for public read-only endpoints
+  max: process.env.NODE_ENV === 'development' ? 2000 : 500, // Much higher limit for development
   message: {
     success: false,
     error: 'Too many requests, please try again after 15 minutes'

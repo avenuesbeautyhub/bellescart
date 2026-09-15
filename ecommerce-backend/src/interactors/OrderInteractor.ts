@@ -415,19 +415,20 @@ export class OrderInteractor implements IOrderInteractor {
       throw new Error('Order not found');
     }
 
-    // Check if order can be cancelled
-    if (!['delivered', 'shipped'].includes(order.status)) {
+    // Check if order can be cancelled (only pending and processing orders can be cancelled)
+    if (['delivered', 'shipped', 'cancelled', 'returned'].includes(order.status)) {
       throw new Error('Order cannot be cancelled at this stage');
     }
 
-    // Restore inventory (increase quantity)
+    // Restore inventory (increase quantity by passing negative value since updateQuantity decrements)
     for (const item of order.items) {
       // Extract product ID (handle both ObjectId and populated object)
       const productId = typeof item.product === 'object' && item.product._id
         ? item.product._id.toString()
         : item.product.toString();
 
-      await this._productRepository.updateQuantity(productId, item.quantity);
+      // Pass negative quantity to increase stock (updateQuantity uses -quantity, so -item.quantity = +item.quantity)
+      await this._productRepository.updateQuantity(productId, -item.quantity);
     }
 
     // Update order status
@@ -460,14 +461,15 @@ export class OrderInteractor implements IOrderInteractor {
       throw new Error('Failed to update order status');
     }
 
-    // Restore inventory (increase quantity)
+    // Restore inventory (increase quantity by passing negative value since updateQuantity decrements)
     for (const item of order.items) {
       // Extract product ID (handle both ObjectId and populated object)
       const productId = typeof item.product === 'object' && item.product._id
         ? item.product._id.toString()
         : item.product.toString();
 
-      await this._productRepository.updateQuantity(productId, item.quantity);
+      // Pass negative quantity to increase stock (updateQuantity uses -quantity, so -item.quantity = +item.quantity)
+      await this._productRepository.updateQuantity(productId, -item.quantity);
     }
 
     // Refund amount to wallet if wallet interactor is available
@@ -546,10 +548,11 @@ export class OrderInteractor implements IOrderInteractor {
       throw new Error('Order cannot be refunded at this stage');
     }
 
-    // Restore inventory for refunded items
+    // Restore inventory for refunded items (increase quantity by passing negative value since updateQuantity decrements)
     if (refundData.items) {
       for (const item of refundData.items) {
-        await this._productRepository.updateQuantity(item.productId, item.quantity);
+        // Pass negative quantity to increase stock (updateQuantity uses -quantity, so -item.quantity = +item.quantity)
+        await this._productRepository.updateQuantity(item.productId, -item.quantity);
       }
     }
 

@@ -22,8 +22,12 @@ export const useWalletBalance = (options?: { enabled?: boolean }) => {
   return useQuery({
     queryKey: walletKeys.balance(),
     queryFn: () => walletService.getBalance(),
-    staleTime: 1000 * 30, // 30 seconds - more frequent updates
+    staleTime: 1000 * 60 * 5, // 5 minutes (increased to reduce refetches)
+    gcTime: 1000 * 60 * 10, // 10 minutes garbage collection
     enabled: options?.enabled !== false, // Default to enabled
+    refetchOnWindowFocus: false, // Disabled to prevent 429 errors
+    refetchOnReconnect: false, // Disabled to prevent 429 errors
+    retry: 0, // Disabled retries to prevent error cascades
   });
 };
 

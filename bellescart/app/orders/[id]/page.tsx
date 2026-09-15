@@ -138,13 +138,18 @@ export default function OrderDetailPage({
 
   const canReturnOrder = (order: any) => {
     if (order.status !== 'delivered') return false;
-    
-    // Check if 2 days have passed since delivery
+
+    // Check if within 2 days of delivery (not more than 2 days ago)
     const deliveredDate = new Date(order.deliveredAt || order.updatedAt);
     const twoDaysAgo = new Date();
     twoDaysAgo.setDate(twoDaysAgo.getDate() - 2);
-    
-    return deliveredDate <= twoDaysAgo;
+
+    return deliveredDate >= twoDaysAgo;
+  };
+
+  const canCancelOrder = (order: any) => {
+    // Only allow cancellation for pending and processing orders
+    return order.status === 'pending' || order.status === 'processing';
   };
 
   const getPaymentMethodLabel = (method: string) => {
@@ -990,16 +995,15 @@ export default function OrderDetailPage({
                     </Button>
                   )}
 
-                  {isActiveOrder &&
-                    order.status !== 'delivered' && (
-                      <Button
-                        variant="danger"
-                        className="w-full"
-                        onClick={handleCancelOrder}
-                      >
-                        Cancel Order
-                      </Button>
-                    )}
+                  {canCancelOrder(order) && (
+                    <Button
+                      variant="danger"
+                      className="w-full"
+                      onClick={handleCancelOrder}
+                    >
+                      Cancel Order
+                    </Button>
+                  )}
 
                   <Link
                     href="/products"

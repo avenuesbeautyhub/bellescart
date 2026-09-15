@@ -448,8 +448,9 @@ router.post('/create-record', authenticate, async (req: Request, res: Response, 
       ]
     });
 
-    if (existingPayment) {
-      // Update existing payment record
+    // Always create a new record for failed payments to maintain proper payment history
+    if (existingPayment && status !== 'failed') {
+      // Update existing payment record for non-failed statuses
       existingPayment.status = status || existingPayment.status;
       if (metadata) {
         existingPayment.metadata = { ...existingPayment.metadata, ...metadata };
@@ -468,7 +469,7 @@ router.post('/create-record', authenticate, async (req: Request, res: Response, 
       };
       logger.info('Payment record updated', { paymentId: existingPayment._id, status: existingPayment.status });
     } else {
-      // Create new payment record
+      // Create new payment record (always for failed payments, or if no existing record)
       result = await paymentService.createPaymentRecord({
         bookingId,
         razorpayPaymentId,

@@ -72,3 +72,28 @@ export interface UserProfile {
   phone?: string;
   addresses?: Address[];
 }
+
+export interface UserPreferences {
+  _id?: string;
+  userId?: string;
+  language: 'en' | 'hi' | 'ml';
+  theme: 'light' | 'dark' | 'auto';
+  notifications: {
+    email: boolean;
+    push: boolean;
+    sms: boolean;
+    orderUpdates: boolean;
+    promotions: boolean;
+  };
+  privacy: {
+    profileVisibility: 'public' | 'private';
+    showActivity: boolean;
+  };
+  accessibility: {
+    fontSize: 'small' | 'medium' | 'large';
+    highContrast: boolean;
+    reducedMotion: boolean;
+  };
+  createdAt?: string;
+  updatedAt?: string;
+}

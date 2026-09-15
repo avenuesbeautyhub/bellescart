@@ -65,6 +65,16 @@ export const useAuthActions = () => {
 
   const logout = () => {
     clearUserSession();
+    // Clear all user-related items from localStorage on logout
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('bellescart_theme');
+      localStorage.removeItem('bellescart_language');
+      localStorage.removeItem('bellescart_csrf_token');
+      localStorage.removeItem('bellescart_user');
+      localStorage.removeItem('bellescart_user_data');
+      localStorage.removeItem('justLoggedIn');
+      localStorage.removeItem('welcomeShown');
+    }
     window.location.href = '/login';
   };
 

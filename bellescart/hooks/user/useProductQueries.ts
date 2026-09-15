@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { productService, ProductResponse, ProductCategory } from '@/services/productService';
 
 // Query keys
@@ -24,11 +24,16 @@ export const useProducts = (params?: {
   status?: string;
   sort?: string;
   order?: string;
+  minPrice?: number;
+  maxPrice?: number;
+  brands?: string[];
+  inStockOnly?: boolean;
 }) => {
   return useQuery({
     queryKey: productKeys.list(params),
     queryFn: () => productService.getProducts(params),
     staleTime: 1000 * 60 * 5, // 5 minutes
+    placeholderData: keepPreviousData,
   });
 };
 
@@ -85,12 +90,15 @@ export const useBackendSearch = (params?: {
   maxPrice?: number;
   sort?: string;
   order?: string;
+  brands?: string[];
+  inStockOnly?: boolean;
 }) => {
   return useQuery({
     queryKey: productKeys.backendSearch(params?.search || '', params),
     queryFn: () => productService.getProducts(params),
     enabled: !!(params?.search && params.search.length > 0),
     staleTime: 1000 * 60 * 2, // 2 minutes
+    placeholderData: keepPreviousData,
   });
 };
 

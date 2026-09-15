@@ -12,6 +12,23 @@ let csrfToken: string | null = null;
 let isFetchingCsrfToken = false;
 let csrfTokenSubscribers: ((token: string) => void)[] = [];
 
+// Request deduplication to prevent duplicate simultaneous requests
+const pendingRequests = new Map<string, Promise<Response>>();
+
+const getRequestKey = (url: string, options: RequestInit): string => {
+  const method = options.method || 'GET';
+  const body = options.body ? String(options.body) : '';
+  return `${method}:${url}:${body}`;
+};
+
+// Check if request should be deduplicated (only GET requests)
+const shouldDeduplicate = (options: RequestInit): boolean => {
+  const method = options.method || 'GET';
+  return method === 'GET';
+};
+
+
+
 // Fallback: store CSRF token in localStorage if cookies fail
 const CSRF_LOCALSTORAGE_KEY = 'bellescart_csrf_token';
 
@@ -412,8 +429,12 @@ export const apiFetch = async (url: string, options: RequestInit = {}): Promise<
 
         // Make the request with the new token
         const fullUrl = url.startsWith('http') ? url : appConfig.apiBaseUrl + url;
-        const response = await fetch(fullUrl, authOptions);
+        const proactiveKey = getRequestKey(fullUrl, authOptions);
+        const proactivePromise = fetch(fullUrl, authOptions);
+        pendingRequests.set(proactiveKey, proactivePromise);
+        const response = await proactivePromise;
 
+        pendingRequests.delete(proactiveKey);
         return response;
       } else {
         // Refresh failed, clear tokens and redirect to login
@@ -525,20 +546,36 @@ export const apiFetch = async (url: string, options: RequestInit = {}): Promise<
   // Build the full URL before the try block so it's accessible in catch
   const fullUrl = url.startsWith('http') ? url : appConfig.apiBaseUrl + url;
 
+  // Request deduplication - check if there's already a pending request (only for GET requests)
+  const requestKey = getRequestKey(fullUrl, authOptions);
+  if (shouldDeduplicate(authOptions) && pendingRequests.has(requestKey)) {
+    console.log(`[Request Deduplication] Reusing existing request for: ${fullUrl}`);
+    // Clone the response to allow multiple consumers to read the body
+    const originalResponse = await pendingRequests.get(requestKey)!;
+    return originalResponse.clone();
+  }
+
   try {
     // Make initial request
     console.log(`API Request: ${fullUrl}`);
     console.log('Request options:', {
       method: authOptions.method,
       headers: authOptions.headers,
-      credentials: authOptions.credentials
+      // credentials: authOptions.credentials
     });
-    
-    const response = await fetch(fullUrl, authOptions);
+
+    // Create the request promise and store it for deduplication (only for GET requests)
+    const requestPromise = fetch(fullUrl, authOptions);
+    if (shouldDeduplicate(authOptions)) {
+      pendingRequests.set(requestKey, requestPromise);
+    }
+
+    const response = await requestPromise;
     console.log(`API Response: ${response.status} ${response.statusText}`);
 
     // If response is successful, return it
     if (response.ok) {
+      console.log('API Response successful, returning response object');
       return response;
     }
 
@@ -546,7 +583,9 @@ export const apiFetch = async (url: string, options: RequestInit = {}): Promise<
     if (response.status === 403) {
       let errorData;
       try {
-        errorData = await response.json();
+        // Clone the response before parsing to preserve the body for the caller
+        const clonedResponse = response.clone();
+        errorData = await clonedResponse.json();
       } catch (parseError) {
         console.error('Failed to parse 403 error response:', parseError);
         throw new Error('Request failed. Please try again.');
@@ -603,12 +642,19 @@ export const apiFetch = async (url: string, options: RequestInit = {}): Promise<
             if (finalCookieToken) {
               retryHeaders['X-CSRF-Token'] = finalCookieToken;
             }
-            
-            const retryResponse = await fetch(fullUrl, {
+
+            // Create retry request and handle deduplication
+            const retryKey = getRequestKey(fullUrl, { ...options, headers: retryHeaders });
+            const retryPromise = fetch(fullUrl, {
               ...options,
               headers: retryHeaders,
               credentials: 'include',
             });
+            pendingRequests.set(retryKey, retryPromise);
+
+            const retryResponse = await retryPromise;
+
+            pendingRequests.delete(retryKey);
 
             if (retryResponse.ok) {
               console.log('[CSRF DEBUG] Request succeeded after CSRF token refresh');
@@ -634,7 +680,9 @@ export const apiFetch = async (url: string, options: RequestInit = {}): Promise<
     if (response.status === 401) {
       let errorData;
       try {
-        errorData = await response.json();
+        // Clone the response before parsing to preserve the body for the caller
+        const clonedResponse = response.clone();
+        errorData = await clonedResponse.json();
       } catch (parseError) {
         console.error('Failed to parse error response:', parseError);
         throw new Error('Authentication failed. Please login again.');
@@ -684,11 +732,17 @@ export const apiFetch = async (url: string, options: RequestInit = {}): Promise<
                   retryHeaders['X-Nonce'] = nonce;
                 }
 
-                const retryResponse = await fetch(fullUrl, {
+                const tokenRetryKey = getRequestKey(fullUrl, { ...options, headers: retryHeaders });
+                const tokenRetryPromise = fetch(fullUrl, {
                   ...options,
                   headers: retryHeaders,
                   credentials: 'include',
                 });
+                pendingRequests.set(tokenRetryKey, tokenRetryPromise);
+
+                const retryResponse = await tokenRetryPromise;
+
+                pendingRequests.delete(tokenRetryKey);
 
                 if (retryResponse.ok) {
                   resolve(retryResponse);
@@ -749,12 +803,17 @@ export const apiFetch = async (url: string, options: RequestInit = {}): Promise<
               retryHeaders['X-Nonce'] = nonce;
             }
 
-            const retryResponse = await fetch(fullUrl, {
+            const mainRetryKey = getRequestKey(fullUrl, { ...options, headers: retryHeaders });
+            const mainRetryPromise = fetch(fullUrl, {
               ...options,
               headers: retryHeaders,
               credentials: 'include',
             });
+            pendingRequests.set(mainRetryKey, mainRetryPromise);
 
+            const retryResponse = await mainRetryPromise;
+
+            pendingRequests.delete(mainRetryKey);
             return retryResponse;
           } else {
             // Refresh failed, clear tokens and redirect to login
@@ -785,21 +844,37 @@ export const apiFetch = async (url: string, options: RequestInit = {}): Promise<
       }
     }
 
+    // If we get a 429 (Too Many Requests), show user-friendly message
+    if (response.status === 429) {
+      console.error('Rate limit exceeded:', fullUrl);
+      // Show a warning toast but don't interrupt the user
+      globalToast.general.warning(
+        'Too Many Requests',
+        'Please wait a moment and try again.'
+      );
+      throw new Error('Too many requests. Please wait a moment and try again.');
+    }
+
     // For other error statuses, return response as-is
     return response;
 
   } catch (error) {
     // If it's not a 401 error or refresh failed, throw error
     console.error('API fetch error:', error);
-    
+
     if (error instanceof TypeError && error.message === 'Failed to fetch') {
       console.error('Network error - failed to connect to API server');
       console.error('API URL:', fullUrl);
       console.error('Check if backend server is running and accessible');
       throw new Error('Unable to connect to server. Please check your internet connection and try again.');
     }
-    
+
     throw error;
+  } finally {
+    // Clean up the pending request after completion (only if we deduplicated)
+    if (shouldDeduplicate(authOptions)) {
+      pendingRequests.delete(requestKey);
+    }
   }
 };
 
@@ -911,16 +986,34 @@ export const publicApiFetch = async (url: string, options: RequestInit = {}): Pr
     }
   }
 
+  // Request deduplication for public API
+  const publicRequestKey = getRequestKey(fullUrl, publicOptions);
+
   try {
     console.log('Public API Request URL:', fullUrl);
-    const response = await fetch(fullUrl, publicOptions);
+
+    if (shouldDeduplicate(publicOptions) && pendingRequests.has(publicRequestKey)) {
+      console.log(`[Public API Deduplication] Reusing existing request for: ${fullUrl}`);
+      // Clone the response to allow multiple consumers to read the body
+      const originalResponse = await pendingRequests.get(publicRequestKey)!;
+      return originalResponse.clone();
+    }
+
+    const publicRequestPromise = fetch(fullUrl, publicOptions);
+    if (shouldDeduplicate(publicOptions)) {
+      pendingRequests.set(publicRequestKey, publicRequestPromise);
+    }
+
+    const response = await publicRequestPromise;
     console.log('Public API Response Status:', response.status);
 
     // If we get a 403 (Forbidden), check if it's CSRF error
     if (response.status === 403) {
       let errorData;
       try {
-        errorData = await response.json();
+        // Clone the response before parsing to preserve the body for the caller
+        const clonedResponse = response.clone();
+        errorData = await clonedResponse.json();
       } catch (parseError) {
         console.error('[CSRF DEBUG] Failed to parse 403 error response:', parseError);
         throw new Error('Request failed. Please try again.');
@@ -957,12 +1050,18 @@ export const publicApiFetch = async (url: string, options: RequestInit = {}): Pr
             if (finalCookieToken) {
               retryHeaders['X-CSRF-Token'] = finalCookieToken;
             }
-            
-            const retryResponse = await fetch(fullUrl, {
+
+            const publicRetryKey = getRequestKey(fullUrl, { ...publicOptions, headers: retryHeaders });
+            const publicRetryPromise = fetch(fullUrl, {
               ...publicOptions,
               headers: retryHeaders,
               credentials: 'include',
             });
+            pendingRequests.set(publicRetryKey, publicRetryPromise);
+
+            const retryResponse = await publicRetryPromise;
+
+            pendingRequests.delete(publicRetryKey);
 
             if (retryResponse.ok) {
               console.log('[CSRF DEBUG] Public API - Request succeeded after CSRF token refresh');
@@ -989,6 +1088,11 @@ export const publicApiFetch = async (url: string, options: RequestInit = {}): Pr
     console.error('Public API fetch error:', error);
     console.error('Full URL that failed:', fullUrl);
     throw error;
+  } finally {
+    // Clean up the pending request after completion (only if we deduplicated)
+    if (shouldDeduplicate(publicOptions)) {
+      pendingRequests.delete(publicRequestKey);
+    }
   }
 };
 

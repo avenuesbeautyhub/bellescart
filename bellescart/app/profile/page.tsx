@@ -4,7 +4,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
-import { useRequireUserAuth, clearUserSession } from '@/auth/user';
+import { useRequireUserAuth, useAuthActions } from '@/auth/user';
 import { Address } from '@/types/auth';
 
 import Navbar from '@/components/Navbar/Navbar';
@@ -24,10 +24,8 @@ import {
   useUploadProfilePicture,
 } from '@/hooks/user/useProfileQueries';
 
-import { useCurrentUser } from '@/hooks/user/useAuthQuery';
 import { useWalletBalance } from '@/hooks/user/useWalletQueries';
 import { globalToast } from '@/utils/globalToast';
-import { initializeCsrfToken } from '@/services/apiInterceptor';
 
 type IconProps = {
   className?: string;
@@ -329,6 +327,28 @@ const Icon = {
       />
     </svg>
   ),
+
+  Settings: ({ className = 'h-4 w-4' }: IconProps) => (
+    <svg
+      className={className}
+      fill="none"
+      stroke="currentColor"
+      viewBox="0 0 24 24"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={1.7}
+        d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+      />
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={1.7}
+        d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+      />
+    </svg>
+  ),
 };
 
 export default function ProfilePage() {
@@ -339,6 +359,8 @@ export default function ProfilePage() {
     loaded,
     isAuthenticated,
   } = useRequireUserAuth();
+
+  const { logout } = useAuthActions();
 
   const [isEditing, setIsEditing] = useState(false);
   const [profilePic, setProfilePic] = useState('');
@@ -353,9 +375,10 @@ export default function ProfilePage() {
     enabled: isAuthenticated && loaded,
   });
 
-  const {
-    data: currentUserData,
-  } = useCurrentUser();
+  // Remove redundant useCurrentUser call - useProfile already provides user data
+  // const {
+  //   data: currentUserData,
+  // } = useCurrentUser();
 
   const {
     data: walletBalanceData,
@@ -415,14 +438,9 @@ export default function ProfilePage() {
     setFormData(profile);
   }, [profile]);
 
-  useEffect(() => {
-    initializeCsrfToken();
-  }, []);
-
   const displayName =
     profile.name ||
     user?.name ||
-    currentUserData?.name ||
     'Welcome';
 
   const walletBalance =
@@ -633,8 +651,11 @@ export default function ProfilePage() {
   };
 
   const handleLogout = () => {
-    clearUserSession();
-    router.push('/login');
+    globalToast.auth.logoutSuccess();
+    // Small delay to allow toast to show before redirect
+    setTimeout(() => {
+      logout();
+    }, 300);
   };
 
   return (
@@ -815,6 +836,19 @@ export default function ProfilePage() {
                       </span>
 
                       Payments
+
+                      <Icon.ChevronRight className="ml-auto h-4 w-4 text-gray-300 transition group-hover:text-gray-500" />
+                    </Link>
+
+                    <Link
+                      href="/settings"
+                      className="group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-gray-600 transition hover:bg-gray-50 hover:text-gray-950"
+                    >
+                      <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gray-100 text-gray-500 transition group-hover:bg-pink-50 group-hover:text-pink-600">
+                        <Icon.Settings className="h-4 w-4" />
+                      </span>
+
+                      Settings
 
                       <Icon.ChevronRight className="ml-auto h-4 w-4 text-gray-300 transition group-hover:text-gray-500" />
                     </Link>

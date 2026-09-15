@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import CouponCard from '../CouponCard/CouponCard';
 import { couponService, Coupon } from '@/services/couponService';
 import Loader from '../ui/Loader';
@@ -14,11 +14,45 @@ export default function CouponSection({ className = '', maxCoupons = 3 }: Coupon
   const [coupons, setCoupons] = useState<Coupon[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
+  const fetchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const lastFetchTimeRef = useRef<number>(0);
+  const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes cache
 
   useEffect(() => {
     const fetchActiveCoupons = async () => {
+      // Rate limiting: Don't fetch if we fetched less than 1 second ago
+      const now = Date.now();
+      if (now - lastFetchTimeRef.current < 1000) {
+        console.log('Rate limiting: Skipping coupon fetch');
+        return;
+      }
+      
+      // Check cache
+      const cachedData = localStorage.getItem('cached_coupons');
+      const cacheTime = localStorage.getItem('cached_coupons_time');
+      
+      if (cachedData && cacheTime) {
+        const cacheAge = now - parseInt(cacheTime);
+        if (cacheAge < CACHE_DURATION) {
+          console.log('Using cached coupons data');
+          try {
+            const parsedData = JSON.parse(cachedData);
+            const sortedCoupons = parsedData
+              .sort((a: Coupon, b: Coupon) => new Date(a.validUntil).getTime() - new Date(b.validUntil).getTime())
+              .slice(0, maxCoupons);
+            setCoupons(sortedCoupons);
+            setIsLoading(false);
+            return;
+          } catch (e) {
+            console.error('Error parsing cached coupons:', e);
+          }
+        }
+      }
+
       try {
         setIsLoading(true);
+        lastFetchTimeRef.current = now;
         const response = await couponService.getActiveCoupons();
         
         if (response.success && response.data?.coupons) {
@@ -27,19 +61,48 @@ export default function CouponSection({ className = '', maxCoupons = 3 }: Coupon
             .sort((a, b) => new Date(a.validUntil).getTime() - new Date(b.validUntil).getTime())
             .slice(0, maxCoupons);
           setCoupons(sortedCoupons);
+          
+          // Cache the results
+          localStorage.setItem('cached_coupons', JSON.stringify(response.data.coupons));
+          localStorage.setItem('cached_coupons_time', now.toString());
+          
+          setError(null);
+          setRetryCount(0);
         } else {
           setError('Failed to load coupons');
         }
-      } catch (err) {
+      } catch (err: any) {
         console.error('Error fetching active coupons:', err);
-        setError('Failed to load coupons');
+        
+        // Handle rate limiting (429 errors)
+        if (err?.message?.includes('Too many requests') || err?.message?.includes('429')) {
+          setError('Too many requests. Please wait a moment.');
+          setRetryCount(prev => prev + 1);
+          
+          // Exponential backoff for retries
+          if (retryCount < 3) {
+            const backoffTime = Math.pow(2, retryCount) * 1000; // 1s, 2s, 4s
+            fetchTimeoutRef.current = setTimeout(() => {
+              fetchActiveCoupons();
+            }, backoffTime);
+          }
+        } else {
+          setError('Failed to load coupons');
+        }
       } finally {
         setIsLoading(false);
       }
     };
 
     fetchActiveCoupons();
-  }, [maxCoupons]);
+
+    // Cleanup timeout on unmount
+    return () => {
+      if (fetchTimeoutRef.current) {
+        clearTimeout(fetchTimeoutRef.current);
+      }
+    };
+  }, [maxCoupons, retryCount]);
 
   const handleCopyCode = (code: string) => {
     console.log('Coupon code copied:', code);

@@ -49,7 +49,7 @@ const paymentSchema = new Schema<IPayment>({
   },
   paymentMethod: {
     type: String,
-    enum: ['razorpay', 'stripe', 'paypal', 'cash_on_delivery', 'credit_card', 'debit_card'],
+    enum: ['razorpay', 'stripe', 'paypal', 'cash_on_delivery', 'credit_card', 'debit_card', 'wallet'],
     required: true
   },
   user: {

@@ -350,17 +350,25 @@ export default function CheckoutPage() {
       setIsApplyingCoupon(true);
 
       try {
+        // Extract all unique categories from cart items
+        const cartCategories: string[] = [
+          ...new Set(
+            cartItems
+              .map((item) =>
+                item.category
+                  ? String(item.category)
+                  : null
+              )
+              .filter((category): category is string => category !== null)
+          ),
+        ];
+
         const response =
           await couponService.applyCoupon(
             couponCode.trim(),
             {
               cartTotal: subtotal,
-              cartCategory:
-                cartItems[0]?.category
-                  ? String(
-                      cartItems[0]?.category
-                    )
-                  : undefined,
+              cartCategories,
             }
           );
 
@@ -385,10 +393,11 @@ export default function CheckoutPage() {
 
           setCouponCode('');
         } else {
+          // Provide more detailed error message
+          const errorMessage = response.data?.error || 'This coupon is not valid';
           globalToast.general.error(
             'Invalid Coupon',
-            response.data?.error ||
-              'This coupon is not valid'
+            errorMessage
           );
         }
       } catch (error: any) {
@@ -748,7 +757,7 @@ export default function CheckoutPage() {
                         ?.order?.id;
 
                     try {
-                      await paymentService.createPaymentRecord(
+                      const paymentRecordResponse = await paymentService.createPaymentRecord(
                         {
                           bookingId:
                             razorpayOrderId,
@@ -795,12 +804,17 @@ export default function CheckoutPage() {
                       );
 
                       console.log(
-                        '✅ Razorpay payment record created with completed status'
+                        '✅ Razorpay payment record created with completed status',
+                        paymentRecordResponse
                       );
                     } catch (err) {
                       console.error(
                         '❌ Failed to create Razorpay payment record:',
                         err
+                      );
+                      globalToast.general.error(
+                        'Payment Record Creation Failed',
+                        'Your order was created but payment record creation failed. Please contact support.'
                       );
                     }
 
@@ -851,10 +865,13 @@ export default function CheckoutPage() {
                     'Payment modal closed by user'
                   );
 
-                  globalToast.general.info(
-                    'Payment Cancelled',
-                    'You cancelled the payment. Try again when ready.'
-                  );
+                  // Short duration toast for user cancellation (3 seconds)
+                  globalToast.show({
+                    type: 'info',
+                    title: 'Payment Cancelled',
+                    message: 'You cancelled the payment. Try again when ready.',
+                    duration: 3000 // 3 seconds for cancellation
+                  });
 
                   setIsSubmitting(false);
                   setProcessingStep('');
@@ -877,13 +894,36 @@ export default function CheckoutPage() {
                 response
               );
 
+              // Show long-duration toast for payment failures (10 seconds)
+              const errorCode = response.error?.code;
+              const errorReason = response.error?.reason;
+
+              if (errorCode === 'BAD_REQUEST_ERROR' && errorReason === 'payment_failed' && response.error?.source === 'bank') {
+                globalToast.payment.failedBankDeclined();
+              } else if (errorCode === 'BAD_REQUEST_ERROR' && errorReason === 'payment_failed') {
+                globalToast.payment.failedInsufficientFunds();
+              } else {
+                globalToast.payment.failed();
+              }
+
               if (
                 response.error
                   ?.metadata
                   ?.payment_id
               ) {
                 try {
-                  await paymentService.createPaymentRecord(
+                  console.log('📝 Creating failed payment record with data:', {
+                    bookingId: razorpayOrderId,
+                    razorpayPaymentId: response.error?.metadata?.payment_id,
+                    razorpayOrderId: response.error?.metadata?.order_id,
+                    amount: amount / 100,
+                    currency,
+                    status: 'failed',
+                    paymentMethod: 'razorpay',
+                    userId: currentUserData?.id || currentUserData?._id,
+                  });
+
+                  const paymentRecordResponse = await paymentService.createPaymentRecord(
                     {
                       bookingId:
                         razorpayOrderId,
@@ -915,21 +955,25 @@ export default function CheckoutPage() {
                   );
 
                   console.log(
-                    '✅ Payment record updated to failed status'
+                    '✅ Failed payment record created successfully:',
+                    paymentRecordResponse
                   );
+
+                  // Invalidate payment queries to refresh the payment history
+                  invalidatePaymentQueries();
                 } catch (err) {
                   console.error(
-                    '❌ Failed to update payment record status:',
+                    '❌ Failed to create failed payment record:',
                     err
                   );
+                  globalToast.general.error(
+                    'Payment Record Creation Failed',
+                    'Payment failed but we could not save the record. Please contact support if this persists.'
+                  );
                 }
+              } else {
+                console.warn('⚠️ No payment_id in error metadata, cannot create payment record');
               }
-
-              const errorCode =
-                response.error?.code;
-
-              const errorReason =
-                response.error?.reason;
 
               const errorDescription =
                 response.error
@@ -1157,7 +1201,7 @@ export default function CheckoutPage() {
                 ?.order?.id;
 
             try {
-              await paymentService.createPaymentRecord(
+              const paymentRecordResponse = await paymentService.createPaymentRecord(
                 {
                   bookingId:
                     orderId,
@@ -1196,12 +1240,17 @@ export default function CheckoutPage() {
               );
 
               console.log(
-                '✅ Wallet payment record created with completed status'
+                '✅ Wallet payment record created with completed status',
+                paymentRecordResponse
               );
             } catch (err) {
               console.error(
                 '❌ Failed to create wallet payment record:',
                 err
+              );
+              globalToast.general.error(
+                'Payment Record Creation Failed',
+                'Your order was created but payment record creation failed. Please contact support.'
               );
             }
 
