@@ -23,7 +23,7 @@ export const generateToken = (user: UserForToken): string => {
   }
 
   return jwt.sign(payload, jwtSecret, {
-    expiresIn: '1h'
+    expiresIn: '2h'
   });
 };
 

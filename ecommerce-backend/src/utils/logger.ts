@@ -30,7 +30,7 @@ const format = winston.format.combine(
 );
 
 // Define different transports for different environments
-const transports = [
+const transports: winston.transport[] = [
   // Console transport
   new winston.transports.Console({
     format: winston.format.combine(
@@ -53,7 +53,7 @@ if (process.env.NODE_ENV === 'production') {
         winston.format.timestamp(),
         winston.format.json()
       ),
-    }),
+    }) as any,
     // Combined log file
     new winston.transports.File({
       filename: 'logs/combined.log',
@@ -61,7 +61,7 @@ if (process.env.NODE_ENV === 'production') {
         winston.format.timestamp(),
         winston.format.json()
       ),
-    })
+    }) as any
   );
 }
 

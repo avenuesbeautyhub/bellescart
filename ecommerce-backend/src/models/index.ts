@@ -7,3 +7,4 @@ export { Cart, ICart, ICartItem } from './Cart';
 export { Address, IAddress } from './Address';
 export { Payment, IPayment } from './Payment';
 export { Coupon, ICoupon } from './Coupon';
+export { UserPreferences, IUserPreferences } from './UserPreferences';

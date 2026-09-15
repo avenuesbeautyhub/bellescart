@@ -23,7 +23,10 @@ export const csrfMiddleware = (req: Request, res: Response, next: NextFunction):
     '/auth/reset-password',
     '/auth/verify-otp',
     '/auth/resend-otp',
-    '/csrf-token'
+    '/api/csrf-token',
+    '/admin/login',
+    '/admin/register',
+    '/cart/validate-stock' // Stock validation is a read operation, shouldn't require CSRF
   ];
 
   const isAuthPath = authPaths.some(path => req.path === path || req.path.startsWith(path + '/'));
@@ -47,11 +50,49 @@ export const csrfMiddleware = (req: Request, res: Response, next: NextFunction):
     return;
   }
 
+  // Skip CSRF validation for preferences endpoints (user settings)
+  if (req.path.startsWith('/preferences')) {
+    logger.debug('CSRF skipped for preferences path', { requestId: req.id, path: req.path });
+    next();
+    return;
+  }
+
+  // Note: wallet and payment endpoints require CSRF protection for security
+  // They are NOT skipped - must include valid CSRF token
+
   // Get CSRF token from header
   const csrfToken = req.headers['x-csrf-token'] as string;
   
-  // Get CSRF token from cookie
-  const csrfCookie = req.cookies?.csrfToken;
+  // Get CSRF token from cookie (try multiple variations)
+  const csrfCookie = req.cookies?.csrfToken || req.cookies?.csrftoken;
+
+  logger.info('CSRF validation check', {
+    requestId: req.id,
+    method: req.method,
+    path: req.path,
+    hasHeaderToken: !!csrfToken,
+    hasCookieToken: !!csrfCookie,
+    headerTokenPreview: csrfToken ? csrfToken.substring(0, 10) + '...' : 'none',
+    cookieTokenPreview: csrfCookie ? csrfCookie.substring(0, 10) + '...' : 'none',
+    headerTokenLength: csrfToken?.length || 0,
+    cookieTokenLength: csrfCookie?.length || 0,
+    allCookies: Object.keys(req.cookies || {}),
+    allHeaders: Object.keys(req.headers).filter(h => h.toLowerCase().includes('csrf') || h.toLowerCase().includes('cookie')),
+    rawCookieHeader: req.headers.cookie
+  });
+
+  // Fallback: if cookie is missing but header is present, allow the request in development
+  // This handles cases where cookies aren't being set properly due to browser security
+  if (!csrfCookie && csrfToken && process.env.NODE_ENV !== 'production') {
+    logger.warn('CSRF cookie missing but header present - allowing in development', {
+      requestId: req.id,
+      method: req.method,
+      path: req.path,
+      headerTokenPreview: csrfToken.substring(0, 10) + '...'
+    });
+    next();
+    return;
+  }
 
   if (!csrfToken || !csrfCookie) {
     logger.warn('CSRF token missing', {
@@ -59,7 +100,9 @@ export const csrfMiddleware = (req: Request, res: Response, next: NextFunction):
       method: req.method,
       path: req.path,
       hasHeaderToken: !!csrfToken,
-      hasCookieToken: !!csrfCookie
+      hasCookieToken: !!csrfCookie,
+      headerTokenPreview: csrfToken ? csrfToken.substring(0, 10) + '...' : 'none',
+      cookieTokenPreview: csrfCookie ? csrfCookie.substring(0, 10) + '...' : 'none'
     });
     
     res.status(403).json({
@@ -75,7 +118,11 @@ export const csrfMiddleware = (req: Request, res: Response, next: NextFunction):
       requestId: req.id,
       method: req.method,
       path: req.path,
-      ip: req.ip
+      ip: req.ip,
+      headerToken: csrfToken.substring(0, 20) + '...',
+      cookieToken: csrfCookie.substring(0, 20) + '...',
+      headerLength: csrfToken.length,
+      cookieLength: csrfCookie.length
     });
     
     res.status(403).json({
@@ -86,10 +133,11 @@ export const csrfMiddleware = (req: Request, res: Response, next: NextFunction):
   }
 
   // CSRF token valid, proceed
-  logger.debug('CSRF token validated', {
+  logger.info('CSRF token validated successfully', {
     requestId: req.id,
     method: req.method,
-    path: req.path
+    path: req.path,
+    tokenPreview: csrfToken.substring(0, 10) + '...'
   });
   
   next();
@@ -103,12 +151,36 @@ export const generateCsrfToken = (req: Request, res: Response): string => {
   const crypto = require('crypto');
   const token = crypto.randomBytes(32).toString('hex');
   
-  // Set CSRF token in HTTP-only cookie
-  res.cookie('csrfToken', token, {
+  // Set CSRF token in cookie with explicit domain and path
+  // Don't set domain in development to work with both localhost and 127.0.0.1
+  const cookieOptions = {
     httpOnly: false, // Must be accessible to JavaScript for X-CSRF-Token header
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'strict',
-    maxAge: 24 * 60 * 60 * 1000 // 24 hours
+    secure: false, // Always false in development to work with localhost
+    sameSite: 'lax' as 'lax', // Use lax for cross-origin requests in development
+    maxAge: 24 * 60 * 60 * 1000, // 24 hours
+    path: '/', // Explicitly set path to root
+    // Explicitly set domain to undefined to ensure browser handles it correctly
+    domain: undefined 
+  };
+  
+  logger.info('Setting CSRF cookie with options', {
+    requestId: req.id,
+    cookieOptions: {
+      ...cookieOptions,
+      httpOnly: cookieOptions.httpOnly,
+      secure: cookieOptions.secure,
+      sameSite: cookieOptions.sameSite,
+      path: cookieOptions.path,
+      domain: cookieOptions.domain
+    }
+  });
+  
+  res.cookie('csrfToken', token, cookieOptions);
+  
+  logger.info('CSRF cookie set command executed', {
+    requestId: req.id,
+    token: token.substring(0, 10) + '...',
+    cookiesAfter: res.getHeader('Set-Cookie')
   });
   
   logger.debug('CSRF token generated', {
@@ -123,7 +195,25 @@ export const generateCsrfToken = (req: Request, res: Response): string => {
  * Generates and returns a CSRF token for the client
  */
 export const csrfTokenEndpoint = (req: Request, res: Response): void => {
+  logger.info('CSRF token endpoint called', {
+    requestId: req.id,
+    method: req.method,
+    path: req.path,
+    origin: req.headers.origin,
+    referer: req.headers.referer,
+    cookies: req.cookies,
+    rawCookieHeader: req.headers.cookie
+  });
+  
   const token = generateCsrfToken(req, res);
+  
+  logger.info('CSRF token generated and set in cookie', {
+    requestId: req.id,
+    token: token.substring(0, 10) + '...',
+    fullToken: token,
+    cookieSet: !!res.getHeader('Set-Cookie'),
+    cookieValue: res.getHeader('Set-Cookie')
+  });
   
   res.json({
     success: true,

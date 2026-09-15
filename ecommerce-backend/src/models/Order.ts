@@ -33,7 +33,6 @@ export interface IOrder extends Document {
     country: string;
   };
   subtotal: number;
-  tax: number;
   shipping: number;
   discount: number;
   total: number;
@@ -149,12 +148,6 @@ const orderSchema = new Schema<IOrder>({
     type: Number,
     required: true,
     min: [0, 'Subtotal cannot be negative']
-  },
-  tax: {
-    type: Number,
-    required: true,
-    min: [0, 'Tax cannot be negative'],
-    default: 0
   },
   shipping: {
     type: Number,

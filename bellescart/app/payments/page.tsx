@@ -15,7 +15,10 @@ export default function PaymentsPage() {
   const { loaded, isAuthenticated } = useRequireUserAuth();
 
   // State for filtering and pagination
-  const [selectedStatus, setSelectedStatus] = useState<string>('all');
+  const [selectedStatus, setSelectedStatus] = useState<string>(() => {
+    // Reset to 'all' on page load to ensure all payments are shown
+    return 'all';
+  });
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedPayment, setSelectedPayment] = useState<any>(null);
 
@@ -28,14 +31,25 @@ export default function PaymentsPage() {
 
   const payments = paymentsData?.data?.payments || [];
   const pagination = paymentsData?.data?.pagination;
-  const [isInitialLoad, setIsInitialLoad] = useState(true);
 
-  // Handle initial load state
+  // Debug logging
   useEffect(() => {
-    if (!isLoading && payments.length > 0) {
-      setIsInitialLoad(false);
+    console.log('Payments page state:', {
+      selectedStatus,
+      currentPage,
+      isLoading,
+      paymentsCount: payments.length,
+      paymentsData,
+      error
+    });
+  }, [selectedStatus, currentPage, isLoading, payments.length, paymentsData, error]);
+
+  // Log the actual API response structure
+  useEffect(() => {
+    if (paymentsData) {
+      console.log('Payments data structure:', JSON.stringify(paymentsData, null, 2));
     }
-  }, [isLoading, payments.length]);
+  }, [paymentsData]);
 
   if (!loaded) {
     return (
@@ -49,10 +63,34 @@ export default function PaymentsPage() {
     return null;
   }
 
-  if (isInitialLoad && isLoading) {
+  if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <Loader size="lg" text="Loading payment history..." fullScreen />
+      </div>
+    );
+  }
+
+  // Show error state if there's an error
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <p className="text-red-500 mb-2">Error loading payment history</p>
+          <p className="text-gray-500 text-sm">{String(error)}</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show error state if there's an error
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <p className="text-red-500 mb-2">Error loading payment history</p>
+          <p className="text-gray-500 text-sm">{String(error)}</p>
+        </div>
       </div>
     );
   }
@@ -139,7 +177,7 @@ export default function PaymentsPage() {
                     setSelectedStatus(e.target.value);
                     setCurrentPage(1);
                   }}
-                  className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500"
+                  className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 text-black"
                 >
                   <option value="all">All Statuses</option>
                   <option value="completed">Completed</option>
@@ -148,7 +186,7 @@ export default function PaymentsPage() {
                   <option value="refunded">Refunded</option>
                 </select>
               </div>
-              {isLoading && !isInitialLoad && (
+              {isLoading && (
                 <div className="flex items-center gap-2 text-sm text-gray-500">
                   <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>

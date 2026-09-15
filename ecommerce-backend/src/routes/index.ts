@@ -10,6 +10,7 @@ import paymentRoutes from './paymentRoutes';
 import profileRoutes from './profileRoutes';
 import userRoutes from './userRoutes';
 import walletRoutes from './walletRoutes';
+import userPreferencesRoutes from './userPreferencesRoutes';
 const router = Router();
 
 // API routes
@@ -24,6 +25,7 @@ router.use('/payment', paymentRoutes);
 router.use('/profile', profileRoutes);
 router.use('/user', userRoutes);
 router.use('/wallet', walletRoutes);
+router.use('/preferences', userPreferencesRoutes);
 
 export default router;
 

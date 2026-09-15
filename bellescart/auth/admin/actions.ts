@@ -27,7 +27,7 @@ export const useAdminAuthActions = () => {
         globalToast.admin.loginSuccess(response.data.admin.name);
 
         console.log('Redirecting to dashboard...');
-        window.location.href = '/admin/dashboard';
+        window.location.href = '/belles-portel-25/dashboard';
       } else {
         console.log('Login failed:', response);
         globalToast.admin.loginError(response.message || 'Login failed');
@@ -45,12 +45,12 @@ export const useAdminAuthActions = () => {
     try {
       globalToast.admin.logoutSuccess();
       clearAdminSession();
-      window.location.href = '/admin';
+      window.location.href = '/belles-portel-25';
     } catch (error) {
       console.error('Admin logout error:', error);
       // Still clear local session even if API call fails
       clearAdminSession();
-      window.location.href = '/admin';
+      window.location.href = '/belles-portel-25';
     }
   };
 

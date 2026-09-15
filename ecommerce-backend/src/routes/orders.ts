@@ -114,6 +114,30 @@ router.get('/:id', authenticate, controller.getOrderById.bind(controller));
 
 /**
  * @swagger
+ * /orders/order-number/{orderNumber}:
+ *   get:
+ *     summary: Get order by order number
+ *     tags: [Orders]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: orderNumber
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Order retrieved successfully
+ *       401:
+ *         description: Unauthorized
+ *       404:
+ *         description: Order not found
+ */
+router.get('/order-number/:orderNumber', authenticate, controller.getOrderByOrderNumber.bind(controller));
+
+/**
+ * @swagger
  * /orders/{id}/cancel:
  *   put:
  *     summary: Cancel an order

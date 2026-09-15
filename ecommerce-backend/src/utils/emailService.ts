@@ -112,8 +112,8 @@ export const sendOrderConfirmationEmail = async (email: string, orderData: {
               
               <!-- Action Button -->
               <div style="text-align: center; margin-bottom: 30px;">
-                <a href="${frontendUrl}/orders" style="display: inline-block; background: linear-gradient(135deg, #ff4da6 0%, #ff66b3 100%); color: white; padding: 16px 32px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px; transition: transform 0.2s; box-shadow: 0 4px 15px rgba(255, 77, 166, 0.3);">
-                  View Your Orders
+                <a href="${frontendUrl}/orders?id=${orderData.orderNumber}" style="display: inline-block; background: linear-gradient(135deg, #ff4da6 0%, #ff66b3 100%); color: white; padding: 16px 32px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px; transition: transform 0.2s; box-shadow: 0 4px 15px rgba(255, 77, 166, 0.3);">
+                  View Order Details
                 </a>
               </div>
               

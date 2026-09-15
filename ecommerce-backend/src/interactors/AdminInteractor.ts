@@ -351,7 +351,7 @@ export class AdminInteractor implements IAdminInteractor {
       const productImages = uploadedImages.map((img: any, index: number) => ({
         url: img.url,
         alt: productData.imageAlts?.[index] || `${productData.name} - Image ${index + 1}`,
-        isMain: index === 0 // First image is main by default
+        isMain: productData.mainImageIndex === index.toString()
       }));
 
       // Create complete product data
@@ -390,7 +390,7 @@ export class AdminInteractor implements IAdminInteractor {
         newImages = uploadedImages.map((img: any, index: number) => ({
           url: img.url,
           alt: productData.imageAlts?.[index] || `${productData.name} - Image ${index + 1}`,
-          isMain: productData.mainImageIndex === index.toString()
+          isMain: false // Will be set after combining with existing images
         }));
       }
 
@@ -427,9 +427,14 @@ export class AdminInteractor implements IAdminInteractor {
       }
 
       // Combine existing images with new ones (if any)
-      const updatedImages = existingImagesFromFrontend.length > 0 || newImages.length === 0
-        ? [...existingImagesFromFrontend, ...newImages]
-        : newImages;
+      const combinedImages = [...existingImagesFromFrontend, ...newImages];
+
+      // Set isMain flags based on mainImageIndex from frontend
+      const mainImageIndex = parseInt(productData.mainImageIndex || '0');
+      const updatedImages = combinedImages.map((img, index) => ({
+        ...img,
+        isMain: index === mainImageIndex
+      }));
 
       // Update product data
       const finalProductData = {

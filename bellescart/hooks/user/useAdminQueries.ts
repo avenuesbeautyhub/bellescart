@@ -4,6 +4,7 @@ import { adminOrderService, OrderResponse, OrderData } from '@/services/admin/or
 import { adminCategoryService, CategoryResponse, CategoryData } from '@/services/admin/categoryService';
 import { adminUserService, UserResponse, UserData } from '@/services/admin/userService';
 import { adminCouponService, CouponResponse, CouponData } from '@/services/admin/couponService';
+import { adminStatsService, AdminStatsData, StatsResponse } from '@/services/admin/statsService';
 
 // ===== ADMIN PRODUCT QUERIES =====
 export const adminProductKeys = {
@@ -325,5 +326,19 @@ export const useDeleteCoupon = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: adminCouponKeys.all });
     },
+  });
+};
+
+// ===== ADMIN STATS QUERIES =====
+export const adminStatsKeys = {
+  all: ['admin', 'stats'] as const,
+  current: () => [...adminStatsKeys.all, 'current'] as const,
+};
+
+export const useAdminStats = () => {
+  return useQuery({
+    queryKey: adminStatsKeys.current(),
+    queryFn: () => adminStatsService.getAdminStats(),
+    staleTime: 1000 * 60 * 5, // 5 minutes
   });
 };

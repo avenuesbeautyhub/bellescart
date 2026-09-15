@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Navbar from '@/components/Navbar/Navbar';
 import Footer from '@/components/Footer/Footer';
@@ -30,7 +30,7 @@ type Product = {
   rating?: number;
   reviews?: number;
   isActive?: boolean;
-  [key: string]: any; // Allow additional properties from API response
+  [key: string]: any;
 };
 
 export default function GuestProductDetailsPage() {
@@ -39,48 +39,69 @@ export default function GuestProductDetailsPage() {
 
   const productId = params?.id as string;
 
-  // React Query hook for fetching product
-  const { data: productData, isLoading: loading, error } = usePublicProduct(productId);
+  const {
+    data: productData,
+    isLoading: loading,
+    error,
+  } = usePublicProduct(productId);
 
   const [selectedImage, setSelectedImage] = useState(0);
   const [quantity, setQuantity] = useState(1);
   const [isWishlisted, setIsWishlisted] = useState(false);
-  const [addingToCart, setAddingToCart] = useState(false);
 
-  // Process product data from React Query
-  const product = React.useMemo(() => {
+  // ---------------------------------------------------------
+  // Product
+  // ---------------------------------------------------------
+
+  const product = useMemo(() => {
     if (!productData?.data) return null;
-    const productDataItem = productData.data.product || productData.data.products?.[0] || productData.data;
-    
-    // Type guard to ensure we have a Product object
-    if (!productDataItem || typeof productDataItem !== 'object') return null;
-    
-    // Check if it has the essential Product properties
-    if ('_id' in productDataItem && 'name' in productDataItem && 'price' in productDataItem) {
+
+    const productDataItem =
+      productData.data.product ||
+      productData.data.products?.[0] ||
+      productData.data;
+
+    if (!productDataItem || typeof productDataItem !== 'object') {
+      return null;
+    }
+
+    if (
+      '_id' in productDataItem &&
+      'name' in productDataItem &&
+      'price' in productDataItem
+    ) {
       return productDataItem as Product;
     }
-    
+
     return null;
   }, [productData]);
 
   // ---------------------------------------------------------
   // Product images
   // ---------------------------------------------------------
+
   const images = useMemo(() => {
     if (!product) return [];
 
-    // Handle images array with objects (url property)
     const productImages = product.images;
-    if (productImages && Array.isArray(productImages) && productImages.length > 0) {
-      // Check if images are objects with url property
-      if (typeof productImages[0] === 'object' && productImages[0] !== null) {
-        return (productImages as ProductImage[]).map(img => img.url);
+
+    if (
+      productImages &&
+      Array.isArray(productImages) &&
+      productImages.length > 0
+    ) {
+      if (
+        typeof productImages[0] === 'object' &&
+        productImages[0] !== null
+      ) {
+        return (productImages as ProductImage[])
+          .map((img) => img.url)
+          .filter(Boolean);
       }
-      // If images are already strings
-      return productImages as string[];
+
+      return (productImages as string[]).filter(Boolean);
     }
 
-    // Fallback to single image
     if (product.image) {
       return [product.image];
     }
@@ -91,33 +112,31 @@ export default function GuestProductDetailsPage() {
   // ---------------------------------------------------------
   // Discount
   // ---------------------------------------------------------
+
   const discountPercentage = useMemo(() => {
     const originalPrice = product?.originalPrice;
     const price = product?.price || 0;
-    
-    if (
-      !originalPrice ||
-      originalPrice <= price
-    ) {
+
+    if (!originalPrice || originalPrice <= price) {
       return 0;
     }
 
     return Math.round(
-      ((originalPrice - price) /
-        originalPrice) *
-        100
+      ((originalPrice - price) / originalPrice) * 100
     );
   }, [product]);
 
   // ---------------------------------------------------------
   // Stock
   // ---------------------------------------------------------
+
   const stock = product?.stock ?? product?.quantity ?? 0;
   const isOutOfStock = stock <= 0;
 
   // ---------------------------------------------------------
   // Quantity
   // ---------------------------------------------------------
+
   const increaseQuantity = () => {
     if (quantity < stock) {
       setQuantity((current) => current + 1);
@@ -131,101 +150,70 @@ export default function GuestProductDetailsPage() {
   };
 
   // ---------------------------------------------------------
-  // Add to cart
+  // Guest actions
   // ---------------------------------------------------------
-  const handleAddToCart = async () => {
-    if (!product || isOutOfStock) return;
 
-    try {
-      setAddingToCart(true);
+  const handleLogin = () => {
+    router.push('/login');
+  };
 
-      /*
-       * Replace this section with your existing cart logic.
-       *
-       * Example:
-       *
-       * await addToCart({
-       *   productId: product._id,
-       *   quantity,
-       * });
-       */
-
-      console.log('Add to cart:', {
-        productId: product?._id,
-        quantity,
-      });
-
-      await new Promise((resolve) =>
-        setTimeout(resolve, 500)
-      );
-    } catch (err) {
-      console.error('Add to cart error:', err);
-    } finally {
-      setAddingToCart(false);
-    }
+  const handleSignup = () => {
+    router.push('/signup');
   };
 
   // ---------------------------------------------------------
-  // Buy now
+  // Loading
   // ---------------------------------------------------------
-  const handleBuyNow = async () => {
-    if (!product || isOutOfStock) return;
 
-    /*
-     * Connect this with your existing cart/checkout flow.
-     */
-
-    console.log('Buy now:', {
-      productId: product?._id,
-      quantity,
-    });
-
-    router.push('/cart');
-  };
-
-  // =========================================================
-  // LOADING
-  // =========================================================
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#fafafa]">
+      <div className="min-h-screen bg-[#fafafa] flex flex-col">
         <Navbar />
 
-        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-          <div className="animate-pulse">
-            {/* Breadcrumb */}
-            <div className="h-4 w-48 bg-gray-200 rounded mb-10" />
+        <main className="flex-1">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
+            <div className="animate-pulse">
+              {/* Breadcrumb */}
+              <div className="h-4 w-52 bg-gray-200 rounded-full mb-8" />
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 xl:gap-16">
-              {/* Images */}
-              <div className="flex gap-4">
-                <div className="hidden sm:block w-20 space-y-4">
-                  {Array.from({ length: 4 }).map((_, index) => (
-                    <div
-                      key={index}
-                      className="aspect-square rounded-xl bg-gray-200"
-                    />
-                  ))}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 xl:gap-16">
+                {/* Gallery */}
+                <div className="flex flex-col sm:flex-row gap-4">
+                  <div className="order-2 sm:order-1 flex sm:flex-col gap-3">
+                    {Array.from({ length: 4 }).map((_, index) => (
+                      <div
+                        key={index}
+                        className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl bg-gray-200"
+                      />
+                    ))}
+                  </div>
+
+                  <div className="order-1 sm:order-2 flex-1">
+                    <div className="aspect-square rounded-3xl bg-gray-200" />
+                  </div>
                 </div>
 
-                <div className="flex-1 aspect-square rounded-3xl bg-gray-200" />
-              </div>
+                {/* Details */}
+                <div className="space-y-6">
+                  <div className="h-4 w-24 bg-gray-200 rounded-full" />
+                  <div className="h-10 w-4/5 bg-gray-200 rounded-xl" />
+                  <div className="h-8 w-40 bg-gray-200 rounded-lg" />
 
-              {/* Details */}
-              <div className="space-y-6">
-                <div className="h-4 w-24 bg-gray-200 rounded" />
-                <div className="h-10 w-4/5 bg-gray-200 rounded" />
-                <div className="h-5 w-32 bg-gray-200 rounded" />
-                <div className="h-9 w-40 bg-gray-200 rounded" />
+                  <div className="space-y-3 pt-3">
+                    <div className="h-4 w-full bg-gray-200 rounded" />
+                    <div className="h-4 w-5/6 bg-gray-200 rounded" />
+                    <div className="h-4 w-4/6 bg-gray-200 rounded" />
+                  </div>
 
-                <div className="space-y-3 pt-4">
-                  <div className="h-4 w-full bg-gray-200 rounded" />
-                  <div className="h-4 w-5/6 bg-gray-200 rounded" />
-                  <div className="h-4 w-4/6 bg-gray-200 rounded" />
+                  <div className="h-14 w-full bg-gray-200 rounded-xl" />
+                  <div className="h-14 w-full bg-gray-200 rounded-xl" />
+
+                  <div className="grid grid-cols-3 gap-3">
+                    <div className="h-28 bg-gray-200 rounded-2xl" />
+                    <div className="h-28 bg-gray-200 rounded-2xl" />
+                    <div className="h-28 bg-gray-200 rounded-2xl" />
+                  </div>
                 </div>
-
-                <div className="h-14 w-full bg-gray-200 rounded-xl" />
-                <div className="h-14 w-full bg-gray-200 rounded-xl" />
               </div>
             </div>
           </div>
@@ -236,19 +224,20 @@ export default function GuestProductDetailsPage() {
     );
   }
 
-  // =========================================================
-  // ERROR
-  // =========================================================
+  // ---------------------------------------------------------
+  // Error / not found
+  // ---------------------------------------------------------
+
   if (error || !product) {
     return (
       <div className="min-h-screen bg-[#fafafa] flex flex-col">
         <Navbar />
 
         <main className="flex-1 flex items-center justify-center px-4 py-20">
-          <div className="text-center max-w-md">
-            <div className="w-20 h-20 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-6">
+          <div className="w-full max-w-md text-center">
+            <div className="mx-auto mb-6 w-20 h-20 rounded-full bg-white border border-gray-100 shadow-sm flex items-center justify-center">
               <svg
-                className="w-8 h-8 text-gray-400"
+                className="w-9 h-9 text-gray-400"
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
@@ -259,30 +248,44 @@ export default function GuestProductDetailsPage() {
               </svg>
             </div>
 
-            <h1 className="text-2xl font-semibold text-gray-900">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-pink-600 mb-3">
+              Product unavailable
+            </p>
+
+            <h1 className="text-2xl sm:text-3xl font-semibold text-gray-900">
               Product not found
             </h1>
 
-            <p className="mt-3 text-sm leading-6 text-gray-500">
-              Sorry, we couldn't find the product you're looking
-              for. It may have been removed or is no longer
-              available.
+            <p className="mt-3 text-sm sm:text-base leading-7 text-gray-500">
+              Sorry, we couldn't find the product you're looking for.
+              It may have been removed or is no longer available.
             </p>
 
             <button
-              onClick={() => router.push('/products')}
+              onClick={() => router.push('/products/guest')}
               className="
-                mt-7
-                inline-flex items-center justify-center
+                mt-8
+                inline-flex items-center justify-center gap-2
                 px-6 py-3
                 rounded-xl
                 bg-gray-900
                 text-white
-                text-sm font-medium
+                text-sm font-semibold
                 hover:bg-gray-800
-                transition
+                transition-colors
               "
             >
+              <svg
+                className="w-4 h-4"
+                viewBox="0 0 20 20"
+                fill="currentColor"
+              >
+                <path
+                  fillRule="evenodd"
+                  d="M12.707 15.293a1 1 0 01-1.414 0L6.586 10l4.707-4.707a1 1 0 011.414 1.414L9.414 10l3.293 3.293a1 1 0 010 1.414z"
+                  clipRule="evenodd"
+                />
+              </svg>
               Continue Shopping
             </button>
           </div>
@@ -293,23 +296,27 @@ export default function GuestProductDetailsPage() {
     );
   }
 
-  // =========================================================
-  // PRODUCT PAGE
-  // =========================================================
+  const currentImage =
+    images[selectedImage] || images[0] || null;
+
   return (
     <div className="min-h-screen bg-[#fafafa] text-gray-900">
       <Navbar />
 
       <main>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5 sm:py-8 lg:py-10">
 
           {/* =================================================
               BREADCRUMB
           ================================================= */}
-          <div className="flex items-center flex-wrap gap-2 text-sm text-gray-500 mb-8">
+
+          <nav
+            aria-label="Breadcrumb"
+            className="flex items-center flex-wrap gap-2 text-xs sm:text-sm text-gray-500 mb-6 sm:mb-8"
+          >
             <button
               onClick={() => router.push('/')}
-              className="hover:text-gray-900 transition"
+              className="hover:text-gray-900 transition-colors"
             >
               Home
             </button>
@@ -317,48 +324,73 @@ export default function GuestProductDetailsPage() {
             <span className="text-gray-300">/</span>
 
             <button
-              onClick={() => router.push('/products')}
-              className="hover:text-gray-900 transition"
+              onClick={() => router.push('/products/guest')}
+              className="hover:text-gray-900 transition-colors"
             >
               Shop
             </button>
 
-            {product?.category?.name && (
+            {product.category?.name && (
               <>
                 <span className="text-gray-300">/</span>
-                <span className="text-gray-900 font-medium">
+                <span className="text-gray-900 font-medium truncate max-w-[180px] sm:max-w-none">
                   {product.category.name}
                 </span>
               </>
             )}
-          </div>
+          </nav>
 
           {/* =================================================
               PRODUCT
           ================================================= */}
+
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 xl:gap-16">
 
             {/* =================================================
                 IMAGE GALLERY
             ================================================= */}
-            <div>
+
+            <section aria-label="Product images">
               <div className="flex flex-col sm:flex-row gap-4">
 
                 {/* Thumbnails */}
+
                 {images.length > 1 && (
-                  <div className="order-2 sm:order-1 flex sm:flex-col gap-3 overflow-x-auto sm:overflow-visible">
+                  <div
+                    className="
+                      order-2 sm:order-1
+                      flex sm:flex-col
+                      gap-3
+                      overflow-x-auto sm:overflow-visible
+                      pb-1 sm:pb-0
+                      scrollbar-none
+                    "
+                  >
                     {images.map((image, index) => (
                       <button
-                        key={index}
+                        key={`${image}-${index}`}
+                        type="button"
                         onClick={() => setSelectedImage(index)}
+                        aria-label={`View product image ${index + 1}`}
+                        aria-current={
+                          selectedImage === index
+                            ? 'true'
+                            : undefined
+                        }
                         className={`
+                          relative
                           flex-shrink-0
-                          w-16 h-16 sm:w-20 sm:h-20
+                          w-16 h-16
+                          sm:w-20 sm:h-20
                           rounded-xl
                           overflow-hidden
                           bg-white
                           border-2
-                          transition-all
+                          transition-all duration-200
+                          focus:outline-none
+                          focus-visible:ring-2
+                          focus-visible:ring-pink-500
+                          focus-visible:ring-offset-2
                           ${
                             selectedImage === index
                               ? 'border-gray-900 shadow-sm'
@@ -368,34 +400,62 @@ export default function GuestProductDetailsPage() {
                       >
                         <img
                           src={image}
-                          alt={`${product?.name || 'product'} ${index + 1}`}
+                          alt={`${product.name} ${index + 1}`}
                           className="w-full h-full object-cover"
                         />
+
+                        {selectedImage === index && (
+                          <span className="absolute inset-0 ring-1 ring-inset ring-black/10" />
+                        )}
                       </button>
                     ))}
                   </div>
                 )}
 
                 {/* Main image */}
-                <div className="order-1 sm:order-2 flex-1 relative">
-                  <div className="relative aspect-square bg-white rounded-3xl overflow-hidden border border-gray-100">
+
+                <div className="order-1 sm:order-2 flex-1 min-w-0">
+                  <div
+                    className="
+                      relative
+                      aspect-square
+                      bg-white
+                      rounded-2xl sm:rounded-3xl
+                      overflow-hidden
+                      border border-gray-100
+                      shadow-[0_10px_40px_rgba(0,0,0,0.04)]
+                    "
+                  >
+                    {/* Discount */}
 
                     {discountPercentage > 0 && (
-                      <div className="absolute top-5 left-5 z-10">
-                        <span className="inline-flex items-center px-3 py-1.5 rounded-full bg-gray-900 text-white text-xs font-semibold">
+                      <div className="absolute top-4 left-4 sm:top-5 sm:left-5 z-10">
+                        <span className="inline-flex items-center px-3 py-1.5 rounded-full bg-gray-900 text-white text-xs font-semibold shadow-sm">
                           {discountPercentage}% OFF
                         </span>
                       </div>
                     )}
 
                     {/* Wishlist */}
+
                     <button
+                      type="button"
                       onClick={() =>
-                        setIsWishlisted(!isWishlisted)
+                        setIsWishlisted((current) => !current)
                       }
+                      aria-label={
+                        isWishlisted
+                          ? 'Remove from wishlist'
+                          : 'Add to wishlist'
+                      }
+                      aria-pressed={isWishlisted}
                       className="
-                        absolute top-5 right-5 z-10
-                        w-11 h-11
+                        absolute
+                        top-4 right-4
+                        sm:top-5 sm:right-5
+                        z-10
+                        w-10 h-10
+                        sm:w-11 sm:h-11
                         rounded-full
                         bg-white/95
                         backdrop-blur
@@ -403,9 +463,12 @@ export default function GuestProductDetailsPage() {
                         border border-gray-100
                         flex items-center justify-center
                         hover:scale-105
-                        transition
+                        hover:shadow-md
+                        transition-all
+                        focus:outline-none
+                        focus-visible:ring-2
+                        focus-visible:ring-pink-500
                       "
-                      aria-label="Wishlist"
                     >
                       <svg
                         className={`w-5 h-5 ${
@@ -422,14 +485,21 @@ export default function GuestProductDetailsPage() {
                       </svg>
                     </button>
 
-                    {images.length > 0 ? (
+                    {/* Image */}
+
+                    {currentImage ? (
                       <img
-                        src={images[selectedImage]}
-                        alt={product?.name || 'product'}
-                        className="w-full h-full object-cover"
+                        src={currentImage}
+                        alt={product.name}
+                        className="
+                          w-full h-full
+                          object-cover
+                          transition-transform duration-500
+                          hover:scale-[1.02]
+                        "
                       />
                     ) : (
-                      <div className="w-full h-full flex items-center justify-center">
+                      <div className="w-full h-full flex items-center justify-center bg-gray-50">
                         <svg
                           className="w-16 h-16 text-gray-300"
                           viewBox="0 0 24 24"
@@ -444,7 +514,11 @@ export default function GuestProductDetailsPage() {
                             height="18"
                             rx="2"
                           />
-                          <circle cx="8.5" cy="8.5" r="1.5" />
+                          <circle
+                            cx="8.5"
+                            cy="8.5"
+                            r="1.5"
+                          />
                           <path d="m21 15-5-5L5 21" />
                         </svg>
                       </div>
@@ -452,38 +526,41 @@ export default function GuestProductDetailsPage() {
                   </div>
                 </div>
               </div>
-            </div>
+            </section>
 
             {/* =================================================
                 PRODUCT INFORMATION
             ================================================= */}
-            <div className="lg:py-2">
+
+            <section className="lg:py-1">
 
               {/* Category */}
-              {product?.category?.name && (
-                <div className="mb-4">
-                  <span className="text-xs font-semibold uppercase tracking-[0.16em] text-pink-600">
+
+              {product.category?.name && (
+                <div className="mb-3 sm:mb-4">
+                  <span className="text-[11px] sm:text-xs font-semibold uppercase tracking-[0.18em] text-pink-600">
                     {product.category.name}
                   </span>
                 </div>
               )}
 
-              {/* Product name */}
-              <h1 className="text-3xl sm:text-4xl xl:text-5xl font-semibold tracking-tight text-gray-900 leading-tight">
-                {product?.name || 'Product'}
+              {/* Name */}
+
+              <h1 className="text-3xl sm:text-4xl xl:text-[3.2rem] font-semibold tracking-tight text-gray-900 leading-[1.1]">
+                {product.name}
               </h1>
 
-
               {/* Price */}
-              <div className="flex flex-wrap items-center gap-3 mt-7">
-                <span className="text-3xl font-semibold text-gray-900">
-                  ₹{product?.price?.toLocaleString('en-IN') || '0'}
+
+              <div className="flex flex-wrap items-center gap-3 mt-5 sm:mt-7">
+                <span className="text-3xl sm:text-4xl font-semibold text-gray-900">
+                  ₹{product.price?.toLocaleString('en-IN') || '0'}
                 </span>
 
-                {product?.originalPrice &&
+                {product.originalPrice &&
                   product.originalPrice > product.price && (
                     <>
-                      <span className="text-lg text-gray-400 line-through">
+                      <span className="text-base sm:text-lg text-gray-400 line-through">
                         ₹
                         {product.originalPrice.toLocaleString(
                           'en-IN'
@@ -491,24 +568,19 @@ export default function GuestProductDetailsPage() {
                       </span>
 
                       <span className="px-2.5 py-1 rounded-lg bg-green-50 text-green-700 text-xs font-semibold">
-                        Save{' '}
-                        {discountPercentage}%
+                        Save {discountPercentage}%
                       </span>
                     </>
                   )}
               </div>
 
-              <p className="mt-1 text-xs text-gray-400">
-                Inclusive of all applicable taxes
-              </p>
-
-              {/* Divider */}
-              <div className="my-7 border-t border-gray-200" />
+              <div className="my-6 sm:my-7 border-t border-gray-200" />
 
               {/* Description */}
-              {product?.description && (
+
+              {product.description && (
                 <div>
-                  <h2 className="text-sm font-semibold text-gray-900 mb-3">
+                  <h2 className="text-sm font-semibold text-gray-900 mb-2.5">
                     Description
                   </h2>
 
@@ -519,7 +591,8 @@ export default function GuestProductDetailsPage() {
               )}
 
               {/* Stock */}
-              <div className="mt-7">
+
+              <div className="mt-6 sm:mt-7">
                 {isOutOfStock ? (
                   <div className="flex items-center gap-2 text-sm font-medium text-red-600">
                     <span className="w-2 h-2 rounded-full bg-red-500" />
@@ -539,80 +612,33 @@ export default function GuestProductDetailsPage() {
               </div>
 
               {/* Quantity */}
+
               {!isOutOfStock && (
-                <div className="mt-7">
+                <div className="mt-6 sm:mt-7">
                   <p className="text-sm font-semibold text-gray-900 mb-3">
                     Quantity
                   </p>
 
-                  <div className="inline-flex items-center border border-gray-200 rounded-xl bg-white">
+                  <div className="inline-flex items-center border border-gray-200 rounded-xl bg-white shadow-sm">
                     <button
+                      type="button"
                       onClick={decreaseQuantity}
                       disabled={quantity <= 1}
+                      aria-label="Decrease quantity"
                       className="
                         w-11 h-11
                         flex items-center justify-center
                         text-gray-600
                         hover:bg-gray-50
                         disabled:text-gray-300
-                        transition
+                        transition-colors
+                        rounded-l-xl
+                        focus:outline-none
+                        focus-visible:ring-2
+                        focus-visible:ring-inset
+                        focus-visible:ring-pink-500
                       "
                     >
-                      <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M5 12h14" />
-                      </svg>
-                    </button>
-
-                    <span className="w-12 text-center text-sm font-semibold">
-                      {quantity}
-                    </span>
-
-                    <button
-                      onClick={increaseQuantity}
-                      disabled={quantity >= stock}
-                      className="
-                        w-11 h-11
-                        flex items-center justify-center
-                        text-gray-600
-                        hover:bg-gray-50
-                        disabled:text-gray-300
-                        transition
-                      "
-                    >
-                      <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M12 5v14M5 12h14" />
-                      </svg>
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {/* Buttons */}
-              <div className="mt-7 space-y-3">
-
-                <button
-                  onClick={() => router.push('/login')}
-                  disabled={isOutOfStock}
-                  className="
-                    w-full
-                    h-14
-                    rounded-xl
-                    bg-gradient-to-r from-pink-500 to-pink-600
-                    text-white
-                    font-semibold
-                    text-sm
-                    flex items-center justify-center gap-3
-                    hover:from-pink-600 hover:to-pink-700
-                    disabled:bg-gray-300
-                    disabled:cursor-not-allowed
-                    transition
-                    shadow-lg hover:shadow-xl
-                  "
-                >
-                  {isOutOfStock ? (
-                    'Out of Stock'
-                  ) : (
-                    <>
                       <svg
                         className="w-5 h-5"
                         viewBox="0 0 24 24"
@@ -620,46 +646,194 @@ export default function GuestProductDetailsPage() {
                         stroke="currentColor"
                         strokeWidth="2"
                       >
+                        <path d="M5 12h14" />
+                      </svg>
+                    </button>
+
+                    <span
+                      className="
+                        w-12
+                        text-center
+                        text-sm
+                        font-semibold
+                        text-gray-900
+                      "
+                    >
+                      {quantity}
+                    </span>
+
+                    <button
+                      type="button"
+                      onClick={increaseQuantity}
+                      disabled={quantity >= stock}
+                      aria-label="Increase quantity"
+                      className="
+                        w-11 h-11
+                        flex items-center justify-center
+                        text-gray-600
+                        hover:bg-gray-50
+                        disabled:text-gray-300
+                        transition-colors
+                        rounded-r-xl
+                        focus:outline-none
+                        focus-visible:ring-2
+                        focus-visible:ring-inset
+                        focus-visible:ring-pink-500
+                      "
+                    >
+                      <svg
+                        className="w-5 h-5"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                      >
+                        <path d="M12 5v14M5 12h14" />
+                      </svg>
+                    </button>
+                  </div>
+
+                  <p className="mt-2 text-xs text-gray-400">
+                    Maximum {stock} available
+                  </p>
+                </div>
+              )}
+
+              {/* =================================================
+                  GUEST CTA
+              ================================================= */}
+
+              <div className="mt-7 sm:mt-8">
+                <div className="rounded-2xl border border-pink-100 bg-gradient-to-br from-pink-50 via-white to-purple-50 p-5 sm:p-6">
+                  <div className="flex items-start gap-3">
+                    <div className="flex-shrink-0 w-10 h-10 rounded-xl bg-white border border-pink-100 flex items-center justify-center shadow-sm">
+                      <svg
+                        className="w-5 h-5 text-pink-600"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.8"
+                      >
                         <path d="M15 3h4a2 2 0 012 2v14a2 2 0 01-2 2h-4" />
                         <polyline points="10 17 15 12 10 7" />
-                        <line x1="15" y1="12" x2="3" y2="12" />
+                        <line
+                          x1="15"
+                          y1="12"
+                          x2="3"
+                          y2="12"
+                        />
                       </svg>
+                    </div>
 
-                      Login to Continue
-                    </>
-                  )}
-                </button>
+                    <div>
+                      <h2 className="text-sm sm:text-base font-semibold text-gray-900">
+                        Ready to shop?
+                      </h2>
 
-                <button
-                  onClick={() => router.push('/signup')}
-                  disabled={isOutOfStock}
-                  className="
-                    w-full
-                    h-14
-                    rounded-xl
-                    border-2
-                    border-pink-500
-                    bg-white
-                    text-pink-600
-                    font-semibold
-                    text-sm
-                    hover:bg-pink-50
-                    disabled:border-gray-200
-                    disabled:text-gray-300
-                    disabled:cursor-not-allowed
-                    transition
-                  "
-                >
-                  Create Account
-                </button>
+                      <p className="mt-1 text-xs sm:text-sm leading-6 text-gray-500">
+                        Sign in to continue with your purchase,
+                        or create an account if you're new here.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <button
+                      type="button"
+                      onClick={handleLogin}
+                      disabled={isOutOfStock}
+                      className="
+                        w-full
+                        h-12 sm:h-13
+                        rounded-xl
+                        bg-gradient-to-r
+                        from-pink-500
+                        to-pink-600
+                        text-white
+                        font-semibold
+                        text-sm
+                        flex items-center justify-center gap-2
+                        hover:from-pink-600
+                        hover:to-pink-700
+                        disabled:from-gray-300
+                        disabled:to-gray-300
+                        disabled:cursor-not-allowed
+                        transition-all
+                        shadow-sm
+                        hover:shadow-md
+                        focus:outline-none
+                        focus-visible:ring-2
+                        focus-visible:ring-pink-500
+                        focus-visible:ring-offset-2
+                      "
+                    >
+                      {isOutOfStock ? (
+                        'Out of Stock'
+                      ) : (
+                        <>
+                          <svg
+                            className="w-5 h-5"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                          >
+                            <path d="M15 3h4a2 2 0 012 2v14a2 2 0 01-2 2h-4" />
+                            <polyline points="10 17 15 12 10 7" />
+                            <line
+                              x1="15"
+                              y1="12"
+                              x2="3"
+                              y2="12"
+                            />
+                          </svg>
+                          Login to Continue
+                        </>
+                      )}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleSignup}
+                      disabled={isOutOfStock}
+                      className="
+                        w-full
+                        h-12 sm:h-13
+                        rounded-xl
+                        border
+                        border-gray-200
+                        bg-white
+                        text-gray-900
+                        font-semibold
+                        text-sm
+                        hover:border-pink-300
+                        hover:bg-pink-50
+                        hover:text-pink-700
+                        disabled:border-gray-200
+                        disabled:text-gray-300
+                        disabled:bg-gray-50
+                        disabled:cursor-not-allowed
+                        transition-all
+                        focus:outline-none
+                        focus-visible:ring-2
+                        focus-visible:ring-pink-500
+                        focus-visible:ring-offset-2
+                      "
+                    >
+                      Create Account
+                    </button>
+                  </div>
+                </div>
               </div>
 
               {/* =================================================
                   SERVICE FEATURES
               ================================================= */}
-              <div className="mt-8 grid grid-cols-1 sm:grid-cols-3 gap-3">
 
-                <div className="p-4 rounded-2xl bg-white border border-gray-100">
+              <div className="mt-7 grid grid-cols-1 sm:grid-cols-3 gap-3">
+                {/* Delivery */}
+
+                <div className="p-4 rounded-2xl bg-white border border-gray-100 hover:border-gray-200 transition-colors">
                   <svg
                     className="w-5 h-5 text-gray-700 mb-3"
                     viewBox="0 0 24 24"
@@ -677,12 +851,14 @@ export default function GuestProductDetailsPage() {
                     Fast Delivery
                   </p>
 
-                  <p className="mt-1 text-[11px] text-gray-500">
+                  <p className="mt-1 text-[11px] leading-5 text-gray-500">
                     Delivered safely to your doorstep
                   </p>
                 </div>
 
-                <div className="p-4 rounded-2xl bg-white border border-gray-100">
+                {/* Payment */}
+
+                <div className="p-4 rounded-2xl bg-white border border-gray-100 hover:border-gray-200 transition-colors">
                   <svg
                     className="w-5 h-5 text-gray-700 mb-3"
                     viewBox="0 0 24 24"
@@ -698,12 +874,14 @@ export default function GuestProductDetailsPage() {
                     Secure Payment
                   </p>
 
-                  <p className="mt-1 text-[11px] text-gray-500">
+                  <p className="mt-1 text-[11px] leading-5 text-gray-500">
                     Your payment information is protected
                   </p>
                 </div>
 
-                <div className="p-4 rounded-2xl bg-white border border-gray-100">
+                {/* Returns */}
+
+                <div className="p-4 rounded-2xl bg-white border border-gray-100 hover:border-gray-200 transition-colors">
                   <svg
                     className="w-5 h-5 text-gray-700 mb-3"
                     viewBox="0 0 24 24"
@@ -719,61 +897,74 @@ export default function GuestProductDetailsPage() {
                     Easy Returns
                   </p>
 
-                  <p className="mt-1 text-[11px] text-gray-500">
+                  <p className="mt-1 text-[11px] leading-5 text-gray-500">
                     Simple and hassle-free returns
                   </p>
                 </div>
-
               </div>
-            </div>
+            </section>
           </div>
 
           {/* =================================================
               PRODUCT INFORMATION
           ================================================= */}
-          <section className="mt-16 sm:mt-20">
-            <div className="bg-white rounded-3xl border border-gray-100 overflow-hidden">
 
-              <div className="px-6 sm:px-8 py-6 border-b border-gray-100">
-                <h2 className="text-xl font-semibold text-gray-900">
+          <section className="mt-14 sm:mt-20">
+            <div className="bg-white rounded-2xl sm:rounded-3xl border border-gray-100 overflow-hidden">
+              <div className="px-5 sm:px-8 py-5 sm:py-6 border-b border-gray-100">
+                <h2 className="text-lg sm:text-xl font-semibold text-gray-900">
                   Product Information
                 </h2>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-gray-100">
+                {/* Category */}
 
-                <div className="p-6 sm:p-8">
-                  <p className="text-xs uppercase tracking-wider text-gray-400 font-semibold">
+                <div className="p-5 sm:p-8">
+                  <p className="text-[11px] uppercase tracking-[0.14em] text-gray-400 font-semibold">
                     Category
                   </p>
 
                   <p className="mt-2 text-sm font-medium text-gray-900">
-                    {product?.category?.name || '—'}
+                    {product.category?.name || '—'}
                   </p>
                 </div>
 
-                <div className="p-6 sm:p-8">
-                  <p className="text-xs uppercase tracking-wider text-gray-400 font-semibold">
+                {/* Availability */}
+
+                <div className="p-5 sm:p-8">
+                  <p className="text-[11px] uppercase tracking-[0.14em] text-gray-400 font-semibold">
                     Availability
                   </p>
 
-                  <p className="mt-2 text-sm font-medium text-gray-900">
-                    {isOutOfStock
-                      ? 'Out of stock'
-                      : 'Available'}
-                  </p>
+                  <div className="mt-2 flex items-center gap-2">
+                    <span
+                      className={`w-2 h-2 rounded-full ${
+                        isOutOfStock
+                          ? 'bg-red-500'
+                          : 'bg-green-500'
+                      }`}
+                    />
+
+                    <p className="text-sm font-medium text-gray-900">
+                      {isOutOfStock
+                        ? 'Out of stock'
+                        : 'Available'}
+                    </p>
+                  </div>
                 </div>
 
-                <div className="p-6 sm:p-8">
-                  <p className="text-xs uppercase tracking-wider text-gray-400 font-semibold">
+                {/* Product ID */}
+
+                <div className="p-5 sm:p-8">
+                  <p className="text-[11px] uppercase tracking-[0.14em] text-gray-400 font-semibold">
                     Product ID
                   </p>
 
                   <p className="mt-2 text-sm font-medium text-gray-900 break-all">
-                    {product?._id || 'N/A'}
+                    {product._id || 'N/A'}
                   </p>
                 </div>
-
               </div>
             </div>
           </section>
@@ -781,15 +972,20 @@ export default function GuestProductDetailsPage() {
           {/* =================================================
               BACK TO SHOP
           ================================================= */}
-          <div className="mt-12 text-center">
+
+          <div className="mt-10 sm:mt-12 text-center">
             <button
-              onClick={() => router.push('/products')}
+              type="button"
+              onClick={() => router.push('/products/guest')}
               className="
                 inline-flex items-center gap-2
+                px-4 py-2
                 text-sm font-medium
                 text-gray-600
                 hover:text-gray-900
-                transition
+                hover:bg-white
+                rounded-lg
+                transition-all
               "
             >
               <svg

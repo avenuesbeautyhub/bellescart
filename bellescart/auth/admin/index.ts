@@ -101,8 +101,8 @@ export const useRequireAdminAuth = () => {
     if (loaded && !isAuthenticated && typeof window !== 'undefined') {
       // Check if we're on login or register page to avoid redirect loop
       const currentPath = window.location.pathname;
-      if (currentPath !== '/admin' && currentPath !== '/admin/register') {
-        window.location.replace('/admin');
+      if (currentPath !== '/belles-portel-25' && currentPath !== '/belles-portel-25/register') {
+        window.location.replace('/belles-portel-25');
       }
     }
   }, [loaded, isAuthenticated]);

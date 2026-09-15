@@ -4,6 +4,7 @@ import "./globals.css";
 import { ToastProvider } from "@/contexts/ToastContext";
 import { QueryProvider } from "@/providers/QueryProvider";
 import { CsrfProvider } from "@/providers/CsrfProvider";
+import { UserPreferencesProvider } from "@/providers/UserPreferencesProvider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -33,9 +34,11 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col" style={{ backgroundColor: 'var(--background)', color: 'var(--foreground)' }}>
         <QueryProvider>
           <CsrfProvider>
-            <ToastProvider>
-              {children}
-            </ToastProvider>
+            <UserPreferencesProvider>
+              <ToastProvider>
+                {children}
+              </ToastProvider>
+            </UserPreferencesProvider>
           </CsrfProvider>
         </QueryProvider>
       </body>

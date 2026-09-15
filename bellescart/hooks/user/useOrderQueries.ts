@@ -35,6 +35,15 @@ export const useOrder = (orderId: string) => {
   });
 };
 
+export const useOrderByNumber = (orderNumber: string) => {
+  return useQuery({
+    queryKey: orderKeys.detail(orderNumber),
+    queryFn: () => orderService.getOrderByOrderNumber(orderNumber),
+    enabled: !!orderNumber,
+    staleTime: 1000 * 60 * 5, // 5 minutes
+  });
+};
+
 export const useTrackOrder = (awb: string) => {
   return useQuery({
     queryKey: orderKeys.tracking(awb),

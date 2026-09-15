@@ -1,5 +1,5 @@
 import { IWallet } from '../../models/Wallet';
-import { IBaseRepository } from './IBaseRepository';
+import { IBaseRepository } from '../../repositories/BaseRepository';
 
 export interface IWalletRepository extends IBaseRepository<IWallet> {
   findByUser(userId: string): Promise<IWallet | null>;

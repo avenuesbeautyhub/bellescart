@@ -61,6 +61,14 @@ export const globalToast = {
     returnFailed: (error?: string) => globalToast.show(toastMessages.order.returnFailed(error)),
   },
 
+  // Payment toast functions
+  payment: {
+    failed: () => globalToast.show(toastMessages.payment.failed()),
+    failedInsufficientFunds: () => globalToast.show(toastMessages.payment.failedInsufficientFunds()),
+    failedBankDeclined: () => globalToast.show(toastMessages.payment.failedBankDeclined()),
+    verificationFailed: () => globalToast.show(toastMessages.payment.verificationFailed()),
+  },
+
   // Admin toast functions - flexible functions that accept custom messages
   admin: {
     success: (title: string, message?: string) => globalToast.show(toastMessages.admin.success(title, message)),

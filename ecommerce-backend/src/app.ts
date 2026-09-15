@@ -79,13 +79,13 @@ app.use('/api', (req, res, next) => {
   }
 }, (req, res, next) => {
   // Skip CSRF middleware for public routes and csrf-token endpoint
-  if (req.path.startsWith('/public') || req.path === '/csrf-token') {
+  if (req.path.startsWith('/public') || req.path === '/api/csrf-token') {
     return next();
   }
   csrfMiddleware(req, res, next);
 }, (req, res, next) => {
   // Skip request signing middleware for public routes and csrf-token endpoint
-  if (req.path.startsWith('/public') || req.path === '/csrf-token') {
+  if (req.path.startsWith('/public') || req.path === '/api/csrf-token') {
     return next();
   }
   requestSigningMiddleware(req, res, next);

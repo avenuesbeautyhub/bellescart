@@ -153,46 +153,53 @@ export default function GuestProductsPage() {
     window.history.replaceState({}, '', url.toString());
   };
 
+  const hasActiveFilters =
+    selectedCategory !== 'All Products' || searchQuery;
+
   return (
     <div className="min-h-screen bg-[#fafafa] text-gray-900">
       <Navbar />
 
       <main>
+
         {/* =====================================================
-            HERO
+            SHOP HEADER
         ===================================================== */}
-        <section className="relative overflow-hidden bg-white border-b border-gray-100">
-          {/* Decorative background */}
-          <div className="absolute inset-0 pointer-events-none">
-            <div className="absolute -top-24 -right-24 w-80 h-80 rounded-full bg-pink-100/50 blur-3xl" />
-            <div className="absolute -bottom-32 -left-24 w-96 h-96 rounded-full bg-purple-100/40 blur-3xl" />
+        <section className="relative overflow-hidden border-b border-gray-100 bg-white">
+
+          {/* Background decoration */}
+          <div className="pointer-events-none absolute inset-0 overflow-hidden">
+            <div className="absolute -right-32 -top-32 h-80 w-80 rounded-full bg-pink-100/60 blur-3xl" />
+            <div className="absolute -bottom-40 -left-32 h-96 w-96 rounded-full bg-purple-100/50 blur-3xl" />
           </div>
 
-          <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="py-12 sm:py-16 lg:py-20 text-center">
+          <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+
+            <div className="py-10 text-center sm:py-14 lg:py-16">
+
               {/* Breadcrumb */}
-              <div className="flex justify-center items-center gap-2 text-sm text-gray-500 mb-7">
+              <div className="mb-5 flex items-center justify-center gap-2 text-xs font-medium text-gray-400 sm:text-sm">
                 <span>Home</span>
                 <span className="text-gray-300">/</span>
-                <span className="text-gray-900 font-medium">Shop</span>
+                <span className="text-gray-700">Shop</span>
               </div>
 
               {/* Heading */}
-              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-semibold tracking-tight text-gray-900">
+              <h1 className="text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl lg:text-5xl">
                 Discover something
-                <span className="block mt-1 bg-gradient-to-r from-pink-600 via-purple-600 to-indigo-600 bg-clip-text text-transparent">
+                <span className="block bg-gradient-to-r from-pink-600 via-purple-600 to-indigo-600 bg-clip-text text-transparent">
                   beautiful
                 </span>
               </h1>
 
-              <p className="mt-5 max-w-2xl mx-auto text-base sm:text-lg text-gray-500 leading-relaxed">
-                Explore our carefully curated collection of beautiful
-                products, designed to make every moment special.
+              <p className="mx-auto mt-4 max-w-2xl text-sm leading-6 text-gray-500 sm:text-base">
+                Explore our carefully curated collection and find products
+                that are made to fit your style.
               </p>
 
               {/* Search */}
-              <div className="mt-8 max-w-xl mx-auto">
-                <div className="bg-white rounded-2xl shadow-[0_8px_35px_rgba(0,0,0,0.08)] border border-gray-200 p-1.5">
+              <div className="mx-auto mt-7 max-w-2xl">
+                <div className="rounded-2xl border border-gray-200 bg-white p-1.5 shadow-[0_10px_35px_rgba(0,0,0,0.07)] transition-shadow focus-within:border-pink-200 focus-within:shadow-[0_10px_40px_rgba(236,72,153,0.12)]">
                   <SearchBar
                     value={searchQuery}
                     onChange={setSearchQuery}
@@ -202,29 +209,43 @@ export default function GuestProductsPage() {
                   />
                 </div>
               </div>
+
+              {/* Small trust line */}
+              <div className="mt-5 flex items-center justify-center gap-2 text-xs text-gray-400">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                <span>Browse our latest collection</span>
+              </div>
             </div>
           </div>
         </section>
 
+
         {/* =====================================================
             CATEGORY NAVIGATION
         ===================================================== */}
-        <section className="bg-white border-b border-gray-100">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="py-4">
-              <div className="flex items-center gap-3 overflow-x-auto scrollbar-hide pb-1">
-                {/* All Products */}
+        <section className="sticky top-[72px] z-30 border-b border-gray-100 bg-white/95 backdrop-blur-xl">
+
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+
+            <div className="flex items-center py-3">
+
+              {/* Scrollable category list */}
+              <div className="scrollbar-hide flex min-w-0 items-center gap-2 overflow-x-auto">
+
+                {/* All products */}
                 <button
+                  type="button"
                   onClick={() =>
                     handleCategoryChange('All Products', null)
                   }
                   className={`
-                    flex-shrink-0 px-5 py-2.5 rounded-full text-sm font-medium
-                    transition-all duration-200 border
-                    ${
-                      selectedCategory === 'All Products'
-                        ? 'bg-gray-900 text-white border-gray-900 shadow-sm'
-                        : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400 hover:text-gray-900'
+                    shrink-0 rounded-full border px-4 py-2
+                    text-xs font-semibold
+                    transition-all duration-200
+                    sm:px-5 sm:py-2.5 sm:text-sm
+                    ${selectedCategory === 'All Products'
+                      ? 'border-gray-900 bg-gray-900 text-white shadow-sm'
+                      : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:bg-gray-50 hover:text-gray-900'
                     }
                   `}
                 >
@@ -233,6 +254,7 @@ export default function GuestProductsPage() {
 
                 {categories.map((category: any) => (
                   <button
+                    type="button"
                     key={category._id}
                     onClick={() =>
                       handleCategoryChange(
@@ -241,12 +263,13 @@ export default function GuestProductsPage() {
                       )
                     }
                     className={`
-                      flex-shrink-0 px-5 py-2.5 rounded-full text-sm font-medium
-                      transition-all duration-200 border
-                      ${
-                        selectedCategory === category.name
-                          ? 'bg-gray-900 text-white border-gray-900 shadow-sm'
-                          : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400 hover:text-gray-900'
+                      shrink-0 rounded-full border px-4 py-2
+                      text-xs font-semibold
+                      transition-all duration-200
+                      sm:px-5 sm:py-2.5 sm:text-sm
+                      ${selectedCategory === category.name
+                        ? 'border-gray-900 bg-gray-900 text-white shadow-sm'
+                        : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:bg-gray-50 hover:text-gray-900'
                       }
                     `}
                   >
@@ -258,35 +281,49 @@ export default function GuestProductsPage() {
           </div>
         </section>
 
-        {/* =====================================================
-            MAIN SHOP CONTENT
-        ===================================================== */}
-        <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10">
-          {/* Top toolbar */}
-          <div className="flex flex-col gap-4 mb-8">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-              {/* Product information */}
-              <div>
-                <h2 className="text-xl sm:text-2xl font-semibold text-gray-900">
-                  {selectedCategory === 'All Products'
-                    ? 'All Products'
-                    : selectedCategory}
-                </h2>
 
-                <p className="mt-1 text-sm text-gray-500">
+        {/* =====================================================
+            SHOP CONTENT
+        ===================================================== */}
+        <section className="mx-auto max-w-7xl px-4 py-8 sm:px-6 sm:py-10 lg:px-8 lg:py-12">
+
+          {/* ---------------------------------------------------
+              TOOLBAR
+          ---------------------------------------------------- */}
+          <div className="mb-7">
+
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+
+              {/* Product count/title */}
+              <div>
+                <div className="flex items-center gap-2">
+
+                  <h2 className="text-xl font-bold tracking-tight text-gray-900 sm:text-2xl">
+                    {selectedCategory === 'All Products'
+                      ? 'All Products'
+                      : selectedCategory}
+                  </h2>
+
+                  {!isLoading && (
+                    <span className="rounded-full bg-gray-100 px-2.5 py-1 text-[10px] font-bold text-gray-500 sm:text-xs">
+                      {sortedProducts.length}
+                    </span>
+                  )}
+                </div>
+
+                <p className="mt-1 text-xs text-gray-500 sm:text-sm">
                   {isLoading
-                    ? 'Loading products...'
-                    : `${sortedProducts.length} ${
-                        sortedProducts.length === 1
-                          ? 'product'
-                          : 'products'
-                      } available`}
+                    ? 'Finding products for you...'
+                    : sortedProducts.length === 1
+                      ? '1 product available'
+                      : `${sortedProducts.length} products available`}
                 </p>
               </div>
 
               {/* Desktop sort */}
-              <div className="hidden sm:flex items-center gap-3">
-                <span className="text-sm text-gray-500">
+              <div className="hidden items-center gap-3 sm:flex">
+
+                <span className="text-xs font-medium text-gray-400">
                   Sort by
                 </span>
 
@@ -295,19 +332,20 @@ export default function GuestProductsPage() {
                     value={sortBy}
                     onChange={(e) => setSortBy(e.target.value)}
                     className="
+                      min-w-[180px]
                       appearance-none
-                      min-w-[170px]
-                      pl-4 pr-10 py-2.5
                       rounded-xl
                       border border-gray-200
                       bg-white
-                      text-sm font-medium
-                      text-gray-700
+                      py-2.5 pl-4 pr-10
+                      text-sm font-medium text-gray-700
+                      shadow-sm
                       outline-none
-                      cursor-pointer
+                      transition-all
                       hover:border-gray-300
-                      focus:border-gray-400
-                      transition
+                      focus:border-pink-300
+                      focus:ring-4
+                      focus:ring-pink-500/10
                     "
                   >
                     <option value="featured">Featured</option>
@@ -320,56 +358,60 @@ export default function GuestProductsPage() {
                   </select>
 
                   <svg
-                    className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none"
+                    className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400"
                     viewBox="0 0 20 20"
                     fill="currentColor"
+                    aria-hidden="true"
                   >
                     <path
                       fillRule="evenodd"
-                      d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.51a.75.75 0 01-1.08 0l-4.25-4.51a.75.75 0 01.02-1.06z"
+                      d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.51a.75.75 0 01.02-1.06z"
                       clipRule="evenodd"
                     />
                   </svg>
                 </div>
               </div>
 
-              {/* Mobile filter button */}
+              {/* Mobile filters */}
               <button
+                type="button"
                 onClick={() =>
                   setMobileFiltersOpen(!mobileFiltersOpen)
                 }
                 className="
-                  sm:hidden
-                  flex items-center justify-center gap-2
-                  w-full
-                  px-4 py-3
-                  rounded-xl
-                  border border-gray-200
-                  bg-white
-                  text-sm font-medium
-                  text-gray-700
+                  flex w-full items-center justify-between
+                  rounded-xl border border-gray-200
+                  bg-white px-4 py-3
+                  text-sm font-semibold text-gray-700
+                  shadow-sm
+                  transition-all
+                  hover:border-gray-300
                   hover:bg-gray-50
-                  transition
+                  sm:hidden
                 "
               >
-                <svg
-                  className="w-4 h-4"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                >
-                  <path d="M4 6h16M7 12h10M10 18h4" />
-                </svg>
+                <span className="flex items-center gap-2">
 
-                Filters & Sort
+                  <svg
+                    className="h-4 w-4 text-gray-500"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    aria-hidden="true"
+                  >
+                    <path d="M4 6h16M7 12h10M10 18h4" />
+                  </svg>
+
+                  Filters & Sort
+                </span>
 
                 <svg
-                  className={`w-4 h-4 transition-transform ${
-                    mobileFiltersOpen ? 'rotate-180' : ''
-                  }`}
+                  className={`h-4 w-4 text-gray-400 transition-transform ${mobileFiltersOpen ? 'rotate-180' : ''
+                    }`}
                   viewBox="0 0 20 20"
                   fill="currentColor"
+                  aria-hidden="true"
                 >
                   <path
                     fillRule="evenodd"
@@ -380,228 +422,257 @@ export default function GuestProductsPage() {
               </button>
             </div>
 
-            {/* Mobile filter panel */}
+
+            {/* Mobile sorting */}
             {mobileFiltersOpen && (
-              <div className="sm:hidden bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
-                <div className="mb-5">
-                  <p className="text-sm font-semibold text-gray-900 mb-3">
-                    Sort By
-                  </p>
+              <div className="mt-3 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:hidden">
 
-                  <div className="space-y-2">
-                    {[
-                      {
-                        value: 'featured',
-                        label: 'Featured',
-                      },
-                      {
-                        value: 'price-low',
-                        label: 'Price: Low to High',
-                      },
-                      {
-                        value: 'price-high',
-                        label: 'Price: High to Low',
-                      },
-                    ].map((option) => (
-                      <button
-                        key={option.value}
-                        onClick={() => {
-                          setSortBy(option.value);
-                          setMobileFiltersOpen(false);
-                        }}
-                        className={`
-                          w-full flex items-center justify-between
-                          px-4 py-3 rounded-xl
-                          text-sm text-left
-                          transition
-                          ${
-                            sortBy === option.value
-                              ? 'bg-gray-900 text-white'
-                              : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
-                          }
-                        `}
-                      >
-                        {option.label}
+                <p className="mb-3 text-xs font-bold uppercase tracking-wider text-gray-400">
+                  Sort products
+                </p>
 
-                        {sortBy === option.value && (
-                          <svg
-                            className="w-4 h-4"
-                            viewBox="0 0 20 20"
-                            fill="currentColor"
-                          >
-                            <path
-                              fillRule="evenodd"
-                              d="M16.704 5.29a1 1 0 010 1.42l-7.25 7.25a1 1 0 01-1.42 0l-3.25-3.25a1 1 0 011.42-1.42l2.54 2.54 6.54-6.54a1 1 0 011.42 0z"
-                              clipRule="evenodd"
-                            />
-                          </svg>
-                        )}
-                      </button>
-                    ))}
-                  </div>
+                <div className="space-y-2">
+                  {[
+                    {
+                      value: 'featured',
+                      label: 'Featured',
+                    },
+                    {
+                      value: 'price-low',
+                      label: 'Price: Low to High',
+                    },
+                    {
+                      value: 'price-high',
+                      label: 'Price: High to Low',
+                    },
+                  ].map((option) => (
+                    <button
+                      type="button"
+                      key={option.value}
+                      onClick={() => {
+                        setSortBy(option.value);
+                        setMobileFiltersOpen(false);
+                      }}
+                      className={`
+                        flex w-full items-center justify-between
+                        rounded-xl px-4 py-3
+                        text-left text-sm font-medium
+                        transition-all
+                        ${sortBy === option.value
+                          ? 'bg-gray-900 text-white'
+                          : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
+                        }
+                      `}
+                    >
+                      {option.label}
+
+                      {sortBy === option.value && (
+                        <svg
+                          className="h-4 w-4"
+                          viewBox="0 0 20 20"
+                          fill="currentColor"
+                          aria-hidden="true"
+                        >
+                          <path
+                            fillRule="evenodd"
+                            d="M16.704 5.29a1 1 0 010 1.42l-7.25 7.25a1 1 0 01-1.42 0l-3.25-3.25a.75.75 0 011.06-1.06l2.72 2.72 6.72-6.72a.75.75 0 011.42 0z"
+                            clipRule="evenodd"
+                          />
+                        </svg>
+                      )}
+                    </button>
+                  ))}
                 </div>
-
-                {(selectedCategory !== 'All Products' ||
-                  searchQuery) && (
-                  <button
-                    onClick={clearFilters}
-                    className="w-full py-3 text-sm font-medium text-pink-600 hover:text-pink-700"
-                  >
-                    Clear all filters
-                  </button>
-                )}
               </div>
             )}
           </div>
 
-          {/* Active filters */}
-          {(selectedCategory !== 'All Products' ||
-            searchQuery) && (
-            <div className="flex flex-wrap items-center gap-2 mb-6">
-              <span className="text-xs font-medium text-gray-400 uppercase tracking-wider">
-                Filters:
+
+          {/* ---------------------------------------------------
+              ACTIVE FILTERS
+          ---------------------------------------------------- */}
+          {hasActiveFilters && (
+            <div className="mb-7 flex flex-wrap items-center gap-2">
+
+              <span className="mr-1 text-[10px] font-bold uppercase tracking-[0.15em] text-gray-400">
+                Active
               </span>
 
               {selectedCategory !== 'All Products' && (
                 <button
+                  type="button"
                   onClick={() =>
                     handleCategoryChange('All Products', null)
                   }
                   className="
                     inline-flex items-center gap-2
-                    px-3 py-1.5
                     rounded-full
+                    border border-pink-100
                     bg-pink-50
-                    text-pink-700
-                    text-xs font-medium
+                    px-3 py-1.5
+                    text-xs font-semibold text-pink-700
+                    transition-colors
                     hover:bg-pink-100
-                    transition
                   "
                 >
                   {selectedCategory}
-
-                  <span className="text-pink-400">×</span>
+                  <span className="text-sm leading-none text-pink-400">
+                    ×
+                  </span>
                 </button>
               )}
 
               {searchQuery && (
                 <button
+                  type="button"
                   onClick={() => setSearchQuery('')}
                   className="
-                    inline-flex items-center gap-2
-                    px-3 py-1.5
+                    inline-flex max-w-full items-center gap-2
                     rounded-full
+                    border border-purple-100
                     bg-purple-50
-                    text-purple-700
-                    text-xs font-medium
+                    px-3 py-1.5
+                    text-xs font-semibold text-purple-700
+                    transition-colors
                     hover:bg-purple-100
-                    transition
                   "
                 >
-                  Search: "{searchQuery}"
+                  <span className="max-w-[180px] truncate">
+                    "{searchQuery}"
+                  </span>
 
-                  <span className="text-purple-400">×</span>
+                  <span className="text-sm leading-none text-purple-400">
+                    ×
+                  </span>
                 </button>
               )}
 
               <button
+                type="button"
                 onClick={clearFilters}
-                className="text-xs font-medium text-gray-500 hover:text-gray-900 ml-1"
+                className="
+                  ml-1 text-xs font-semibold
+                  text-gray-400
+                  transition-colors
+                  hover:text-gray-900
+                "
               >
                 Clear all
               </button>
             </div>
           )}
 
+
           {/* ===================================================
-              LOADING
-          =================================================== */}
+              INITIAL LOADING
+          ==================================================== */}
           {isLoading && products.length === 0 && (
-            <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-x-4 sm:gap-x-6 gap-y-8">
+            <div className="grid grid-cols-2 gap-x-3 gap-y-8 sm:grid-cols-2 sm:gap-x-6 lg:grid-cols-3 xl:grid-cols-4">
+
               {Array.from({ length: 8 }).map((_, index) => (
-                <div key={index} className="animate-pulse">
+                <div
+                  key={index}
+                  className="animate-pulse"
+                >
                   <div className="aspect-[4/5] rounded-2xl bg-gray-200" />
 
-                  <div className="mt-4 space-y-2">
-                    <div className="h-3 bg-gray-200 rounded w-1/3" />
-                    <div className="h-4 bg-gray-200 rounded w-4/5" />
-                    <div className="h-4 bg-gray-200 rounded w-1/3" />
+                  <div className="mt-4 space-y-2.5">
+                    <div className="h-2.5 w-1/3 rounded-full bg-gray-200" />
+                    <div className="h-4 w-4/5 rounded-full bg-gray-200" />
+                    <div className="h-3.5 w-1/3 rounded-full bg-gray-200" />
                   </div>
                 </div>
               ))}
             </div>
           )}
 
+
           {/* ===================================================
               UPDATING INDICATOR
-          =================================================== */}
+          ==================================================== */}
           {isLoading && products.length > 0 && (
-            <div className="flex items-center justify-center gap-3 mb-6 py-3">
-              <div className="w-4 h-4 border-2 border-gray-300 border-t-gray-900 rounded-full animate-spin" />
-              <span className="text-sm text-gray-500">
+            <div className="mb-6 flex items-center justify-center gap-2 rounded-xl bg-white py-3 text-xs text-gray-500 shadow-sm ring-1 ring-gray-100">
+
+              <div className="h-4 w-4 animate-spin rounded-full border-2 border-gray-200 border-t-pink-500" />
+
+              <span>
                 Updating products...
               </span>
             </div>
           )}
 
+
           {/* ===================================================
               PRODUCT GRID
-          =================================================== */}
+          ==================================================== */}
           {!isLoading || products.length > 0 ? (
-            <GuestProductGrid
-              products={sortedProducts}
-              onAddToCart={() =>
-                console.log('Add to cart clicked')
-              }
-              onAddToWishlist={() =>
-                console.log('Add to wishlist clicked')
-              }
-            />
+            <div className="relative">
+
+              {/* Subtle background glow */}
+              <div className="pointer-events-none absolute -inset-4 rounded-[2rem] bg-gradient-to-br from-pink-50/40 via-transparent to-purple-50/40 blur-2xl" />
+
+              <div className="relative">
+                <GuestProductGrid
+                  products={sortedProducts}
+                  onAddToCart={() =>
+                    console.log('Add to cart clicked')
+                  }
+                  onAddToWishlist={() =>
+                    console.log('Add to wishlist clicked')
+                  }
+                />
+              </div>
+            </div>
           ) : null}
+
 
           {/* ===================================================
               EMPTY STATE
-          =================================================== */}
+          ==================================================== */}
           {sortedProducts.length === 0 && !isLoading && (
-            <div className="flex flex-col items-center justify-center text-center py-20 px-6 bg-white rounded-3xl border border-gray-100">
-              <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center mb-5">
+            <div className="flex flex-col items-center justify-center rounded-3xl border border-gray-100 bg-white px-6 py-20 text-center shadow-sm">
+
+              <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-gray-50 text-gray-400">
+
                 <svg
-                  className="w-7 h-7 text-gray-400"
+                  className="h-7 w-7"
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke="currentColor"
-                  strokeWidth="1.7"
+                  strokeWidth="1.6"
+                  aria-hidden="true"
                 >
                   <circle cx="11" cy="11" r="7" />
                   <path d="m20 20-4-4" />
                 </svg>
               </div>
 
-              <h3 className="text-xl font-semibold text-gray-900">
-                No products found
+              <h3 className="text-xl font-bold text-gray-900">
+                Nothing found
               </h3>
 
-              <p className="mt-2 max-w-md text-sm text-gray-500 leading-relaxed">
+              <p className="mt-2 max-w-md text-sm leading-6 text-gray-500">
                 {searchQuery
                   ? `We couldn't find anything matching "${searchQuery}".`
                   : selectedCategory !== 'All Products'
-                  ? `There are currently no products in ${selectedCategory}.`
-                  : 'There are no products available at the moment.'}
+                    ? `There are currently no products in ${selectedCategory}.`
+                    : 'There are no products available at the moment.'}
               </p>
 
-              {(selectedCategory !== 'All Products' ||
-                searchQuery) && (
+              {hasActiveFilters && (
                 <button
+                  type="button"
                   onClick={clearFilters}
                   className="
-                    mt-6
-                    px-6 py-3
-                    rounded-xl
+                    mt-6 rounded-xl
                     bg-gray-900
-                    text-white
-                    text-sm font-medium
+                    px-6 py-3
+                    text-sm font-semibold text-white
+                    shadow-sm
+                    transition-all duration-200
+                    hover:-translate-y-0.5
                     hover:bg-gray-800
-                    transition
+                    hover:shadow-md
                   "
                 >
                   View all products
@@ -609,6 +680,7 @@ export default function GuestProductsPage() {
               )}
             </div>
           )}
+
         </section>
       </main>
 

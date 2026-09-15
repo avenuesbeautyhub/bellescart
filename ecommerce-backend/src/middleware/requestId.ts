@@ -20,7 +20,7 @@ export const requestIdMiddleware = (req: Request, res: Response, next: NextFunct
   res.setHeader('X-Request-ID', requestId);
   
   // Log the request ID assignment
-  logger.debug('Request ID assigned', {
+  logger.info('Incoming request', {
     requestId,
     method: req.method,
     path: req.path,

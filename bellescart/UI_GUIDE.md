@@ -141,28 +141,28 @@ bellescart/
     - Account statistics
 
 ### Admin Pages
-1. **Admin Login** (`/admin`)
+1. **Admin Login** (`/belles-portel-25`)
    - Admin credentials form
    - Security-focused interface
 
-2. **Admin Dashboard** (`/admin/dashboard`)
+2. **Admin Dashboard** (`/belles-portel-25/dashboard`)
    - Statistics cards (products, orders, revenue, users)
    - Recent orders table
    - Quick access to management sections
 
-3. **Product Management** (`/admin/products`)
+3. **Product Management** (`/belles-portel-25/products`)
    - Product listing table
    - Search and filters
    - Add/Edit/Delete products
    - Category and status filters
 
-4. **Category Management** (`/admin/categories`)
+4. **Category Management** (`/belles-portel-25/categories`)
    - Category grid display
    - Add new category form
    - Edit/Delete categories
    - Product count per category
 
-5. **Orders Management** (`/admin/orders`)
+5. **Orders Management** (`/belles-portel-25/orders`)
    - Orders listing table
    - Status filters
    - Search functionality

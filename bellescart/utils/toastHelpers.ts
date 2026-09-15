@@ -209,6 +209,34 @@ export const toastMessages = {
     })
   },
 
+  // Payment messages
+  payment: {
+    failed: (): Omit<ToastMessage, 'id'> => ({
+      type: 'error',
+      title: 'Payment Failed',
+      message: 'Your payment was declined by the bank. Please try another payment method or contact your bank.',
+      duration: 10000 // 10 seconds for payment failures
+    }),
+    failedInsufficientFunds: (): Omit<ToastMessage, 'id'> => ({
+      type: 'error',
+      title: 'Insufficient Funds',
+      message: 'Your payment failed due to insufficient funds. Please try another payment method.',
+      duration: 10000
+    }),
+    failedBankDeclined: (): Omit<ToastMessage, 'id'> => ({
+      type: 'error',
+      title: 'Payment Declined',
+      message: 'Your payment was declined by the bank. Please try another payment method or contact your bank.',
+      duration: 10000
+    }),
+    verificationFailed: (): Omit<ToastMessage, 'id'> => ({
+      type: 'error',
+      title: 'Payment Verification Failed',
+      message: 'Payment verification failed. Please try again or contact support.',
+      duration: 8000
+    })
+  },
+
   // Admin messages - flexible functions that accept custom messages
   admin: {
     success: (title: string, message?: string): Omit<ToastMessage, 'id'> => ({
