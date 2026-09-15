@@ -3,30 +3,32 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useState } from 'react';
 
-// Custom retry logic with exponential backoff for rate limiting
-const retryWithBackoff = (failureCount: number, error: any) => {
+// Custom retry logic for rate limiting
+const shouldRetry = (failureCount: number, error: any) => {
   // Don't retry on 4xx errors (except 429 rate limit)
   if (error?.status && error.status >= 400 && error.status < 500 && error.status !== 429) {
     return false;
   }
   
-  // Retry 429 errors with exponential backoff
+  // Retry 429 errors up to 3 times
   if (error?.status === 429) {
-    // Max 3 retries for rate limit errors
-    if (failureCount >= 3) {
-      return false;
-    }
-    // Exponential backoff: 1s, 2s, 4s
-    const delay = Math.pow(2, failureCount) * 1000;
-    return new Promise(resolve => setTimeout(resolve, delay));
+    return failureCount < 3;
   }
   
   // Retry other errors (network issues, 5xx) up to 2 times
-  if (failureCount < 2) {
-    return true;
+  return failureCount < 2;
+};
+
+// Custom retry delay with exponential backoff for rate limiting
+const retryDelay = (attemptIndex: number, error: any) => {
+  // Longer delays for 429 errors
+  if (error?.status === 429) {
+    // Exponential backoff: 1s, 2s, 4s
+    return Math.min(1000 * 2 ** attemptIndex, 30000); // Max 30s delay
   }
   
-  return false;
+  // Standard delay for other errors
+  return Math.min(1000 * 2 ** attemptIndex, 10000); // Max 10s delay
 };
 
 export function QueryProvider({ children }: { children: React.ReactNode }) {
@@ -40,8 +42,8 @@ export function QueryProvider({ children }: { children: React.ReactNode }) {
             gcTime: 1000 * 60 * 30, // 30 minutes garbage collection
             
             // Smart retry logic
-            retry: retryWithBackoff,
-            retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000), // Max 30s delay
+            retry: shouldRetry,
+            retryDelay: retryDelay,
             
             // Disable automatic refetches to prevent rate limiting
             refetchOnWindowFocus: false,

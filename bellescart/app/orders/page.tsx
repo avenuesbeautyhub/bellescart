@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 
@@ -141,7 +141,7 @@ const getStatusTone = (status?: string) => {
   return 'bg-amber-50 text-amber-700 border-amber-100';
 };
 
-export default function OrdersPage() {
+function OrdersPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -867,6 +867,14 @@ export default function OrdersPage() {
 
       <Footer />
     </div>
+  );
+}
+
+export default function OrdersPage() {
+  return (
+    <Suspense fallback={<div className="flex min-h-screen items-center justify-center bg-[#f8f6f8]"><Loader size="lg" text="Loading..." /></div>}>
+      <OrdersPageContent />
+    </Suspense>
   );
 }
 
