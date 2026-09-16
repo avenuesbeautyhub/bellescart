@@ -31,5 +31,15 @@ export interface IAdminRepository {
     activeUsers: number;
     totalOrders: number;
     totalRevenue: number;
+    pendingOrders?: number;
+    processingOrders?: number;
+    shippedOrders?: number;
+    deliveredOrders?: number;
+    cancelledOrders?: number;
+    todayOrders?: number;
+    todayRevenue?: number;
+    thisMonthOrders?: number;
+    thisMonthRevenue?: number;
+    averageOrderValue?: number;
   }>;
 }

@@ -904,6 +904,17 @@ export const apiPut = (url: string, data?: any, options: RequestInit = {}) =>
     body: data ? JSON.stringify(data) : undefined,
   });
 
+export const apiPatch = (url: string, data?: any, options: RequestInit = {}) =>
+  apiFetch(url, {
+    ...options,
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+    body: data ? JSON.stringify(data) : undefined,
+  });
+
 export const apiDelete = (url: string, options: RequestInit = {}) =>
   apiFetch(url, { ...options, method: 'DELETE' });
 

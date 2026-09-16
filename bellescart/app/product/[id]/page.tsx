@@ -8,6 +8,7 @@ import Navbar from '@/components/Navbar/Navbar';
 import Footer from '@/components/Footer/Footer';
 import Button from '@/components/ui/Button';
 import Loader from '@/components/ui/Loader';
+import ReviewSection from '@/components/reviews/ReviewSection';
 
 import { ProductImage } from '@/utils/types';
 import { useRequireUserAuth } from '@/auth/user';
@@ -24,6 +25,7 @@ import {
   useAddToWishlist,
   useRemoveFromWishlist,
 } from '@/hooks/user/useWishlistQueries';
+import { useReviewSummary } from '@/hooks/user/useReviewQueries';
 
 export default function ProductPage({
   params,
@@ -42,6 +44,7 @@ export default function ProductPage({
   } = useProduct(productId);
 
   const { data: cartData } = useCartQuery();
+  const { data: reviewSummaryData } = useReviewSummary(productId);
 
   const addToCartMutation = useAddToCart();
   const updateCartItemMutation = useUpdateCartItem();
@@ -214,8 +217,14 @@ export default function ProductPage({
     (image: ProductImage) => !!image.url
   );
 
-  const rating = (product as any).rating || 4;
-  const reviewCount = (product as any).reviews || 12;
+  const reviewSummary = reviewSummaryData?.data || {
+    averageRating: 0,
+    totalReviews: 0,
+    ratingDistribution: { '1': 0, '2': 0, '3': 0, '4': 0, '5': 0 }
+  };
+
+  const rating = reviewSummary.averageRating || 0;
+  const reviewCount = reviewSummary.totalReviews || 0;
 
   const handleAddToCart = async () => {
     if (!product || isOutOfStock) return;
@@ -859,6 +868,13 @@ export default function ProductPage({
               <div className="pointer-events-none absolute -right-12 -top-20 h-64 w-64 rounded-full border border-white/10" />
               <div className="pointer-events-none absolute -bottom-28 right-20 h-64 w-64 rounded-full border border-white/5" />
             </div>
+          </div>
+        </section>
+
+        {/* Reviews Section */}
+        <section className="border-t border-black/[0.055] bg-[#faf8f6]">
+          <div className="mx-auto max-w-[1480px] px-4 py-8 sm:px-6 lg:px-10 lg:py-12">
+            <ReviewSection productId={productId} isAuthenticated={isAuthenticated} />
           </div>
         </section>
       </main>

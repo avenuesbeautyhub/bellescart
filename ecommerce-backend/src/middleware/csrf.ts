@@ -57,6 +57,13 @@ export const csrfMiddleware = (req: Request, res: Response, next: NextFunction):
     return;
   }
 
+  // Skip CSRF validation for privacy endpoints (user settings)
+  if (req.path.startsWith('/privacy')) {
+    logger.debug('CSRF skipped for privacy path', { requestId: req.id, path: req.path });
+    next();
+    return;
+  }
+
   // Note: wallet and payment endpoints require CSRF protection for security
   // They are NOT skipped - must include valid CSRF token
 

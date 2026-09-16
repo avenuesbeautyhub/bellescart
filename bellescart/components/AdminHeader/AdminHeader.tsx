@@ -35,6 +35,11 @@ const navLinks = [
     icon: 'orders',
   },
   {
+    label: 'Reviews',
+    href: `${ADMIN_BASE}/reviews`,
+    icon: 'reviews',
+  },
+  {
     label: 'Users',
     href: `${ADMIN_BASE}/users`,
     icon: 'users',
@@ -133,6 +138,13 @@ function NavIcon({
       return (
         <svg viewBox="0 0 24 24" className={className}>
           <path {...common} d="M12 3l7 4v5c0 4.5-3 7.8-7 9-4-1.2-7-4.5-7-9V7l7-4z" />
+        </svg>
+      );
+
+    case 'reviews':
+      return (
+        <svg viewBox="0 0 24 24" className={className}>
+          <path {...common} d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
         </svg>
       );
 

@@ -5,6 +5,8 @@ import { ProductInteractor } from '../interactors/ProductInteractor';
 import { CategoryInteractor } from '../interactors/CategoryInteractor';
 import { ProductController } from '../controllers/productController';
 import { CategoryController } from '../controllers/CategoryController';
+import { ReviewController } from '../controllers/reviewController';
+import { ReviewInteractor } from '../interactors/ReviewInteractor';
 
 const router = Router();
 
@@ -15,6 +17,8 @@ const categoryInteractor = new CategoryInteractor(categoryRepository);
 const interactor = new ProductInteractor(repository, categoryInteractor);
 const controller = new ProductController(interactor);
 const categoryController = new CategoryController(categoryInteractor);
+const reviewInteractor = new ReviewInteractor();
+const reviewController = new ReviewController(reviewInteractor);
 
 /**
  * @swagger
@@ -179,5 +183,10 @@ router.get('/products/category/:category', controller.getProductsByCategory.bind
  *         description: Product not found
  */
 router.get('/products/:id', controller.getProductById.bind(controller));
+
+// Public review routes
+router.get('/products/:productId/reviews', reviewController.getReviewsByProduct.bind(reviewController));
+router.get('/reviews/summary/:productId', reviewController.getReviewSummary.bind(reviewController));
+router.get('/reviews/summaries', reviewController.getReviewSummaries.bind(reviewController));
 
 export default router;

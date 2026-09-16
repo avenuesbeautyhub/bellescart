@@ -62,6 +62,11 @@ export const isSensitiveEndpoint = (url: string): boolean => {
     return false;
   }
 
+  // Skip review endpoints
+  if (url.includes('/reviews')) {
+    return false;
+  }
+
   // Skip read-only wallet and payment endpoints (GET requests)
   if (url.includes('/wallet') && !url.includes('/credit') && !url.includes('/debit')) {
     return false;

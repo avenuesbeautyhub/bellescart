@@ -336,7 +336,15 @@ export class UserInteractor implements IUserInteractor {
     };
   }
 
-  async sendOtp(email: string, userData?: { name: string; email: string; password: string; phone?: string }): Promise<{ message: string }> {
+  async sendOtp(email: string, userData?: { 
+    name: string; 
+    email: string; 
+    password: string; 
+    phone?: string;
+    marketingConsent?: boolean;
+    privacyPolicyConsent?: boolean;
+    privacyPolicyVersion?: string;
+  }): Promise<{ message: string }> {
     // Check if user already exists
     const existingUser = await this._userRepository.findByEmail(email);
     if (existingUser) {

@@ -24,7 +24,15 @@ export interface IUserInteractor {
     newPassword: string;
   }): Promise<void>;
   findByEmail(email: string): Promise<Partial<IUser> | null>;
-  sendOtp(email: string, userData?: { name: string; email: string; password: string; phone?: string }): Promise<{ message: string }>;
+  sendOtp(email: string, userData?: { 
+    name: string; 
+    email: string; 
+    password: string; 
+    phone?: string;
+    marketingConsent?: boolean;
+    privacyPolicyConsent?: boolean;
+    privacyPolicyVersion?: string;
+  }): Promise<{ message: string }>;
   resendOtp(email: string): Promise<{ message: string }>;
   verifyOtp(email: string, otp: number): Promise<{ isValid: boolean; isExpired?: boolean; isInvalid?: boolean }>;
   completeRegistration(email: string): Promise<{ user: Partial<IUser>; token: string; refreshToken: string }>;

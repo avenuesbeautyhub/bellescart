@@ -88,3 +88,15 @@ export const adminRateLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false
 });
+
+// Rate limiter for privacy endpoints (sensitive operations)
+export const privacyRateLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 5, // Limit each user to 5 privacy requests per hour
+  message: {
+    success: false,
+    error: 'Too many privacy requests, please try again after 1 hour'
+  },
+  standardHeaders: true,
+  legacyHeaders: false
+});

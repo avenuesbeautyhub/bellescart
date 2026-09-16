@@ -4,6 +4,7 @@ import React from 'react';
 import { Product } from '@/utils/types';
 import GuestProductCard from '@/components/ProductCard/GuestProductCard';
 import { useAuth } from '@/auth/user';
+import { useReviewSummaries } from '@/hooks/user/useReviewQueries';
 
 interface GuestProductGridProps {
   products: Product[];
@@ -17,6 +18,12 @@ export default function GuestProductGrid({
   onAddToWishlist,
 }: GuestProductGridProps) {
   const { isAuthenticated } = useAuth();
+
+  // Fetch review summaries for all products
+  const productIds = products.map(p => p._id);
+  const { data: summariesData } = useReviewSummaries(productIds);
+
+  const summaries = summariesData?.data || {};
 
   if (products.length === 0) {
     return (
@@ -35,6 +42,8 @@ export default function GuestProductGrid({
           onAddToCart={onAddToCart}
           onAddToWishlist={onAddToWishlist}
           isLoggedIn={isAuthenticated}
+          rating={summaries[product._id]?.averageRating}
+          reviewCount={summaries[product._id]?.totalReviews}
         />
       ))}
     </div>

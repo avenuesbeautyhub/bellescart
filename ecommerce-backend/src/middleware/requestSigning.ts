@@ -181,6 +181,8 @@ export const requestSigningMiddleware = (req: Request, res: Response, next: Next
     '/profile',
     '/csrf-token',
     '/preferences',
+    '/privacy', // Privacy endpoints are not sensitive
+    '/reviews', // Review endpoints are not sensitive
     '/api/csrf-token' // Explicitly add API path
   ];
 
