@@ -564,6 +564,24 @@ export default function LoginPage() {
                     </Link>
                   </p>
 
+                  {/* Terms & Privacy */}
+                  <p className="mt-4 text-center text-[11px] text-gray-400">
+                    By signing in, you agree to our{' '}
+                    <Link
+                      href="/terms-and-conditions"
+                      className="font-medium text-pink-600 hover:text-pink-700 hover:underline"
+                    >
+                      Terms & Conditions
+                    </Link>{' '}
+                    and{' '}
+                    <Link
+                      href="/privacy-policy"
+                      className="font-medium text-pink-600 hover:text-pink-700 hover:underline"
+                    >
+                      Privacy Policy
+                    </Link>
+                  </p>
+
                   {/* Bottom reassurance */}
                   <div className="mt-7 flex items-center justify-center gap-2 text-[11px] text-gray-400">
                     <svg

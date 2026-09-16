@@ -2933,6 +2933,22 @@ export default function CheckoutPage() {
                       By placing your order, you confirm that the information provided is correct.
                     </p>
 
+                    <div className="mt-2 flex items-center justify-center gap-2 text-[10px] text-gray-400">
+                      <Link
+                        href="/terms-and-conditions"
+                        className="hover:text-pink-600 transition-colors"
+                      >
+                        Terms & Conditions
+                      </Link>
+                      <span>•</span>
+                      <Link
+                        href="/privacy-policy"
+                        className="hover:text-pink-600 transition-colors"
+                      >
+                        Privacy Policy
+                      </Link>
+                    </div>
+
                   </div>
 
                 </div>

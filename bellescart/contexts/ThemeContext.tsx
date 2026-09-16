@@ -19,7 +19,7 @@ export function ThemeProvider({ children, initialTheme }: { children: React.Reac
       console.log('ThemeProvider: Initializing with server theme:', initialTheme);
       return initialTheme;
     }
-    // For unauthenticated users or when initialTheme is null: use localStorage or default
+    // For unauthenticated users or when initialTheme is null: use localStorage or default to light
     if (typeof window !== 'undefined') {
       const savedTheme = localStorage.getItem('bellescart_theme') as Theme;
       if (savedTheme && ['light', 'dark', 'auto'].includes(savedTheme)) {
@@ -27,8 +27,8 @@ export function ThemeProvider({ children, initialTheme }: { children: React.Reac
         return savedTheme;
       }
     }
-    console.log('ThemeProvider: Initializing with default theme: auto');
-    return 'auto';
+    console.log('ThemeProvider: Initializing with default theme: light');
+    return 'light'; // Changed from 'auto' to 'light' for better unauthenticated experience
   });
   
   // Add a ref to track if we've applied the initial theme
@@ -44,9 +44,9 @@ export function ThemeProvider({ children, initialTheme }: { children: React.Reac
       localStorage.setItem('bellescart_theme', initialTheme);
       hasAppliedInitialTheme.current = true;
     } else if (initialTheme === null) {
-      // User is not authenticated, clear localStorage and reset to default
-      console.log('ThemeProvider: User not authenticated, resetting to default theme');
-      setThemeState('auto');
+      // User is not authenticated, clear localStorage and reset to default (light)
+      console.log('ThemeProvider: User not authenticated, resetting to default theme (light)');
+      setThemeState('light');
       if (typeof window !== 'undefined') {
         localStorage.removeItem('bellescart_theme');
       }

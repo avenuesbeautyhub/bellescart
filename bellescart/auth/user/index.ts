@@ -153,7 +153,7 @@ export const useAuth = () => {
               setUser(null);
             }
           }
-        }, 500); // 500ms debounce to reduce API call frequency
+        }, 1000); // 1000ms debounce to reduce API call frequency
       } else if (!token) {
         // No token, clear user
         setUser(null);

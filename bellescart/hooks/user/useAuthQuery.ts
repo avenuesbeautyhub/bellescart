@@ -138,6 +138,8 @@ export function useSignup() {
       email: string;
       password: string;
       phone: string;
+      marketingConsent?: boolean;
+      privacyPolicyConsent?: boolean;
     }) => {
       const response = await authService.signup(data);
       return response;

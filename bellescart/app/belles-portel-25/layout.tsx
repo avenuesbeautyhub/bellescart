@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import AdminAuthWrapper from '@/components/admin/AdminAuthWrapper';
 import { AdminCsrfProvider } from '@/providers/AdminCsrfProvider';
+import AdminThemeProvider from '@/providers/AdminThemeProvider';
 
 export const metadata: Metadata = {
   title: 'BellesCart Admin',
@@ -9,8 +10,10 @@ export const metadata: Metadata = {
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   return (
-    <AdminCsrfProvider>
-      <AdminAuthWrapper>{children}</AdminAuthWrapper>
-    </AdminCsrfProvider>
+    <AdminThemeProvider>
+      <AdminCsrfProvider>
+        <AdminAuthWrapper>{children}</AdminAuthWrapper>
+      </AdminCsrfProvider>
+    </AdminThemeProvider>
   );
 }

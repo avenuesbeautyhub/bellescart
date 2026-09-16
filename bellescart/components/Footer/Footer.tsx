@@ -134,10 +134,10 @@ export default function Footer() {
               &copy; 2024 BellesCart. All rights reserved. Belles Avenue &copy;
             </p>
             <div className="flex gap-6 flex-wrap justify-center">
-              <Link href="/privacy" className="text-sm text-gray-400 hover:text-pink-400 transition-colors duration-200">
+              <Link href="/privacy-policy" className="text-sm text-gray-400 hover:text-pink-400 transition-colors duration-200">
                 Privacy Policy
               </Link>
-              <Link href="/terms" className="text-sm text-gray-400 hover:text-pink-400 transition-colors duration-200">
+              <Link href="/terms-and-conditions" className="text-sm text-gray-400 hover:text-pink-400 transition-colors duration-200">
                 Terms of Service
               </Link>
               <Link href="/cookies" className="text-sm text-gray-400 hover:text-pink-400 transition-colors duration-200">
