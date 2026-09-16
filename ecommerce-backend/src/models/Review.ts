@@ -58,7 +58,7 @@ const reviewSchema = new Schema<IReview>({
   status: {
     type: String,
     enum: ['pending', 'approved', 'rejected'],
-    default: 'approved'
+    default: 'pending'
   }
 }, {
   timestamps: true

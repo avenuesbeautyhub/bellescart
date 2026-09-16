@@ -174,6 +174,7 @@ export const requestSigningMiddleware = (req: Request, res: Response, next: Next
     '/auth/refresh-token',
     '/admin/login',
     '/admin/register',
+    '/admin/reviews', // Admin review endpoints are not sensitive
     '/cart',
     '/products',
     '/categories',

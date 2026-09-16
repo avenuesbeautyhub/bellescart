@@ -1,4 +1,4 @@
-import { apiGet, apiPatch, apiDelete } from '../apiInterceptor';
+import { adminApi } from './apiInterceptor';
 
 export interface AdminReview {
   _id: string;
@@ -59,17 +59,17 @@ class AdminReviewService {
     if (params?.userId) queryParams.append('userId', params.userId);
 
     const url = `/admin/reviews${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
-    const response = await apiGet(url);
+    const response = await adminApi.get(url);
     return response.json();
   }
 
   async updateReviewStatus(reviewId: string, status: 'pending' | 'approved' | 'rejected'): Promise<AdminReviewResponse> {
-    const response = await apiPatch(`/admin/reviews/${reviewId}/status`, { status });
+    const response = await adminApi.patch(`/admin/reviews/${reviewId}/status`, { status });
     return response.json();
   }
 
   async deleteReview(reviewId: string): Promise<AdminReviewResponse> {
-    const response = await apiDelete(`/admin/reviews/${reviewId}`);
+    const response = await adminApi.delete(`/admin/reviews/${reviewId}`);
     return response.json();
   }
 
@@ -81,7 +81,7 @@ class AdminReviewService {
       ratingDistribution: { [key: string]: number };
     };
   }> {
-    const response = await apiGet(`/admin/reviews/summary/${productId}`);
+    const response = await adminApi.get(`/admin/reviews/summary/${productId}`);
     return response.json();
   }
 }

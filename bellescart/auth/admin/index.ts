@@ -10,13 +10,36 @@ const ADMIN_TOKEN_KEY = 'bellescart_admin_token';
 
 // Token validation helpers
 export const isTokenValid = (token: string): boolean => {
-  if (!token) return false;
+  if (!token) {
+    console.warn('Token validation failed: No token provided');
+    return false;
+  }
+  
   try {
+    // Check if token has proper JWT format (3 parts separated by dots)
+    const parts = token.split('.');
+    if (parts.length !== 3) {
+      console.warn('Token validation failed: Invalid JWT format - expected 3 parts, got', parts.length);
+      return false;
+    }
+    
     // Simple JWT validation - check if token is not expired
-    const payload = JSON.parse(atob(token.split('.')[1]));
+    const payload = JSON.parse(atob(parts[1]));
     const currentTime = Date.now() / 1000;
-    return payload.exp > currentTime;
-  } catch {
+    
+    if (!payload.exp) {
+      console.warn('Token validation failed: No expiration claim in token');
+      return false;
+    }
+    
+    const isValid = payload.exp > currentTime;
+    if (!isValid) {
+      console.warn('Token validation failed: Token expired at', new Date(payload.exp * 1000).toISOString());
+    }
+    
+    return isValid;
+  } catch (error) {
+    console.error('Token validation failed with error:', error);
     return false;
   }
 };
@@ -35,6 +58,12 @@ export const getAdminAuth = (): User | null => {
 export const getAdminToken = (): string | null => {
   if (typeof window === 'undefined') return null;
   const token = window.localStorage.getItem(ADMIN_TOKEN_KEY);
+  console.log('getAdminToken called:', {
+    hasToken: !!token,
+    tokenLength: token?.length,
+    tokenStart: token?.substring(0, 20) + '...',
+    storageKeys: Object.keys(localStorage)
+  });
   return token;
 };
 
@@ -52,6 +81,13 @@ export const isAdminAuthenticated = (): boolean => {
 export const saveAdminSession = (user: UserProfile, token: string, refreshToken?: string) => {
   if (typeof window === 'undefined') return;
 
+  console.log('saveAdminSession called:', {
+    user,
+    tokenLength: token?.length,
+    tokenStart: token?.substring(0, 20) + '...',
+    hasRefreshToken: !!refreshToken
+  });
+
   const userToStore: User = {
     id: user.id,
     name: user.name,
@@ -62,6 +98,12 @@ export const saveAdminSession = (user: UserProfile, token: string, refreshToken?
 
   window.localStorage.setItem(ADMIN_USER_KEY, JSON.stringify(userToStore));
   window.localStorage.setItem(ADMIN_TOKEN_KEY, token);
+
+  console.log('Session saved, verifying:', {
+    savedUser: window.localStorage.getItem(ADMIN_USER_KEY),
+    savedToken: window.localStorage.getItem(ADMIN_TOKEN_KEY)?.substring(0, 20) + '...',
+    storageKeys: Object.keys(localStorage)
+  });
 };
 
 export const clearAdminSession = () => {
@@ -75,13 +117,25 @@ export const useAdminAuth = () => {
   const [loaded, setLoaded] = useState(false);
 
   const loadAuthState = () => {
+    console.log('useAdminAuth: loadAuthState called');
     const adminAuth = getAdminAuth();
+    const adminToken = getAdminToken();
+    const isAuthenticated = isAdminAuthenticated();
+    
+    console.log('useAdminAuth: auth state loaded:', {
+      adminAuth,
+      adminToken: adminToken?.substring(0, 20) + '...',
+      isAuthenticated,
+      loaded: true
+    });
+    
     setUser(adminAuth);
     setLoaded(true);
   };
 
   useEffect(() => {
     // Load admin session on mount
+    console.log('useAdminAuth: useEffect called');
     loadAuthState();
   }, []);
 
@@ -98,9 +152,17 @@ export const useRequireAdminAuth = () => {
   const { user, isAuthenticated, loaded } = useAdminAuth();
 
   useEffect(() => {
+    console.log('useRequireAdminAuth effect:', {
+      loaded,
+      isAuthenticated,
+      user,
+      currentPath: typeof window !== 'undefined' ? window.location.pathname : 'SSR'
+    });
+
     if (loaded && !isAuthenticated && typeof window !== 'undefined') {
       // Check if we're on login or register page to avoid redirect loop
       const currentPath = window.location.pathname;
+      console.log('useRequireAdminAuth: Redirecting to login due to failed auth');
       if (currentPath !== '/belles-portel-25' && currentPath !== '/belles-portel-25/register') {
         window.location.replace('/belles-portel-25');
       }

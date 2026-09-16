@@ -1,27 +1,57 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
 import AdminHeader from '@/components/AdminHeader/AdminHeader';
 import Loader from '@/components/ui/Loader';
 import { globalToast } from '@/utils/globalToast';
 import { useAdminReviews, useUpdateReviewStatus, useDeleteAdminReview } from '@/hooks/admin/useAdminReviewQueries';
 import { AdminReview } from '@/services/admin/reviewService';
+import { useAdminAuth } from '@/auth/admin';
 
 export default function AdminReviewsPage() {
+  const { user, loaded, isAuthenticated } = useAdminAuth();
   const [filter, setFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all');
   const [page, setPage] = useState(1);
+  const [canFetch, setCanFetch] = useState(false);
 
-  const { data: reviewsData, isLoading } = useAdminReviews({
+  // Only enable fetching after authentication is confirmed
+  useEffect(() => {
+    if (loaded && isAuthenticated) {
+      setCanFetch(true);
+    } else {
+      setCanFetch(false);
+    }
+  }, [loaded, isAuthenticated]);
+  
+  const { data: reviewsData, isLoading, error } = useAdminReviews({
     page,
     limit: 20,
     status: filter === 'all' ? undefined : filter
-  });
+  }, canFetch);
+  
+  // Log any errors that occur during fetching
+  useEffect(() => {
+    if (error) {
+      console.error('Error fetching admin reviews:', error);
+      globalToast.general.error('Error', 'Failed to load reviews. Please try again.');
+    }
+  }, [error]);
 
   const updateStatusMutation = useUpdateReviewStatus();
   const deleteReviewMutation = useDeleteAdminReview();
 
   const reviews = reviewsData?.data?.reviews || [];
   const pagination = reviewsData?.data?.pagination || { page: 1, totalPages: 1 };
+
+  // Show loading state while checking authentication
+  if (!loaded) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#f8f5f3]">
+        <Loader size="lg" text="Loading admin panel..." />
+      </div>
+    );
+  }
 
   const handleStatusChange = async (reviewId: string, newStatus: 'pending' | 'approved' | 'rejected') => {
     try {
@@ -189,9 +219,18 @@ export default function AdminReviewsPage() {
                 {reviews.map((review) => (
                   <tr key={review._id} className="hover:bg-gray-50">
                     <td className="px-6 py-4">
-                      <div className="text-sm font-medium text-gray-900">
-                        {review.product?.name || 'Unknown Product'}
-                      </div>
+                      {review.product ? (
+                        <Link 
+                          href={`/belles-portel-25/products/edit/${review.productId}`}
+                          className="text-sm font-medium text-gray-900 hover:text-[#bd9250] hover:underline"
+                        >
+                          {review.product.name}
+                        </Link>
+                      ) : (
+                        <div className="text-sm font-medium text-gray-900">
+                          Unknown Product
+                        </div>
+                      )}
                       {review.isVerifiedPurchase && (
                         <span className="inline-flex items-center gap-1 mt-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-emerald-700">
                           Verified

@@ -18,11 +18,12 @@ export const useAdminReviews = (params?: {
   status?: string;
   productId?: string;
   userId?: string;
-}) => {
+}, enabled = true) => {
   return useQuery({
     queryKey: adminReviewKeys.list(params),
     queryFn: () => adminReviewService.getAllReviews(params),
     staleTime: 1000 * 60 * 2, // 2 minutes
+    enabled: enabled,
   });
 };
 

@@ -23,7 +23,16 @@ export class BaseRepository<T extends Document> implements IBaseRepository<T> {
     let query = this.model.findById(id);
 
     if (options?.populate) {
-      if (options.populateOptions) {
+      if (Array.isArray(options.populate)) {
+        // Handle multiple populate fields with individual options
+        options.populate.forEach((field: string) => {
+          if (options.populateOptions && options.populateOptions[field]) {
+            query = query.populate(field, options.populateOptions[field]);
+          } else {
+            query = query.populate(field);
+          }
+        });
+      } else if (options.populateOptions) {
         query = query.populate(options.populate, options.populateOptions);
       } else {
         query = query.populate(options.populate);
@@ -56,7 +65,16 @@ export class BaseRepository<T extends Document> implements IBaseRepository<T> {
     }
 
     if (options?.populate) {
-      if (options.populateOptions) {
+      if (Array.isArray(options.populate)) {
+        // Handle multiple populate fields with individual options
+        options.populate.forEach((field: string) => {
+          if (options.populateOptions && options.populateOptions[field]) {
+            query = query.populate(field, options.populateOptions[field]);
+          } else {
+            query = query.populate(field);
+          }
+        });
+      } else if (options.populateOptions) {
         query = query.populate(options.populate, options.populateOptions);
       } else {
         query = query.populate(options.populate);

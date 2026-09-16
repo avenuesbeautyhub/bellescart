@@ -52,7 +52,7 @@ export class ReviewInteractor implements IReviewInteractor {
       comment: reviewData.comment,
       images: reviewData.images || [],
       isVerifiedPurchase,
-      status: 'approved' // Auto-approve by default
+      status: 'pending' // Require admin approval by default
     });
 
     console.log('[REVIEW INTERACTOR] Review created successfully:', review._id);
@@ -189,16 +189,31 @@ export class ReviewInteractor implements IReviewInteractor {
     // User can review if they haven't reviewed yet and have purchased the product
     const canReview = !hasReviewed && isVerifiedPurchase;
 
-    // Populate user information for the existing review
+    // Populate user and product information for the existing review
     let populatedReview = existingReview;
     if (existingReview) {
-      const reviewWithUser = await this.reviewRepository.findById(existingReview._id.toString(), { populate: 'userId', populateOptions: { select: 'name email' } });
-      if (reviewWithUser) {
-        const plainReview: any = reviewWithUser.toJSON ? reviewWithUser.toJSON() : reviewWithUser.toObject();
+      const reviewWithDetails = await this.reviewRepository.findById(existingReview._id.toString(), { 
+        populate: ['userId', 'productId'],
+        populateOptions: { 
+          userId: { select: 'name email' },
+          productId: { select: 'name' }
+        }
+      });
+      if (reviewWithDetails) {
+        const plainReview: any = reviewWithDetails.toJSON ? reviewWithDetails.toJSON() : reviewWithDetails.toObject();
+        
+        // Transform user data
         if (plainReview.userId && typeof plainReview.userId === 'object') {
           plainReview.user = plainReview.userId;
           plainReview.userId = plainReview.userId._id;
         }
+        
+        // Transform product data
+        if (plainReview.productId && typeof plainReview.productId === 'object') {
+          plainReview.product = plainReview.productId;
+          plainReview.productId = plainReview.productId._id;
+        }
+        
         populatedReview = plainReview;
       }
     }
@@ -253,10 +268,29 @@ export class ReviewInteractor implements IReviewInteractor {
       populate: ['productId', 'userId']
     });
 
+    // Transform reviews to include user and product data in separate fields
+    const transformedReviews = reviews.map(review => {
+      const plainReview: any = review.toJSON ? review.toJSON() : review.toObject();
+      
+      // Transform user data
+      if (plainReview.userId && typeof plainReview.userId === 'object') {
+        plainReview.user = plainReview.userId;
+        plainReview.userId = plainReview.userId._id;
+      }
+      
+      // Transform product data
+      if (plainReview.productId && typeof plainReview.productId === 'object') {
+        plainReview.product = plainReview.productId;
+        plainReview.productId = plainReview.productId._id;
+      }
+      
+      return plainReview;
+    });
+
     const total = await this.reviewRepository.count(filter);
 
     return {
-      reviews,
+      reviews: transformedReviews,
       pagination: {
         page,
         limit,

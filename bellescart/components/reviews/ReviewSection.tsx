@@ -171,7 +171,7 @@ const ReviewSection: React.FC<ReviewSectionProps> = ({ productId, isAuthenticate
   };
 
   // Use user's review from eligibility data if available, otherwise fall back to reviews list
-  const userReview = eligibility.userReview || (eligibility.hasReviewed ? reviews[0] : null);
+  const userReview = eligibility.userReview;
 
   // Combine user's review with other reviews, avoiding duplicates
   const allReviews = userReview
@@ -203,28 +203,59 @@ const ReviewSection: React.FC<ReviewSectionProps> = ({ productId, isAuthenticate
 
       {/* User's existing review actions */}
       {!showForm && currentEligibility.hasReviewed && userReview && (
-        <div className="rounded-2xl bg-[#f6e9ed] p-4 ring-1 ring-[#a45b70]/20">
-          <p className="text-sm font-medium text-[#a45b70] mb-3">
-            You reviewed this product
-          </p>
-          <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={() => handleEditReview(userReview)}
-              className="rounded-full bg-[#21151d] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#35232e]"
-            >
-              Edit Review
-            </button>
-            <button
-              type="button"
-              onClick={() => handleDeleteReview(userReview._id)}
-              disabled={deleteReviewMutation.isPending}
-              className="rounded-full border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 disabled:opacity-50"
-            >
-              {deleteReviewMutation.isPending ? 'Deleting...' : 'Delete Review'}
-            </button>
+        <>
+          {/* Rejected review alert */}
+          {userReview.status === 'rejected' && (
+            <div className="rounded-2xl bg-red-50 p-4 ring-1 ring-red-200">
+              <div className="flex items-start gap-3">
+                <svg
+                  className="h-5 w-5 text-red-600 mt-0.5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                  />
+                </svg>
+                <div className="flex-1">
+                  <p className="text-sm font-semibold text-red-900">
+                    Your review was not approved
+                  </p>
+                  <p className="mt-1 text-xs text-red-700">
+                    Your review for this product was rejected by our team. This review will not be displayed to other customers and will not be included in the product rating.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className={`rounded-2xl p-4 ring-1 ${userReview.status === 'rejected' ? 'bg-gray-50 ring-gray-200' : 'bg-[#f6e9ed] ring-[#a45b70]/20'}`}>
+            <p className={`text-sm font-medium mb-3 ${userReview.status === 'rejected' ? 'text-gray-700' : 'text-[#a45b70]'}`}>
+              You reviewed this product {userReview.status === 'rejected' && '(rejected)'}
+            </p>
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => handleEditReview(userReview)}
+                className="rounded-full bg-[#21151d] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#35232e]"
+              >
+                Edit Review
+              </button>
+              <button
+                type="button"
+                onClick={() => handleDeleteReview(userReview._id)}
+                disabled={deleteReviewMutation.isPending}
+                className="rounded-full border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 disabled:opacity-50"
+              >
+                {deleteReviewMutation.isPending ? 'Deleting...' : 'Delete Review'}
+              </button>
+            </div>
           </div>
-        </div>
+        </>
       )}
 
       {/* Reviews List */}
