@@ -4,6 +4,8 @@ export interface SignupData {
   email: string;
   password: string;
   phone?: string;
+  marketingConsent?: boolean;
+  privacyPolicyConsent?: boolean;
 }
 
 export interface LoginData {

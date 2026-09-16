@@ -84,7 +84,7 @@ export default function AdminAuthWrapper({ children }: AdminAuthWrapperProps) {
 
   // On other admin pages, show header and require authentication
   return (
-    <div className="min-h-screen bg-gray-100">
+    <div className="min-h-screen">
       <AdminHeader />
       {children}
     </div>

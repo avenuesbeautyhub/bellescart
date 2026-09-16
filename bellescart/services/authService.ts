@@ -30,7 +30,7 @@ class AuthService {
   isAuthenticated(): boolean {
     return !!this.getAccessToken();
   }
-  async signup(data: SignupData): Promise<ApiResponse> {
+  async signup(data: SignupData & { marketingConsent?: boolean; privacyPolicyConsent?: boolean }): Promise<ApiResponse> {
 
 
     const response = await fetch(`${API_BASE_URL}/auth/register`, {
@@ -43,6 +43,8 @@ class AuthService {
         email: data.email,
         password: data.password,
         phone: data.phone,
+        marketingConsent: data.marketingConsent || false,
+        privacyPolicyConsent: data.privacyPolicyConsent || false,
       }),
     });
 

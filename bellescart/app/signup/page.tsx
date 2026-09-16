@@ -27,6 +27,7 @@ export default function SignupPage() {
     confirmPassword: '',
     phone: '',
     agreeToTerms: false,
+    marketingConsent: false,
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -76,7 +77,7 @@ export default function SignupPage() {
 
     if (!formData.agreeToTerms) {
       newErrors.agreeToTerms =
-        'You must agree to the terms and conditions';
+        'You must agree to the Terms & Conditions and Privacy Policy';
     }
 
     setErrors(newErrors);
@@ -94,6 +95,8 @@ export default function SignupPage() {
           email: formData.email,
           password: formData.password,
           phone: formData.phone,
+          marketingConsent: formData.marketingConsent,
+          privacyPolicyConsent: formData.agreeToTerms,
         });
 
         if (response.success) {
@@ -567,14 +570,14 @@ export default function SignupPage() {
                         <span className="text-xs leading-5 text-gray-500">
                           I agree to the{' '}
                           <Link
-                            href="/terms"
+                            href="/terms-and-conditions"
                             className="font-medium text-pink-600 hover:text-pink-700 hover:underline"
                           >
-                            Terms and Conditions
+                            Terms & Conditions
                           </Link>{' '}
                           and{' '}
                           <Link
-                            href="/privacy"
+                            href="/privacy-policy"
                             className="font-medium text-pink-600 hover:text-pink-700 hover:underline"
                           >
                             Privacy Policy
@@ -588,6 +591,42 @@ export default function SignupPage() {
                           {errors.agreeToTerms}
                         </p>
                       )}
+                    </div>
+
+                    {/* Marketing Consent */}
+                    <div className="pt-1">
+
+                      <label className="flex cursor-pointer items-start gap-3">
+                        <span className="relative mt-0.5 flex-shrink-0">
+                          <input
+                            type="checkbox"
+                            name="marketingConsent"
+                            checked={
+                              formData.marketingConsent
+                            }
+                            onChange={handleChange}
+                            className="peer h-[18px] w-[18px] cursor-pointer appearance-none rounded-md border border-gray-300 bg-white transition-all checked:border-pink-500 checked:bg-pink-500 focus:outline-none focus:ring-4 focus:ring-pink-500/10"
+                          />
+
+                          <svg
+                            className="pointer-events-none absolute left-[3px] top-[3px] hidden h-3 w-3 text-white peer-checked:block"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth="3"
+                              d="M5 13l4 4L19 7"
+                            />
+                          </svg>
+                        </span>
+
+                        <span className="text-xs leading-5 text-gray-500">
+                          I would like to receive marketing emails about promotions, new products, and special offers. (Optional)
+                        </span>
+                      </label>
                     </div>
 
                     {/* Create account */}

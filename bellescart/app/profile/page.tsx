@@ -852,6 +852,19 @@ export default function ProfilePage() {
 
                       <Icon.ChevronRight className="ml-auto h-4 w-4 text-gray-300 transition group-hover:text-gray-500" />
                     </Link>
+
+                    <Link
+                      href="/account/privacy"
+                      className="group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-gray-600 transition hover:bg-gray-50 hover:text-gray-950"
+                    >
+                      <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gray-100 text-gray-500 transition group-hover:bg-pink-50 group-hover:text-pink-600">
+                        <Icon.Shield className="h-4 w-4" />
+                      </span>
+
+                      Privacy & Data
+
+                      <Icon.ChevronRight className="ml-auto h-4 w-4 text-gray-300 transition group-hover:text-gray-500" />
+                    </Link>
                   </div>
                 </div>
 

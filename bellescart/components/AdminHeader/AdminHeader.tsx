@@ -39,6 +39,11 @@ const navLinks = [
     href: `${ADMIN_BASE}/users`,
     icon: 'users',
   },
+  {
+    label: 'Privacy Requests',
+    href: `${ADMIN_BASE}/privacy-requests`,
+    icon: 'privacy',
+  },
 ];
 
 function formatSegment(segment: string) {
@@ -121,6 +126,13 @@ function NavIcon({
             {...common}
             d="M16 5.5a3 3 0 0 1 0 5.8M18 20v-1a5.5 5.5 0 0 0-2.5-4.6"
           />
+        </svg>
+      );
+
+    case 'privacy':
+      return (
+        <svg viewBox="0 0 24 24" className={className}>
+          <path {...common} d="M12 3l7 4v5c0 4.5-3 7.8-7 9-4-1.2-7-4.5-7-9V7l7-4z" />
         </svg>
       );
 
