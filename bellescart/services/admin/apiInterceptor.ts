@@ -50,19 +50,28 @@ export const adminApiFetch = async (url: string, options: RequestInit = {}): Pro
   // Get admin authentication data
   const token = getAdminToken();
 
-  console.log('Admin token check:', {
+  console.log('Admin token check from interceptor:', {
     hasToken: !!token,
     tokenLength: token?.length,
-    isValid: token ? isTokenValid(token) : false
+    tokenStart: token?.substring(0, 20) + '...',
+    isValid: token ? isTokenValid(token) : false,
+    localStorageKeys: typeof window !== 'undefined' ? Object.keys(localStorage) : []
   });
 
   // Check if token exists and is valid
   if (token && isTokenExpired(token)) {
-    console.warn('Admin token expired, clearing session');
+    console.error('Admin token expired, clearing session');
     globalToast.auth.tokenExpired();
     // For now, clear auth and let user re-login
-    clearAdminSession();
+    if (typeof window !== 'undefined' && window.location.pathname !== '/belles-portel-25') {
+      clearAdminSession();
+    }
     // You could implement auto-refresh here similar to user interceptor
+  }
+  
+  // If no token after validation check, log this clearly
+  if (!token) {
+    console.error('No admin token available - user may need to log in again');
   }
 
   // Add authorization header if token exists
@@ -162,13 +171,22 @@ export const adminApiFetch = async (url: string, options: RequestInit = {}): Pro
     // If we get a 401 (Unauthorized), clear auth and redirect
     if (response.status === 401) {
       const errorData = await response.clone().json();
-      console.warn('Admin auth error:', errorData);
+      console.error('Admin 401 Unauthorized error:', {
+        url: `${API_BASE_URL}${url}`,
+        method: authOptions.method,
+        errorData,
+        hasToken: !!token,
+        tokenValid: token ? isTokenValid(token) : false
+      });
 
-      clearAdminSession();
-      globalToast.auth.sessionExpired();
+      // Only clear session if we're not already on login page to prevent loops
+      if (typeof window !== 'undefined' && window.location.pathname !== '/belles-portel-25') {
+        console.error('Clearing admin session due to 401 error');
+        clearAdminSession();
+        globalToast.auth.sessionExpired();
 
-      // Redirect to admin login page
-      if (typeof window !== 'undefined') {
+        // Redirect to admin login page
+        console.error('Redirecting to login due to 401 error');
         window.location.href = '/belles-portel-25';
       }
 
@@ -196,9 +214,19 @@ export const adminApiFetch = async (url: string, options: RequestInit = {}): Pro
   } catch (error) {
     // Handle network errors
     if (error instanceof TypeError) {
+      console.error('Network error in admin API:', error);
       globalToast.error.network();
       throw new Error('Network error');
     }
+
+    // Log other errors with details
+    console.error('Admin API request failed:', {
+      url: `${API_BASE_URL}${url}`,
+      method: authOptions.method,
+      error: error instanceof Error ? error.message : error,
+      hasToken: !!token,
+      tokenValid: token ? isTokenValid(token) : false
+    });
 
     // Re-throw other errors
     throw error;
@@ -225,6 +253,17 @@ export const adminApi = {
     adminApiFetch(url, {
       ...options,
       method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        ...options?.headers,
+      },
+      body: data ? JSON.stringify(data) : undefined,
+    }),
+
+  patch: (url: string, data?: any, options?: RequestInit) =>
+    adminApiFetch(url, {
+      ...options,
+      method: 'PATCH',
       headers: {
         'Content-Type': 'application/json',
         ...options?.headers,

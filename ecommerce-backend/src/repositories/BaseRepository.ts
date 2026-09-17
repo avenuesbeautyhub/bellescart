@@ -2,9 +2,9 @@ import { Model, Document, FilterQuery, UpdateQuery } from 'mongoose';
 
 export interface IBaseRepository<T extends Document> {
   create(data: Partial<T>): Promise<T>;
-  findById(id: string, options?: { populate?: string | any }): Promise<T | null>;
+  findById(id: string, options?: { populate?: string | any; populateOptions?: any }): Promise<T | null>;
   findOne(filter: FilterQuery<T>): Promise<T | null>;
-  find(filter: FilterQuery<T>, options?: { limit?: number; skip?: number; sort?: any; populate?: string | any }): Promise<T[]>;
+  find(filter: FilterQuery<T>, options?: { limit?: number; skip?: number; sort?: any; populate?: string | any; populateOptions?: any }): Promise<T[]>;
   update(id: string, data: UpdateQuery<T>): Promise<T | null>;
   updateMany(filter: FilterQuery<T>, data: UpdateQuery<T>): Promise<{ modifiedCount: number }>;
   delete(id: string): Promise<T | null>;
@@ -19,13 +19,26 @@ export class BaseRepository<T extends Document> implements IBaseRepository<T> {
     return this.model.create(data);
   }
 
-  async findById(id: string, options?: { populate?: string | any }): Promise<T | null> {
+  async findById(id: string, options?: { populate?: string | any; populateOptions?: any }): Promise<T | null> {
     let query = this.model.findById(id);
-    
+
     if (options?.populate) {
-      query = query.populate(options.populate);
+      if (Array.isArray(options.populate)) {
+        // Handle multiple populate fields with individual options
+        options.populate.forEach((field: string) => {
+          if (options.populateOptions && options.populateOptions[field]) {
+            query = query.populate(field, options.populateOptions[field]);
+          } else {
+            query = query.populate(field);
+          }
+        });
+      } else if (options.populateOptions) {
+        query = query.populate(options.populate, options.populateOptions);
+      } else {
+        query = query.populate(options.populate);
+      }
     }
-    
+
     return query;
   }
 
@@ -35,7 +48,7 @@ export class BaseRepository<T extends Document> implements IBaseRepository<T> {
 
   async find(
     filter: FilterQuery<T>,
-    options?: { limit?: number; skip?: number; sort?: any; populate?: string | any }
+    options?: { limit?: number; skip?: number; sort?: any; populate?: string | any; populateOptions?: any }
   ): Promise<T[]> {
     let query = this.model.find(filter);
 
@@ -52,7 +65,20 @@ export class BaseRepository<T extends Document> implements IBaseRepository<T> {
     }
 
     if (options?.populate) {
-      query = query.populate(options.populate);
+      if (Array.isArray(options.populate)) {
+        // Handle multiple populate fields with individual options
+        options.populate.forEach((field: string) => {
+          if (options.populateOptions && options.populateOptions[field]) {
+            query = query.populate(field, options.populateOptions[field]);
+          } else {
+            query = query.populate(field);
+          }
+        });
+      } else if (options.populateOptions) {
+        query = query.populate(options.populate, options.populateOptions);
+      } else {
+        query = query.populate(options.populate);
+      }
     }
 
     return query;

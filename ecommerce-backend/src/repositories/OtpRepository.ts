@@ -2,7 +2,15 @@ import { IOtpRepository } from '../providers/interfaces/IOtpRepository';
 import { Otp, IOtp } from '../models/Otp';
 
 export class OtpRepository implements IOtpRepository {
-  async create(email: string, otp: number, expiresAt: Date, userData?: { name: string; email: string; password: string; phone?: string }): Promise<void> {
+  async create(email: string, otp: number, expiresAt: Date, userData?: { 
+    name: string; 
+    email: string; 
+    password: string; 
+    phone?: string;
+    marketingConsent?: boolean;
+    privacyPolicyConsent?: boolean;
+    privacyPolicyVersion?: string;
+  }): Promise<void> {
     // Delete any existing OTP for this email
     await Otp.deleteMany({ email });
 
@@ -57,7 +65,15 @@ export class OtpRepository implements IOtpRepository {
     });
   }
 
-  async getUserData(email: string): Promise<{ name: string; email: string; password: string; phone?: string } | null> {
+  async getUserData(email: string): Promise<{ 
+    name: string; 
+    email: string; 
+    password: string; 
+    phone?: string;
+    marketingConsent?: boolean;
+    privacyPolicyConsent?: boolean;
+    privacyPolicyVersion?: string;
+  } | null> {
     const otp = await Otp.findOne({
       email: email.toLowerCase()
     }).sort({ createdAt: -1 });

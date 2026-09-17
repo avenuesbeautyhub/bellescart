@@ -11,6 +11,8 @@ interface GuestProductCardProps {
   onAddToCart?: (product: Product) => void;
   onAddToWishlist?: (product: Product) => void;
   isLoggedIn?: boolean;
+  rating?: number;
+  reviewCount?: number;
 }
 
 export default function GuestProductCard({
@@ -18,6 +20,8 @@ export default function GuestProductCard({
   onAddToCart,
   onAddToWishlist,
   isLoggedIn = false,
+  rating,
+  reviewCount,
 }: GuestProductCardProps) {
   const discountPercent = product.originalPrice
     ? Math.round(
@@ -35,8 +39,8 @@ export default function GuestProductCard({
   const isOutOfStock = !product.quantity;
   const isLowStock = product.quantity > 0 && product.quantity <= 5;
 
-  const rating = product.rating || 4;
-  const reviewCount = product.reviews || 12;
+  const displayRating = rating !== undefined ? rating : 0;
+  const displayReviewCount = reviewCount !== undefined ? reviewCount : 0;
 
   const handleWishlist = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -227,7 +231,7 @@ export default function GuestProductCard({
               <svg
                 key={i}
                 className={`h-3.5 w-3.5 ${
-                  i < rating ? 'text-amber-400' : 'text-gray-200'
+                  i < displayRating ? 'text-amber-400' : 'text-gray-200'
                 }`}
                 fill="currentColor"
                 viewBox="0 0 20 20"
@@ -238,7 +242,7 @@ export default function GuestProductCard({
           </div>
 
           <span className="text-[11px] text-gray-400">
-            {reviewCount} reviews
+            {displayReviewCount} reviews
           </span>
         </div>
 

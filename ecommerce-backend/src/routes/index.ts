@@ -11,6 +11,10 @@ import profileRoutes from './profileRoutes';
 import userRoutes from './userRoutes';
 import walletRoutes from './walletRoutes';
 import userPreferencesRoutes from './userPreferencesRoutes';
+import privacyRoutes from './privacyRoutes';
+import adminPrivacyRoutes from './adminPrivacyRoutes';
+import reviewRoutes from './reviewRoutes';
+import adminReviewRoutes from './adminReviewRoutes';
 const router = Router();
 
 // API routes
@@ -26,6 +30,10 @@ router.use('/profile', profileRoutes);
 router.use('/user', userRoutes);
 router.use('/wallet', walletRoutes);
 router.use('/preferences', userPreferencesRoutes);
+router.use('/privacy', privacyRoutes);
+router.use('/admin/privacy', adminPrivacyRoutes);
+router.use('/reviews', reviewRoutes);
+router.use('/admin/reviews', adminReviewRoutes);
 
 export default router;
 

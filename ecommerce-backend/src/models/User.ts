@@ -12,6 +12,9 @@ export interface IUser extends Document {
   wishlist?: mongoose.Types.ObjectId[];
   addresses?: mongoose.Types.ObjectId[];
   createdAt: Date;
+  marketingConsent?: boolean;
+  privacyPolicyConsent?: boolean;
+  privacyPolicyVersion?: string;
   comparePassword(candidatePassword: string): Promise<boolean>;
 }
 
@@ -76,6 +79,18 @@ const userSchema = new Schema<IUser>({
   isActive: {
     type: Boolean,
     default: true
+  },
+  marketingConsent: {
+    type: Boolean,
+    default: false
+  },
+  privacyPolicyConsent: {
+    type: Boolean,
+    default: false
+  },
+  privacyPolicyVersion: {
+    type: String,
+    default: '1.0'
   },
   createdAt: {
     type: Date,

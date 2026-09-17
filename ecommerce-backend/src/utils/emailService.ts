@@ -1,266 +1,1048 @@
 import nodemailer from "nodemailer";
+import { PrivacyPreference } from "../models/PrivacyPreference";
 
-export const sendOrderConfirmationEmail = async (email: string, orderData: {
-  orderNumber: string;
-  items: Array<{ name: string; quantity: number; price: number; total: number }>;
-  total: number;
-  shippingAddress: { street: string; city: string; state: string; zipCode: string; country: string };
-  status: string;
-}): Promise<any> => {
+/* -------------------------------------------------------------------------- */
+/* Marketing Consent                                                         */
+/* -------------------------------------------------------------------------- */
+
+export const hasMarketingConsent = async (
+  userId: string
+): Promise<boolean> => {
   try {
-    const transporter = nodemailer.createTransport({
-      service: 'gmail',
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS,
-      },
+    const preference = await PrivacyPreference.findOne({
+      userId,
     });
 
-    const isDev = process.env.DEV;
-    const frontendUrl = isDev ? 'http://localhost:3000' : 'https://bellescrt.shop';
+    return preference?.marketingEmails || false;
+  } catch (error) {
+    console.error(
+      "Error checking marketing consent:",
+      error
+    );
 
-    const itemsHtml = orderData.items.map(item => `
-      <tr style="border-bottom: 1px solid #27232d;">
-        <td style="padding: 16px; color: #f5f2f8;">${item.name}</td>
-        <td style="padding: 16px; text-align: center; color: #a39fb3;">${item.quantity}</td>
-        <td style="padding: 16px; text-align: right; color: #f5f2f8;">₹${item.price.toFixed(2)}</td>
-        <td style="padding: 16px; text-align: right; color: #ff4da6; font-weight: 600;">₹${item.total.toFixed(2)}</td>
-      </tr>
-    `).join('');
+    // Fail closed for marketing emails.
+    return false;
+  }
+};
+
+/*
+ * Transactional emails such as:
+ * - Order confirmations
+ * - OTP verification
+ * - Shipping updates
+ *
+ * should be sent regardless of marketing consent.
+ */
+
+/* -------------------------------------------------------------------------- */
+/* Shared helpers                                                             */
+/* -------------------------------------------------------------------------- */
+
+const createTransporter = () => {
+  return nodemailer.createTransport({
+    service: "gmail",
+    auth: {
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASS,
+    },
+  });
+};
+
+const getFrontendUrl = () => {
+  const isDev = process.env.DEV;
+
+  return isDev
+    ? "http://localhost:3000"
+    : "https://bellescrt.shop";
+};
+
+const escapeHtml = (value: unknown) => {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+};
+
+const formatCurrency = (amount: number) => {
+  return `₹${Number(amount || 0).toLocaleString("en-IN", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
+};
+
+const formatStatus = (status: string) => {
+  if (!status) return "Processing";
+
+  return status.charAt(0).toUpperCase() + status.slice(1);
+};
+
+/* -------------------------------------------------------------------------- */
+/* Brand                                                                       */
+/* -------------------------------------------------------------------------- */
+
+const brandHeader = (subtitle: string) => `
+  <div style="
+    background: linear-gradient(135deg, #21131d 0%, #301b2c 55%, #432344 100%);
+    padding: 32px 28px;
+    text-align: center;
+  ">
+
+    <div style="
+      display: inline-block;
+      width: 52px;
+      height: 52px;
+      line-height: 52px;
+      border-radius: 16px;
+      background: linear-gradient(135deg, #ec4899 0%, #d946ef 50%, #7c3aed 100%);
+      color: #ffffff;
+      font-size: 24px;
+      font-weight: 800;
+      margin-bottom: 14px;
+      box-shadow: 0 10px 25px rgba(236, 72, 153, 0.25);
+    ">
+      ◆
+    </div>
+
+    <div style="
+      color: #ffffff;
+      font-size: 26px;
+      line-height: 1.2;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+    ">
+      Belles Avenue
+    </div>
+
+    <div style="
+      margin-top: 6px;
+      color: rgba(255,255,255,0.65);
+      font-size: 10px;
+      line-height: 1.4;
+      font-weight: 600;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+    ">
+      Jewellery &amp; Fashion
+    </div>
+
+    <div style="
+      margin-top: 18px;
+      color: rgba(255,255,255,0.85);
+      font-size: 13px;
+      line-height: 1.5;
+      font-weight: 500;
+    ">
+      ${subtitle}
+    </div>
+
+  </div>
+`;
+
+const emailFooter = () => `
+  <div style="
+    background: #21131d;
+    padding: 26px 24px;
+    text-align: center;
+  ">
+
+    <p style="
+      margin: 0;
+      color: rgba(255,255,255,0.7);
+      font-size: 12px;
+      line-height: 1.7;
+    ">
+      Thank you for choosing
+      <strong style="color: #f472b6;">
+        Belles Avenue
+      </strong>
+    </p>
+
+    <p style="
+      margin: 8px 0 0;
+      color: rgba(255,255,255,0.4);
+      font-size: 11px;
+      line-height: 1.6;
+    ">
+      Premium shopping experience
+    </p>
+
+    <p style="
+      margin: 14px 0 0;
+      color: rgba(255,255,255,0.3);
+      font-size: 10px;
+      line-height: 1.5;
+    ">
+      © 2026 Belles Avenue. All rights reserved.
+    </p>
+
+  </div>
+`;
+
+const emailWrapper = (
+  content: string,
+  headerSubtitle: string
+) => `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+  >
+  <meta
+    name="x-apple-disable-message-reformatting"
+  >
+  <title>Belles Avenue</title>
+
+  <style>
+    @media only screen and (max-width: 600px) {
+      .email-container {
+        width: 100% !important;
+        border-radius: 0 !important;
+      }
+
+      .email-content {
+        padding: 28px 18px !important;
+      }
+
+      .mobile-padding {
+        padding-left: 16px !important;
+        padding-right: 16px !important;
+      }
+
+      .mobile-stack {
+        display: block !important;
+        width: 100% !important;
+      }
+
+      .mobile-center {
+        text-align: center !important;
+      }
+
+      .mobile-full {
+        width: 100% !important;
+      }
+
+      .otp-code {
+        font-size: 30px !important;
+        letter-spacing: 7px !important;
+      }
+
+      .hero-title {
+        font-size: 24px !important;
+      }
+
+      .amount {
+        font-size: 25px !important;
+      }
+    }
+  </style>
+</head>
+
+<body style="
+  margin: 0;
+  padding: 0;
+  background: #f7f3f7;
+  font-family:
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    Roboto,
+    Helvetica,
+    Arial,
+    sans-serif;
+  color: #21131d;
+">
+
+  <table
+    width="100%"
+    cellpadding="0"
+    cellspacing="0"
+    border="0"
+    style="background: #f7f3f7;"
+  >
+    <tr>
+      <td
+        align="center"
+        style="padding: 28px 12px;"
+      >
+
+        <table
+          class="email-container"
+          width="600"
+          cellpadding="0"
+          cellspacing="0"
+          border="0"
+          style="
+            width: 600px;
+            max-width: 600px;
+            background: #ffffff;
+            border-radius: 22px;
+            overflow: hidden;
+            box-shadow:
+              0 12px 45px rgba(33,19,29,0.10);
+          "
+        >
+
+          ${brandHeader(headerSubtitle)}
+
+          <tr>
+            <td
+              class="email-content"
+              style="
+                padding: 38px 34px;
+                background: #ffffff;
+              "
+            >
+              ${content}
+            </td>
+          </tr>
+
+          ${emailFooter()}
+
+        </table>
+
+        <div style="
+          height: 16px;
+          line-height: 16px;
+          font-size: 1px;
+        ">
+          &nbsp;
+        </div>
+
+        <p style="
+          margin: 0;
+          color: #9c8f99;
+          font-size: 10px;
+          line-height: 1.5;
+        ">
+          This is an automated transactional email.
+          Please do not reply directly to this message.
+        </p>
+
+      </td>
+    </tr>
+  </table>
+
+</body>
+</html>
+`;
+
+/* -------------------------------------------------------------------------- */
+/* Order Confirmation                                                         */
+/* -------------------------------------------------------------------------- */
+
+export const sendOrderConfirmationEmail = async (
+  email: string,
+  orderData: {
+    orderNumber: string;
+    items: Array<{
+      name: string;
+      quantity: number;
+      price: number;
+      total: number;
+    }>;
+    total: number;
+    shippingAddress: {
+      street: string;
+      city: string;
+      state: string;
+      zipCode: string;
+      country: string;
+    };
+    status: string;
+  }
+): Promise<any> => {
+  try {
+    const transporter = createTransporter();
+    const frontendUrl = getFrontendUrl();
+
+    const itemsHtml = orderData.items
+      .map(
+        (item) => `
+          <tr>
+            <td
+              style="
+                padding: 15px 12px;
+                border-bottom: 1px solid #f0e8ef;
+              "
+            >
+              <div style="
+                color: #21131d;
+                font-size: 13px;
+                line-height: 1.4;
+                font-weight: 650;
+              ">
+                ${escapeHtml(item.name)}
+              </div>
+            </td>
+
+            <td
+              align="center"
+              style="
+                padding: 15px 8px;
+                border-bottom: 1px solid #f0e8ef;
+                color: #827480;
+                font-size: 13px;
+              "
+            >
+              ${item.quantity}
+            </td>
+
+            <td
+              align="right"
+              style="
+                padding: 15px 8px;
+                border-bottom: 1px solid #f0e8ef;
+                color: #665963;
+                font-size: 13px;
+              "
+            >
+              ${formatCurrency(item.price)}
+            </td>
+
+            <td
+              align="right"
+              style="
+                padding: 15px 12px;
+                border-bottom: 1px solid #f0e8ef;
+                color: #c02678;
+                font-size: 13px;
+                font-weight: 700;
+              "
+            >
+              ${formatCurrency(item.total)}
+            </td>
+          </tr>
+        `
+      )
+      .join("");
 
     const mailOptions = {
       from: process.env.EMAIL_USER,
       to: email,
-      subject: `Order Confirmation - ${orderData.orderNumber} - BellesCart`,
-      html: `
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <meta charset="utf-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <title>Order Confirmation - BellesCart</title>
-        </head>
-        <body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #0b0b0d;">
-          <div style="max-width: 600px; margin: 40px auto; background: linear-gradient(135deg, #0b0b0d 0%, #16151b 100%); border-radius: 16px; overflow: hidden; box-shadow: 0 20px 40px rgba(0,0,0,0.3);">
-            
-            <!-- Header -->
-            <div style="background: linear-gradient(135deg, #ff4da6 0%, #ff66b3 100%); padding: 40px 30px; text-align: center;">
-              <div style="font-size: 32px; font-weight: 800; color: white; letter-spacing: -1px; margin-bottom: 8px;">BellesCart</div>
-              <div style="font-size: 14px; color: rgba(255,255,255,0.9); font-weight: 500;">Order Confirmation</div>
+      subject: `Order Confirmed • ${orderData.orderNumber} • Belles Avenue`,
+
+      html: emailWrapper(
+        `
+          <!-- Success -->
+          <div style="text-align: center;">
+
+            <div style="
+              display: inline-block;
+              width: 64px;
+              height: 64px;
+              line-height: 64px;
+              border-radius: 50%;
+              background: #ecfdf5;
+              border: 1px solid #a7f3d0;
+              color: #059669;
+              font-size: 32px;
+              font-weight: 700;
+            ">
+              ✓
             </div>
-            
-            <!-- Content -->
-            <div style="padding: 40px 30px;">
-              <div style="text-align: center; margin-bottom: 40px;">
-                <div style="width: 80px; height: 80px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px;">
-                  <svg width="40" height="40" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z" fill="white"/>
-                  </svg>
-                </div>
-                <h1 style="color: #f5f2f8; font-size: 24px; font-weight: 700; margin: 0 0 12px 0;">Order Confirmed!</h1>
-                <p style="color: #a39fb3; font-size: 16px; line-height: 1.6; margin: 0;">Thank you for your purchase. Your order has been successfully placed.</p>
-              </div>
-              
-              <!-- Order Number -->
-              <div style="background: #1f1d22; border: 2px solid #27232d; border-radius: 12px; padding: 20px; margin-bottom: 30px;">
-                <p style="color: #a39fb3; font-size: 14px; margin: 0 0 8px 0; text-transform: uppercase; letter-spacing: 1px;">Order Number</p>
-                <p style="color: #ff4da6; font-size: 24px; font-weight: 700; margin: 0; letter-spacing: 2px;">${orderData.orderNumber}</p>
-              </div>
-              
-              <!-- Order Items Table -->
-              <div style="background: #1f1d22; border: 1px solid #27232d; border-radius: 12px; overflow: hidden; margin-bottom: 30px;">
-                <table style="width: 100%; border-collapse: collapse;">
-                  <thead>
-                    <tr style="background: #27232d;">
-                      <th style="padding: 12px 16px; text-align: left; color: #a39fb3; font-size: 12px; text-transform: uppercase; letter-spacing: 1px;">Product</th>
-                      <th style="padding: 12px 16px; text-align: center; color: #a39fb3; font-size: 12px; text-transform: uppercase; letter-spacing: 1px;">Qty</th>
-                      <th style="padding: 12px 16px; text-align: right; color: #a39fb3; font-size: 12px; text-transform: uppercase; letter-spacing: 1px;">Price</th>
-                      <th style="padding: 12px 16px; text-align: right; color: #a39fb3; font-size: 12px; text-transform: uppercase; letter-spacing: 1px;">Total</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    ${itemsHtml}
-                  </tbody>
-                </table>
-              </div>
-              
-              <!-- Total -->
-              <div style="background: linear-gradient(135deg, #1f1d22 0%, #27232d 100%); border: 2px solid #ff4da6; border-radius: 12px; padding: 24px; margin-bottom: 30px;">
-                <div style="display: flex; justify-content: space-between; align-items: center;">
-                  <span style="color: #f5f2f8; font-size: 18px; font-weight: 600;">Total Amount</span>
-                  <span style="color: #ff4da6; font-size: 28px; font-weight: 700;">₹${orderData.total.toFixed(2)}</span>
-                </div>
-              </div>
-              
-              <!-- Shipping Address -->
-              <div style="background: #1f1d22; border: 1px solid #27232d; border-radius: 12px; padding: 20px; margin-bottom: 30px;">
-                <p style="color: #a39fb3; font-size: 14px; margin: 0 0 12px 0; text-transform: uppercase; letter-spacing: 1px;">Shipping Address</p>
-                <p style="color: #f5f2f8; font-size: 14px; line-height: 1.6; margin: 0;">
-                  ${orderData.shippingAddress.street}<br/>
-                  ${orderData.shippingAddress.city}, ${orderData.shippingAddress.state} ${orderData.shippingAddress.zipCode}<br/>
-                  ${orderData.shippingAddress.country}
-                </p>
-              </div>
-              
-              <!-- Status -->
-              <div style="background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 8px; padding: 16px; margin-bottom: 30px;">
-                <div style="display: flex; align-items: center; gap: 12px;">
-                  <div style="width: 12px; height: 12px; background: #10b981; border-radius: 50%;"></div>
-                  <p style="color: #10b981; font-size: 14px; font-weight: 600; margin: 0;">Status: ${orderData.status.charAt(0).toUpperCase() + orderData.status.slice(1)}</p>
-                </div>
-              </div>
-              
-              <!-- Action Button -->
-              <div style="text-align: center; margin-bottom: 30px;">
-                <a href="${frontendUrl}/orders?id=${orderData.orderNumber}" style="display: inline-block; background: linear-gradient(135deg, #ff4da6 0%, #ff66b3 100%); color: white; padding: 16px 32px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px; transition: transform 0.2s; box-shadow: 0 4px 15px rgba(255, 77, 166, 0.3);">
-                  View Order Details
-                </a>
-              </div>
-              
-              <!-- Info -->
-              <div style="text-align: center; margin-bottom: 30px;">
-                <p style="color: #a39fb3; font-size: 14px; line-height: 1.6; margin: 0;">
-                  You'll receive shipping updates via email once your order is processed.
-                </p>
-              </div>
-              
-              <!-- Footer -->
-              <div style="text-align: center; padding-top: 20px; border-top: 1px solid #27232d;">
-                <p style="color: #a39fb3; font-size: 14px; line-height: 1.6; margin: 0;">
-                  Need help? Contact our support team<br/>
-                  <span style="color: #ff4da6; font-weight: 600;">support@bellescrt.shop</span>
-                </p>
-              </div>
-            </div>
-            
-            <!-- Bottom Bar -->
-            <div style="background: #121117; padding: 20px 30px; text-align: center;">
-              <p style="color: #a39fb3; font-size: 12px; margin: 0;">
-                © 2024 BellesCart. All rights reserved.<br/>
-                <span style="color: #666;">Belles Avenue Premium Shopping</span>
-              </p>
+
+            <h1
+              class="hero-title"
+              style="
+                margin: 20px 0 8px;
+                color: #21131d;
+                font-size: 28px;
+                line-height: 1.25;
+                font-weight: 800;
+                letter-spacing: -0.5px;
+              "
+            >
+              Order Confirmed
+            </h1>
+
+            <p style="
+              margin: 0 auto;
+              max-width: 430px;
+              color: #827480;
+              font-size: 14px;
+              line-height: 1.7;
+            ">
+              Thank you for shopping with Belles Avenue.
+              Your order has been successfully placed.
+            </p>
+
+          </div>
+
+          <!-- Order number -->
+          <div style="
+            margin-top: 28px;
+            padding: 18px 20px;
+            border-radius: 16px;
+            background: linear-gradient(
+              135deg,
+              #fff1f7 0%,
+              #faf5ff 100%
+            );
+            border: 1px solid #f5d5e7;
+            text-align: center;
+          ">
+
+            <p style="
+              margin: 0 0 7px;
+              color: #9b8794;
+              font-size: 10px;
+              line-height: 1.4;
+              font-weight: 700;
+              text-transform: uppercase;
+              letter-spacing: 1.5px;
+            ">
+              Order Number
+            </p>
+
+            <p style="
+              margin: 0;
+              color: #c02678;
+              font-size: 21px;
+              line-height: 1.4;
+              font-weight: 800;
+              letter-spacing: 1px;
+              word-break: break-word;
+            ">
+              ${escapeHtml(orderData.orderNumber)}
+            </p>
+
+          </div>
+
+          <!-- Items -->
+          <div style="margin-top: 28px;">
+
+            <h2 style="
+              margin: 0 0 12px;
+              color: #21131d;
+              font-size: 16px;
+              line-height: 1.4;
+              font-weight: 750;
+            ">
+              Your Order
+            </h2>
+
+            <div style="
+              overflow: hidden;
+              border: 1px solid #eee5eb;
+              border-radius: 16px;
+            ">
+
+              <table
+                width="100%"
+                cellpadding="0"
+                cellspacing="0"
+                border="0"
+                style="
+                  width: 100%;
+                  border-collapse: collapse;
+                "
+              >
+
+                <thead>
+                  <tr style="background: #faf7fa;">
+
+                    <th
+                      align="left"
+                      style="
+                        padding: 11px 12px;
+                        color: #9b8794;
+                        font-size: 9px;
+                        text-transform: uppercase;
+                        letter-spacing: 1px;
+                      "
+                    >
+                      Product
+                    </th>
+
+                    <th
+                      align="center"
+                      style="
+                        padding: 11px 8px;
+                        color: #9b8794;
+                        font-size: 9px;
+                        text-transform: uppercase;
+                        letter-spacing: 1px;
+                      "
+                    >
+                      Qty
+                    </th>
+
+                    <th
+                      align="right"
+                      style="
+                        padding: 11px 8px;
+                        color: #9b8794;
+                        font-size: 9px;
+                        text-transform: uppercase;
+                        letter-spacing: 1px;
+                      "
+                    >
+                      Price
+                    </th>
+
+                    <th
+                      align="right"
+                      style="
+                        padding: 11px 12px;
+                        color: #9b8794;
+                        font-size: 9px;
+                        text-transform: uppercase;
+                        letter-spacing: 1px;
+                      "
+                    >
+                      Total
+                    </th>
+
+                  </tr>
+                </thead>
+
+                <tbody>
+                  ${itemsHtml}
+                </tbody>
+
+              </table>
+
             </div>
           </div>
-        </body>
-        </html>
-      `,
+
+          <!-- Total -->
+          <div style="
+            margin-top: 22px;
+            padding: 20px;
+            border-radius: 16px;
+            background: #21131d;
+          ">
+
+            <table
+              width="100%"
+              cellpadding="0"
+              cellspacing="0"
+              border="0"
+            >
+              <tr>
+
+                <td>
+                  <p style="
+                    margin: 0;
+                    color: rgba(255,255,255,0.65);
+                    font-size: 12px;
+                  ">
+                    Total Amount
+                  </p>
+                </td>
+
+                <td align="right">
+                  <p
+                    class="amount"
+                    style="
+                      margin: 0;
+                      color: #f472b6;
+                      font-size: 27px;
+                      line-height: 1.2;
+                      font-weight: 800;
+                    "
+                  >
+                    ${formatCurrency(orderData.total)}
+                  </p>
+                </td>
+
+              </tr>
+            </table>
+
+          </div>
+
+          <!-- Shipping -->
+          <div style="
+            margin-top: 22px;
+            padding: 18px;
+            border: 1px solid #eee5eb;
+            border-radius: 16px;
+          ">
+
+            <p style="
+              margin: 0 0 10px;
+              color: #9b8794;
+              font-size: 10px;
+              font-weight: 700;
+              text-transform: uppercase;
+              letter-spacing: 1.4px;
+            ">
+              Shipping Address
+            </p>
+
+            <p style="
+              margin: 0;
+              color: #4e414b;
+              font-size: 13px;
+              line-height: 1.7;
+            ">
+              ${escapeHtml(orderData.shippingAddress.street)}<br>
+              ${escapeHtml(orderData.shippingAddress.city)},
+              ${escapeHtml(orderData.shippingAddress.state)}
+              ${escapeHtml(orderData.shippingAddress.zipCode)}<br>
+              ${escapeHtml(orderData.shippingAddress.country)}
+            </p>
+
+          </div>
+
+          <!-- Status -->
+          <div style="
+            margin-top: 16px;
+            padding: 13px 15px;
+            border-radius: 12px;
+            background: #ecfdf5;
+            border: 1px solid #d1fae5;
+          ">
+
+            <table
+              width="100%"
+              cellpadding="0"
+              cellspacing="0"
+              border="0"
+            >
+              <tr>
+
+                <td width="20">
+                  <div style="
+                    width: 9px;
+                    height: 9px;
+                    border-radius: 50%;
+                    background: #10b981;
+                  "></div>
+                </td>
+
+                <td>
+                  <p style="
+                    margin: 0;
+                    color: #047857;
+                    font-size: 12px;
+                    font-weight: 700;
+                  ">
+                    Order Status:
+                    ${escapeHtml(
+                      formatStatus(orderData.status)
+                    )}
+                  </p>
+                </td>
+
+              </tr>
+            </table>
+
+          </div>
+
+          <!-- CTA -->
+          <div style="
+            margin-top: 28px;
+            text-align: center;
+          ">
+
+            <a
+              href="${frontendUrl}/orders?id=${encodeURIComponent(
+                orderData.orderNumber
+              )}"
+              style="
+                display: inline-block;
+                padding: 13px 25px;
+                border-radius: 12px;
+                background: linear-gradient(
+                  135deg,
+                  #ec4899 0%,
+                  #d946ef 55%,
+                  #7c3aed 100%
+                );
+                color: #ffffff;
+                text-decoration: none;
+                font-size: 13px;
+                font-weight: 700;
+                box-shadow:
+                  0 8px 20px rgba(236,72,153,0.22);
+              "
+            >
+              View Order Details
+            </a>
+
+          </div>
+
+          <p style="
+            margin: 24px 0 0;
+            color: #9b8794;
+            font-size: 11px;
+            line-height: 1.7;
+            text-align: center;
+          ">
+            We'll keep you updated as your order moves
+            through the next steps.
+          </p>
+        `,
+        "Your order has been successfully placed"
+      ),
     };
 
-    const result = await transporter.sendMail(mailOptions);
+    const result =
+      await transporter.sendMail(mailOptions);
+
     return result;
   } catch (error) {
-    console.error('Error sending order confirmation email:', error);
+    console.error(
+      "Error sending order confirmation email:",
+      error
+    );
+
     throw error;
   }
 };
 
-export const sendOtpEmail = async (email: string, otp: number): Promise<any> => {
-  try {
-    const transporter = nodemailer.createTransport({
-      service: 'gmail',
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS,
-      },
-    });
+/* -------------------------------------------------------------------------- */
+/* OTP Email                                                                  */
+/* -------------------------------------------------------------------------- */
 
-    const isDev = process.env.DEV;
-    const frontendUrl = isDev ? 'http://localhost:3000' : 'https://bellescrt.shop';
+export const sendOtpEmail = async (
+  email: string,
+  otp: number
+): Promise<any> => {
+  try {
+    const transporter = createTransporter();
+    const frontendUrl = getFrontendUrl();
 
     const mailOptions = {
       from: process.env.EMAIL_USER,
       to: email,
-      subject: 'Your OTP Code - BellesCart',
-      html: `
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <meta charset="utf-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <title>OTP Verification - BellesCart</title>
-        </head>
-        <body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #0b0b0d;">
-          <div style="max-width: 600px; margin: 40px auto; background: linear-gradient(135deg, #0b0b0d 0%, #16151b 100%); border-radius: 16px; overflow: hidden; box-shadow: 0 20px 40px rgba(0,0,0,0.3);">
-            
-            <!-- Header -->
-            <div style="background: linear-gradient(135deg, #ff4da6 0%, #ff66b3 100%); padding: 40px 30px; text-align: center;">
-              <div style="font-size: 32px; font-weight: 800; color: white; letter-spacing: -1px; margin-bottom: 8px;">BellesCart</div>
-              <div style="font-size: 14px; color: rgba(255,255,255,0.9); font-weight: 500;">Premium Shopping Experience</div>
+      subject: "Your Verification Code • Belles Avenue",
+
+      html: emailWrapper(
+        `
+          <!-- Hero -->
+          <div style="text-align: center;">
+
+            <div style="
+              display: inline-block;
+              width: 64px;
+              height: 64px;
+              line-height: 64px;
+              border-radius: 18px;
+              background: linear-gradient(
+                135deg,
+                #fce7f3 0%,
+                #f5d0fe 100%
+              );
+              color: #c02678;
+              font-size: 29px;
+              font-weight: 800;
+            ">
+              #
             </div>
-            
-            <!-- Content -->
-            <div style="padding: 40px 30px;">
-              <div style="text-align: center; margin-bottom: 40px;">
-                <div style="width: 80px; height: 80px; background: linear-gradient(135deg, #ff4da6 0%, #ff66b3 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px;">
-                  <svg width="40" height="40" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z" fill="white"/>
-                  </svg>
-                </div>
-                <h1 style="color: #f5f2f8; font-size: 24px; font-weight: 700; margin: 0 0 12px 0;">Verify Your Email</h1>
-                <p style="color: #a39fb3; font-size: 16px; line-height: 1.6; margin: 0;">We've sent a verification code to complete your registration</p>
-              </div>
-              
-              <!-- OTP Display -->
-              <div style="background: #1f1d22; border: 2px solid #27232d; border-radius: 12px; padding: 30px; text-align: center; margin-bottom: 30px;">
-                <p style="color: #a39fb3; font-size: 14px; margin: 0 0 15px 0; text-transform: uppercase; letter-spacing: 1px;">Your Verification Code</p>
-                <div style="font-size: 36px; font-weight: 700; color: #ff4da6; letter-spacing: 8px; font-family: 'Courier New', monospace;">${otp}</div>
-              </div>
-              
-              <!-- Action Button -->
-              <div style="text-align: center; margin-bottom: 30px;">
-                <a href="${frontendUrl}/verify-otp?email=${encodeURIComponent(email)}" style="display: inline-block; background: linear-gradient(135deg, #ff4da6 0%, #ff66b3 100%); color: white; padding: 16px 32px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px; transition: transform 0.2s; box-shadow: 0 4px 15px rgba(255, 77, 166, 0.3);">
-                  Verify Email Address
-                </a>
-              </div>
-              
-              <!-- Info -->
-              <div style="text-align: center; margin-bottom: 30px;">
-                <p style="color: #a39fb3; font-size: 14px; line-height: 1.6; margin: 0;">
-                  This code will expire in <strong style="color: #ff4da6;">1 minute</strong>
-                </p>
-              </div>
-              
-              <!-- Security Notice -->
-              <div style="background: rgba(255, 77, 166, 0.1); border: 1px solid rgba(255, 77, 166, 0.2); border-radius: 8px; padding: 20px; margin-bottom: 30px;">
-                <div style="display: flex; align-items: flex-start;">
-                  <div style="margin-right: 12px; margin-top: 2px;">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z" fill="#ff4da6"/>
-                    </svg>
-                  </div>
-                  <div>
-                    <p style="color: #f5f2f8; font-size: 14px; line-height: 1.6; margin: 0; font-weight: 600;">Security Notice</p>
-                    <p style="color: #a39fb3; font-size: 14px; line-height: 1.6; margin: 4px 0 0 0;">If you didn't request this verification code, please ignore this email or contact our support team.</p>
-                  </div>
-                </div>
-              </div>
-              
-              <!-- Footer -->
-              <div style="text-align: center; padding-top: 20px; border-top: 1px solid #27232d;">
-                <p style="color: #a39fb3; font-size: 14px; line-height: 1.6; margin: 0;">
-                  Best regards,<br/>
-                  <span style="color: #ff4da6; font-weight: 600;">The BellesCart Team</span>
-                </p>
-              </div>
-            </div>
-            
-            <!-- Bottom Bar -->
-            <div style="background: #121117; padding: 20px 30px; text-align: center;">
-              <p style="color: #a39fb3; font-size: 12px; margin: 0;">
-                © 2024 BellesCart. All rights reserved.<br/>
-                <span style="color: #666;">Belles Avenue Premium Shopping</span>
-              </p>
-            </div>
+
+            <h1
+              class="hero-title"
+              style="
+                margin: 20px 0 8px;
+                color: #21131d;
+                font-size: 27px;
+                line-height: 1.25;
+                font-weight: 800;
+                letter-spacing: -0.5px;
+              "
+            >
+              Verify Your Email
+            </h1>
+
+            <p style="
+              margin: 0 auto;
+              max-width: 430px;
+              color: #827480;
+              font-size: 14px;
+              line-height: 1.7;
+            ">
+              Use the verification code below to
+              complete your Belles Avenue account setup.
+            </p>
+
           </div>
-        </body>
-        </html>
-      `,
+
+          <!-- OTP -->
+          <div style="
+            margin-top: 30px;
+            padding: 25px 18px;
+            border-radius: 18px;
+            background: linear-gradient(
+              135deg,
+              #fff1f7 0%,
+              #faf5ff 100%
+            );
+            border: 1px solid #f5d5e7;
+            text-align: center;
+          ">
+
+            <p style="
+              margin: 0 0 12px;
+              color: #9b8794;
+              font-size: 10px;
+              line-height: 1.4;
+              font-weight: 700;
+              text-transform: uppercase;
+              letter-spacing: 1.7px;
+            ">
+              Verification Code
+            </p>
+
+            <div
+              class="otp-code"
+              style="
+                color: #c02678;
+                font-size: 38px;
+                line-height: 1.2;
+                font-weight: 800;
+                letter-spacing: 10px;
+                font-family: 'Courier New', monospace;
+              "
+            >
+              ${escapeHtml(otp)}
+            </div>
+
+            <p style="
+              margin: 13px 0 0;
+              color: #9b8794;
+              font-size: 11px;
+            ">
+              Enter this code on the verification page.
+            </p>
+
+          </div>
+
+          <!-- Expiry -->
+          <div style="
+            margin-top: 18px;
+            padding: 14px 16px;
+            border-radius: 12px;
+            background: #fff7ed;
+            border: 1px solid #fed7aa;
+            text-align: center;
+          ">
+
+            <p style="
+              margin: 0;
+              color: #c2410c;
+              font-size: 12px;
+              line-height: 1.6;
+              font-weight: 600;
+            ">
+              This verification code expires in
+              <strong>1 minute</strong>.
+            </p>
+
+          </div>
+
+          <!-- CTA -->
+          <div style="
+            margin-top: 26px;
+            text-align: center;
+          ">
+
+            <a
+              href="${frontendUrl}/verify-otp?email=${encodeURIComponent(
+                email
+              )}"
+              style="
+                display: inline-block;
+                padding: 13px 25px;
+                border-radius: 12px;
+                background: linear-gradient(
+                  135deg,
+                  #ec4899 0%,
+                  #d946ef 55%,
+                  #7c3aed 100%
+                );
+                color: #ffffff;
+                text-decoration: none;
+                font-size: 13px;
+                font-weight: 700;
+                box-shadow:
+                  0 8px 20px rgba(236,72,153,0.22);
+              "
+            >
+              Verify Email Address
+            </a>
+
+          </div>
+
+          <!-- Security -->
+          <div style="
+            margin-top: 28px;
+            padding: 17px;
+            border-radius: 15px;
+            background: #faf7fa;
+            border: 1px solid #eee5eb;
+          ">
+
+            <p style="
+              margin: 0 0 5px;
+              color: #21131d;
+              font-size: 12px;
+              line-height: 1.5;
+              font-weight: 750;
+            ">
+              🔒 Security Notice
+            </p>
+
+            <p style="
+              margin: 0;
+              color: #827480;
+              font-size: 11px;
+              line-height: 1.7;
+            ">
+              If you didn't request this verification code,
+              you can safely ignore this email.
+              Never share your verification code with anyone.
+            </p>
+
+          </div>
+
+          <!-- Email -->
+          <div style="
+            margin-top: 20px;
+            text-align: center;
+          ">
+
+            <p style="
+              margin: 0;
+              color: #9b8794;
+              font-size: 10px;
+              line-height: 1.5;
+            ">
+              Verification requested for
+            </p>
+
+            <p style="
+              margin: 4px 0 0;
+              color: #4e414b;
+              font-size: 12px;
+              font-weight: 650;
+              word-break: break-word;
+            ">
+              ${escapeHtml(email)}
+            </p>
+
+          </div>
+        `,
+        "Secure account verification"
+      ),
     };
 
-    const result = await transporter.sendMail(mailOptions);
+    const result =
+      await transporter.sendMail(mailOptions);
+
     return result;
   } catch (error) {
-    console.error('Error sending OTP email:', error);
+    console.error(
+      "Error sending OTP email:",
+      error
+    );
+
     throw error;
   }
 };

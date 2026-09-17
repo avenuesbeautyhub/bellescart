@@ -17,9 +17,11 @@ export class UserPreferencesInteractor implements IUserPreferencesInteractor {
       const preferences = await this._preferencesRepository.findByUserId(userId);
       
       if (!preferences) {
-        logger.info(`No preferences found for user ${userId}, returning default preferences`);
-        // Return default preferences structure
-        return this.getDefaultPreferences(userId);
+        logger.info(`No preferences found for user ${userId}, creating default preferences`);
+        // Create default preferences
+        const defaultPrefs = this.getDefaultPreferences(userId);
+        const created = await this._preferencesRepository.createOrUpdate(userId, defaultPrefs);
+        return created;
       }
       
       return preferences;
@@ -78,7 +80,7 @@ export class UserPreferencesInteractor implements IUserPreferencesInteractor {
 
   private getDefaultPreferences(userId: string): Partial<IUserPreferences> {
     return {
-      userId,
+      userId: userId as any, // Type assertion for mongoose ObjectId
       language: 'en',
       theme: 'auto',
       notifications: {

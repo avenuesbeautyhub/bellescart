@@ -12,7 +12,7 @@ export class AuthController {
 
   register = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const { name, email, password, phone } = req.body;
+      const { name, email, password, phone, marketingConsent, privacyPolicyConsent } = req.body;
 
       // Step 1: Validate user data (without OTP)
       const nameValidation = validateRequiredString(name, 'Name');
@@ -64,7 +64,15 @@ export class AuthController {
       }
       console.log('req body data', req.body);
 
-      const result = await this._userInteractor.sendOtp(email, { name, email, password, phone });
+      const result = await this._userInteractor.sendOtp(email, { 
+        name, 
+        email, 
+        password, 
+        phone,
+        marketingConsent: marketingConsent || false,
+        privacyPolicyConsent: privacyPolicyConsent || false,
+        privacyPolicyVersion: '1.0'
+      });
 
       res.status(200).json({
         success: true,

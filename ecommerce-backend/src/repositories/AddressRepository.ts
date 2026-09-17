@@ -1,5 +1,6 @@
 import { Address, IAddress } from '../models/Address';
 import { BaseRepository } from './BaseRepository';
+import { FilterQuery } from 'mongoose';
 
 export class AddressRepository extends BaseRepository<IAddress> {
   constructor() {
@@ -35,5 +36,9 @@ export class AddressRepository extends BaseRepository<IAddress> {
 
   async getDefaultAddress(userId: string): Promise<IAddress | null> {
     return this.model.findOne({ userId, isDefault: true });
+  }
+
+  async find(filter: FilterQuery<IAddress>): Promise<IAddress[]> {
+    return this.model.find(filter);
   }
 }

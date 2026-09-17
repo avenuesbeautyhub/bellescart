@@ -19,6 +19,8 @@ interface ProductCardProps {
   isLoggedIn?: boolean;
   wishlistItems?: any[];
   viewMode?: 'grid' | 'list';
+  rating?: number;
+  reviewCount?: number;
 }
 
 export default function ProductCard({
@@ -28,6 +30,8 @@ export default function ProductCard({
   isLoggedIn,
   wishlistItems,
   viewMode = 'grid',
+  rating,
+  reviewCount,
 }: ProductCardProps) {
   const { loaded, isAuthenticated } = useRequireUserAuth();
 
@@ -130,8 +134,8 @@ export default function ProductCard({
   const isCartMutationPending =
     addToCartMutation.isPending || updateCartItemMutation.isPending;
 
-  const rating = product.rating || 4;
-  const reviewCount = product.reviews || 12;
+  const displayRating = rating !== undefined ? rating : 0;
+  const displayReviewCount = reviewCount !== undefined ? reviewCount : 0;
 
   // Check if product is in wishlist
   const isInWishlist = wishlistItems?.some(
@@ -419,7 +423,7 @@ export default function ProductCard({
               <svg
                 key={i}
                 className={`h-3 w-3 ${
-                  i < rating ? 'text-[#c69a52]' : 'text-gray-200'
+                  i < displayRating ? 'text-[#c69a52]' : 'text-gray-200'
                 }`}
                 fill="currentColor"
                 viewBox="0 0 20 20"
@@ -430,7 +434,7 @@ export default function ProductCard({
           </div>
 
           <span className="text-[10px] text-gray-400">
-            {reviewCount}
+            {displayReviewCount}
           </span>
         </div>
 

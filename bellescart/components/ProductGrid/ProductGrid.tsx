@@ -2,6 +2,7 @@ import React from 'react';
 import { Product } from '@/utils/types';
 import ProductCard from '@/components/ProductCard/ProductCard';
 import { useAuth } from '@/auth/user';
+import { useReviewSummaries } from '@/hooks/user/useReviewQueries';
 
 interface ProductGridProps {
   products: Product[];
@@ -19,6 +20,12 @@ export default function ProductGrid({
   viewMode = 'grid',
 }: ProductGridProps) {
   const { isAuthenticated } = useAuth();
+
+  // Fetch review summaries for all products
+  const productIds = products.map(p => p._id);
+  const { data: summariesData } = useReviewSummaries(productIds);
+
+  const summaries = summariesData?.data || {};
 
   if (products.length === 0) {
     return (
@@ -87,6 +94,8 @@ export default function ProductGrid({
           isLoggedIn={isAuthenticated}
           wishlistItems={wishlistItems}
           viewMode={viewMode}
+          rating={summaries[product._id]?.averageRating}
+          reviewCount={summaries[product._id]?.totalReviews}
         />
       ))}
     </div>

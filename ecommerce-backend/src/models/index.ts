@@ -8,3 +8,6 @@ export { Address, IAddress } from './Address';
 export { Payment, IPayment } from './Payment';
 export { Coupon, ICoupon } from './Coupon';
 export { UserPreferences, IUserPreferences } from './UserPreferences';
+export { PrivacyPreference, IPrivacyPreference } from './PrivacyPreference';
+export { PrivacyRequest, IPrivacyRequest, PrivacyRequestType, PrivacyRequestStatus } from './PrivacyRequest';
+export { Review, IReview } from './Review';

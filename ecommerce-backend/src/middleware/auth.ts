@@ -109,6 +109,11 @@ export const authenticateAdmin = async (
   try {
     const token = req.header('Authorization')?.replace('Bearer ', '');
 
+    console.log('authenticateAdmin called:', {
+      hasToken: !!token,
+      tokenStart: token?.substring(0, 20) + '...'
+    });
+
     if (!token) {
       res.status(401).json({
         success: false,
@@ -118,7 +123,14 @@ export const authenticateAdmin = async (
     }
 
     const decoded = verifyToken(token);
+    console.log('Token decoded:', decoded);
+    
     const admin = await Admin.findById(decoded.id).select('-password');
+    console.log('Admin lookup result:', {
+      found: !!admin,
+      adminId: decoded.id,
+      adminData: admin ? { id: admin._id, email: admin.email, role: admin.role } : null
+    });
 
     if (!admin) {
       res.status(401).json({
@@ -132,6 +144,8 @@ export const authenticateAdmin = async (
     adminReq.admin = admin;
     next();
   } catch (error: any) {
+    console.error('Admin authentication error:', error);
+    
     // Check if token is expired vs invalid
     if (error.name === 'TokenExpiredError') {
       // Token expired - frontend should use refresh token

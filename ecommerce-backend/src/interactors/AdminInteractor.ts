@@ -242,6 +242,16 @@ export class AdminInteractor implements IAdminInteractor {
     activeUsers: number;
     totalOrders: number;
     totalRevenue: number;
+    pendingOrders?: number;
+    processingOrders?: number;
+    shippedOrders?: number;
+    deliveredOrders?: number;
+    cancelledOrders?: number;
+    todayOrders?: number;
+    todayRevenue?: number;
+    thisMonthOrders?: number;
+    thisMonthRevenue?: number;
+    averageOrderValue?: number;
   }> {
     return await this._adminRepository.getAdminStats();
   }
