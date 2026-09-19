@@ -5,7 +5,7 @@ import { Order } from '../models/Order';
 
 export class AdminRepository implements IAdminRepository {
   async findByEmail(email: string): Promise<IAdmin | null> {
-    return await Admin.findOne({ email: email.toLowerCase(), role: 'admin' });
+    return await Admin.findOne({ email: email.toLowerCase(), role: 'admin' }).select('+password');
   }
 
   async findById(id: string): Promise<IAdmin | null> {

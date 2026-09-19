@@ -12,7 +12,8 @@ export const appConfig = {
 
   // Request signing secret for HMAC signature generation
   // MUST match the backend's REQUEST_SIGNING_SECRET
-  requestSigningSecret: process.env.NEXT_PUBLIC_REQUEST_SIGNING_SECRET || 'reqsigningsecretforbelles',
+  // In production, this MUST be configured via environment variable
+  requestSigningSecret: process.env.NEXT_PUBLIC_REQUEST_SIGNING_SECRET,
 };
 
 export const isMockMode = () => appConfig.useMockData;

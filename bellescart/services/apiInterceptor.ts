@@ -2,6 +2,7 @@ import { appConfig } from '@/config/appConfig';
 import { authService } from './authService';
 import { globalToast } from '@/utils/globalToast';
 import { generateSignature, generateNonce, getTimestamp, isSensitiveEndpoint } from '@/utils/requestSigning';
+import * as Sentry from '@sentry/nextjs';
 
 // Flag to prevent multiple simultaneous refresh attempts
 let isRefreshing = false;
@@ -338,21 +339,25 @@ export const apiFetch = async (url: string, options: RequestInit = {}): Promise<
 
             // Add request signature for sensitive endpoints
             if (isSensitiveEndpoint(url) && ['POST', 'PUT', 'DELETE', 'PATCH'].includes(method)) {
-              let payload = '';
-              if (options.body) {
-                if (typeof options.body === 'string') {
-                  payload = options.body;
-                } else {
-                  payload = JSON.stringify(options.body);
+              try {
+                let payload = '';
+                if (options.body) {
+                  if (typeof options.body === 'string') {
+                    payload = options.body;
+                  } else {
+                    payload = JSON.stringify(options.body);
+                  }
                 }
+                const timestamp = getTimestamp();
+                const nonce = generateNonce();
+                const signature = generateSignature(payload, timestamp, nonce);
+                const headers = authOptions.headers as Record<string, string>;
+                headers['X-Signature'] = signature;
+                headers['X-Timestamp'] = timestamp;
+                headers['X-Nonce'] = nonce;
+              } catch (error) {
+                console.warn('Request signing failed, proceeding without signature:', error);
               }
-              const timestamp = getTimestamp();
-              const nonce = generateNonce();
-              const signature = generateSignature(payload, timestamp, nonce);
-              const headers = authOptions.headers as Record<string, string>;
-              headers['X-Signature'] = signature;
-              headers['X-Timestamp'] = timestamp;
-              headers['X-Nonce'] = nonce;
             }
 
             const fullUrl = url.startsWith('http') ? url : appConfig.apiBaseUrl + url;
@@ -410,21 +415,25 @@ export const apiFetch = async (url: string, options: RequestInit = {}): Promise<
 
         // Add request signature for sensitive endpoints
         if (isSensitiveEndpoint(url) && ['POST', 'PUT', 'DELETE', 'PATCH'].includes(method)) {
-          let payload = '';
-          if (options.body) {
-            if (typeof options.body === 'string') {
-              payload = options.body;
-            } else {
-              payload = JSON.stringify(options.body);
+          try {
+            let payload = '';
+            if (options.body) {
+              if (typeof options.body === 'string') {
+                payload = options.body;
+              } else {
+                payload = JSON.stringify(options.body);
+              }
             }
+            const timestamp = getTimestamp();
+            const nonce = generateNonce();
+            const signature = generateSignature(payload, timestamp, nonce);
+            const headers = authOptions.headers as Record<string, string>;
+            headers['X-Signature'] = signature;
+            headers['X-Timestamp'] = timestamp;
+            headers['X-Nonce'] = nonce;
+          } catch (error) {
+            console.warn('Request signing failed, proceeding without signature:', error);
           }
-          const timestamp = getTimestamp();
-          const nonce = generateNonce();
-          const signature = generateSignature(payload, timestamp, nonce);
-          const headers = authOptions.headers as Record<string, string>;
-          headers['X-Signature'] = signature;
-          headers['X-Timestamp'] = timestamp;
-          headers['X-Nonce'] = nonce;
         }
 
         // Make the request with the new token
@@ -528,8 +537,7 @@ export const apiFetch = async (url: string, options: RequestInit = {}): Promise<
         payload: payload.substring(0, 100) + '...',
         timestamp,
         nonce: nonce.substring(0, 20) + '...',
-        signature: signature.substring(0, 20) + '...',
-        secret: appConfig.requestSigningSecret.substring(0, 10) + '...'
+        signature: signature.substring(0, 20) + '...'
       });
 
       const headers = authOptions.headers as Record<string, string>;
@@ -539,7 +547,7 @@ export const apiFetch = async (url: string, options: RequestInit = {}): Promise<
 
       console.log('Request signature added for sensitive endpoint:', url);
     } catch (error) {
-      console.error('Failed to generate request signature:', error);
+      console.warn('Request signing failed, proceeding without signature:', error);
     }
   }
 
@@ -613,20 +621,24 @@ export const apiFetch = async (url: string, options: RequestInit = {}): Promise<
             // Add request signature for sensitive endpoints
             const method = options.method || 'GET';
             if (isSensitiveEndpoint(url) && ['POST', 'PUT', 'DELETE', 'PATCH'].includes(method)) {
-              let payload = '';
-              if (options.body) {
-                if (typeof options.body === 'string') {
-                  payload = options.body;
-                } else {
-                  payload = JSON.stringify(options.body);
+              try {
+                let payload = '';
+                if (options.body) {
+                  if (typeof options.body === 'string') {
+                    payload = options.body;
+                  } else {
+                    payload = JSON.stringify(options.body);
+                  }
                 }
+                const timestamp = getTimestamp();
+                const nonce = generateNonce();
+                const signature = generateSignature(payload, timestamp, nonce);
+                retryHeaders['X-Signature'] = signature;
+                retryHeaders['X-Timestamp'] = timestamp;
+                retryHeaders['X-Nonce'] = nonce;
+              } catch (error) {
+                console.warn('Request signing failed in retry, proceeding without signature:', error);
               }
-              const timestamp = getTimestamp();
-              const nonce = generateNonce();
-              const signature = generateSignature(payload, timestamp, nonce);
-              retryHeaders['X-Signature'] = signature;
-              retryHeaders['X-Timestamp'] = timestamp;
-              retryHeaders['X-Nonce'] = nonce;
             }
 
             console.log('[CSRF DEBUG] Retrying request with new CSRF token...');
@@ -787,20 +799,24 @@ export const apiFetch = async (url: string, options: RequestInit = {}): Promise<
             // Add request signature for sensitive endpoints
             const method = options.method || 'GET';
             if (isSensitiveEndpoint(url) && ['POST', 'PUT', 'DELETE', 'PATCH'].includes(method)) {
-              let payload = '';
-              if (options.body) {
-                if (typeof options.body === 'string') {
-                  payload = options.body;
-                } else {
-                  payload = JSON.stringify(options.body);
+              try {
+                let payload = '';
+                if (options.body) {
+                  if (typeof options.body === 'string') {
+                    payload = options.body;
+                  } else {
+                    payload = JSON.stringify(options.body);
+                  }
                 }
+                const timestamp = getTimestamp();
+                const nonce = generateNonce();
+                const signature = generateSignature(payload, timestamp, nonce);
+                retryHeaders['X-Signature'] = signature;
+                retryHeaders['X-Timestamp'] = timestamp;
+                retryHeaders['X-Nonce'] = nonce;
+              } catch (error) {
+                console.warn('Request signing failed in retry, proceeding without signature:', error);
               }
-              const timestamp = getTimestamp();
-              const nonce = generateNonce();
-              const signature = generateSignature(payload, timestamp, nonce);
-              retryHeaders['X-Signature'] = signature;
-              retryHeaders['X-Timestamp'] = timestamp;
-              retryHeaders['X-Nonce'] = nonce;
             }
 
             const mainRetryKey = getRequestKey(fullUrl, { ...options, headers: retryHeaders });
@@ -866,7 +882,43 @@ export const apiFetch = async (url: string, options: RequestInit = {}): Promise<
       console.error('Network error - failed to connect to API server');
       console.error('API URL:', fullUrl);
       console.error('Check if backend server is running and accessible');
+      
+      // Capture network errors with Sentry (unexpected failures)
+      Sentry.captureException(error, {
+        tags: {
+          area: 'api-interceptor',
+          errorType: 'network-error',
+        },
+        extra: {
+          url: fullUrl,
+          method: authOptions.method,
+        },
+      });
+      
       throw new Error('Unable to connect to server. Please check your internet connection and try again.');
+    }
+
+    // Capture unexpected errors with Sentry
+    if (error instanceof Error && 
+        !error.message.includes('401') && 
+        !error.message.includes('403') &&
+        !error.message.includes('404') &&
+        !error.message.includes('422') &&
+        !error.message.includes('429') &&
+        !error.message.includes('authentication') &&
+        !error.message.includes('authorization') &&
+        !error.message.includes('token') &&
+        !error.message.includes('CSRF')) {
+      Sentry.captureException(error, {
+        tags: {
+          area: 'api-interceptor',
+          errorType: 'unexpected-api-error',
+        },
+        extra: {
+          url: fullUrl,
+          method: authOptions.method,
+        },
+      });
     }
 
     throw error;
@@ -993,7 +1045,7 @@ export const publicApiFetch = async (url: string, options: RequestInit = {}): Pr
 
       console.log('Request signature added for sensitive public API endpoint:', url);
     } catch (error) {
-      console.error('Failed to generate request signature for public API:', error);
+      console.warn('Request signing failed for public API, proceeding without signature:', error);
     }
   }
 
@@ -1098,6 +1150,27 @@ export const publicApiFetch = async (url: string, options: RequestInit = {}): Pr
   } catch (error) {
     console.error('Public API fetch error:', error);
     console.error('Full URL that failed:', fullUrl);
+    
+    // Capture unexpected errors with Sentry
+    if (error instanceof Error && 
+        !error.message.includes('401') && 
+        !error.message.includes('403') &&
+        !error.message.includes('404') &&
+        !error.message.includes('422') &&
+        !error.message.includes('429') &&
+        !error.message.includes('CSRF')) {
+      Sentry.captureException(error, {
+        tags: {
+          area: 'public-api-interceptor',
+          errorType: 'unexpected-public-api-error',
+        },
+        extra: {
+          url: fullUrl,
+          method: publicOptions.method,
+        },
+      });
+    }
+    
     throw error;
   } finally {
     // Clean up the pending request after completion (only if we deduplicated)

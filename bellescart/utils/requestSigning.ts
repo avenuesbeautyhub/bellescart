@@ -9,6 +9,12 @@ import { appConfig } from '@/config/appConfig';
  */
 export const generateSignature = (payload: string, timestamp: string, nonce: string): string => {
   const secret = appConfig.requestSigningSecret;
+  
+  if (!secret) {
+    console.warn('Request signing secret not configured. Request signing will not work for sensitive endpoints.');
+    throw new Error('REQUEST_SIGNING_SECRET not configured');
+  }
+  
   const data = `${payload}${timestamp}${nonce}`;
 
   // Use Node.js crypto (works in Next.js client bundle with built-in polyfills)
