@@ -57,6 +57,6 @@ export default withSentryConfig(nextConfig, {
   authToken: process.env.SENTRY_AUTH_TOKEN,
   sourcemaps: {
     assets: ['.next/static/**'],
-    filesToDeleteAfterUpload: ['.next/static/**'],
+    filesToDeleteAfterUpload: [],
   },
 });
