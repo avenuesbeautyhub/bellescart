@@ -50,6 +50,6 @@ export const generateRefreshToken = (user: UserForToken): string => {
   }
 
   return jwt.sign(payload, jwtSecret, {
-    expiresIn: '30d'
+    expiresIn: '2d'
   });
 };

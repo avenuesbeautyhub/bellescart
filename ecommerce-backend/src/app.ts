@@ -1,11 +1,15 @@
+import dotenv from "dotenv";
+
+// Load environment variables before any other imports
+dotenv.config();
+
 import express from "express";
 import cors from "cors";
-import dotenv from "dotenv";
 import path from "path";
 import helmet from "helmet";
 import cookieParser from "cookie-parser";
+import mongoose from "mongoose";
 
-import { connectDatabase } from "./config/database";
 import { errorHandler } from "./middleware/errorHandler";
 import { corsOptions } from "./config/cors_config";
 import { swaggerUi, specs } from "./config/swagger";
@@ -14,8 +18,10 @@ import { requestIdMiddleware } from "./middleware/requestId";
 import { csrfMiddleware, csrfTokenEndpoint } from "./middleware/csrf";
 import { requestSigningMiddleware } from "./middleware/requestSigning";
 import { requestLogger } from "./utils/logger";
+import { initSentry } from "./config/sentry";
 
-dotenv.config();
+// Initialize Sentry
+initSentry();
 
 const app = express();
 
@@ -47,10 +53,25 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 // Health check endpoint
 app.get('/health', (req, res) => {
-  res.status(200).json({
-    status: 'OK',
+  const dbStatus = mongoose.connection.readyState;
+  const dbStatusMap = {
+    0: 'disconnected',
+    1: 'connected',
+    2: 'connecting',
+    3: 'disconnecting'
+  };
+
+  const healthStatus = dbStatus === 1 ? 'OK' : 'DEGRADED';
+
+  res.status(dbStatus === 1 ? 200 : 503).json({
+    status: healthStatus,
     message: 'BellesCart E-commerce Backend is running',
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
+    database: {
+      status: dbStatusMap[dbStatus as keyof typeof dbStatusMap] || 'unknown',
+      name: mongoose.connection.name,
+      host: mongoose.connection.host
+    }
   });
 });
 
@@ -93,8 +114,5 @@ app.use('/api', (req, res, next) => {
 
 // Error handling middleware
 app.use(errorHandler);
-
-// Database connection
-connectDatabase();
 
 export default app;

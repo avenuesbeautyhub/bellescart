@@ -3,6 +3,7 @@
 import { appConfig } from '@/config/appConfig';
 import { getAdminAuth as getAuthData, getAdminToken, clearAdminSession, isTokenValid } from '@/auth/admin';
 import { generateSignature, generateNonce, getTimestamp, isSensitiveEndpoint } from '@/utils/requestSigning';
+import * as Sentry from '@sentry/nextjs';
 
 const API_BASE_URL = appConfig.apiBaseUrl;
 
@@ -141,7 +142,7 @@ export const adminApiFetch = async (url: string, options: RequestInit = {}): Pro
         nonce
       });
     } catch (error) {
-      console.error('Failed to generate request signature:', error);
+      console.warn('Request signing failed, proceeding without signature:', error);
     }
   }
 
@@ -216,6 +217,19 @@ export const adminApiFetch = async (url: string, options: RequestInit = {}): Pro
     if (error instanceof TypeError) {
       console.error('Network error in admin API:', error);
       globalToast.error.network();
+      
+      // Capture network errors with Sentry
+      Sentry.captureException(error, {
+        tags: {
+          area: 'admin-api-interceptor',
+          errorType: 'network-error',
+        },
+        extra: {
+          url: `${API_BASE_URL}${url}`,
+          method: authOptions.method,
+        },
+      });
+      
       throw new Error('Network error');
     }
 
@@ -227,6 +241,29 @@ export const adminApiFetch = async (url: string, options: RequestInit = {}): Pro
       hasToken: !!token,
       tokenValid: token ? isTokenValid(token) : false
     });
+
+    // Capture unexpected errors with Sentry
+    if (error instanceof Error && 
+        !error.message.includes('401') && 
+        !error.message.includes('403') &&
+        !error.message.includes('404') &&
+        !error.message.includes('422') &&
+        !error.message.includes('429') &&
+        !error.message.includes('authentication') &&
+        !error.message.includes('authorization') &&
+        !error.message.includes('token') &&
+        !error.message.includes('CSRF')) {
+      Sentry.captureException(error, {
+        tags: {
+          area: 'admin-api-interceptor',
+          errorType: 'unexpected-admin-api-error',
+        },
+        extra: {
+          url: `${API_BASE_URL}${url}`,
+          method: authOptions.method,
+        },
+      });
+    }
 
     // Re-throw other errors
     throw error;
@@ -306,7 +343,7 @@ export const adminApi = {
 
         console.log('FormData signature added for:', url);
       } catch (error) {
-        console.error('Failed to generate FormData signature:', error);
+        console.warn('Request signing failed for FormData, proceeding without signature:', error);
       }
     }
 
@@ -342,7 +379,7 @@ export const adminApi = {
 
         console.log('FormData signature added for:', url);
       } catch (error) {
-        console.error('Failed to generate FormData signature:', error);
+        console.warn('Request signing failed for FormData, proceeding without signature:', error);
       }
     }
 

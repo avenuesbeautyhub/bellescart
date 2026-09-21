@@ -5,18 +5,20 @@ export const corsOptions: CorsOptions = {
     // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) return callback(null, true);
     
-    // In development, allow all origins
-    if (process.env.NODE_ENV !== 'production') {
-      return callback(null, true);
-    }
-    
-    // In production, allow specific origins
-    const allowedOrigins = [
-      'http://localhost:3000',
-      'http://localhost:3001',
-      'https://bellescart.com',
-      'https://www.bellescart.com'
-    ];
+    // Define allowed origins based on environment
+    const allowedOrigins = process.env.NODE_ENV === 'production' 
+      ? [
+          // Production origins - explicit production domains only
+          'https://bellescart.com',
+          'https://www.bellescart.com'
+        ]
+      : [
+          // Development origins - explicit localhost origins only
+          'http://localhost:3000',
+          'http://localhost:3001',
+          'http://127.0.0.1:3000',
+          'http://127.0.0.1:3001'
+        ];
     
     if (allowedOrigins.indexOf(origin) !== -1) {
       callback(null, true);

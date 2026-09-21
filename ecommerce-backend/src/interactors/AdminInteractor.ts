@@ -157,9 +157,9 @@ export class AdminInteractor implements IAdminInteractor {
       throw new BadRequestError('Current password is incorrect');
     }
 
-    // Update password - this would require updating the Admin model directly
-    // For now, this is a placeholder implementation
-    console.log(`Password change requested for admin ${adminId}`);
+    // Update password - the Admin model's pre-save hook will hash it automatically
+    admin.password = passwordData.newPassword;
+    await admin.save();
   }
 
   async getAllUsers(): Promise<Partial<IUser>[]> {

@@ -15,7 +15,17 @@ const logger = createLogger('RequestSigningMiddleware');
 const SIGNATURE_HEADER = 'X-Signature';
 const TIMESTAMP_HEADER = 'X-Timestamp';
 const NONCE_HEADER = 'X-Nonce';
-const SHARED_SECRET = process.env.REQUEST_SIGNING_SECRET || 'reqsigningsecretforbelles';
+
+// Validate REQUEST_SIGNING_SECRET is configured in production
+const SHARED_SECRET = process.env.REQUEST_SIGNING_SECRET;
+if (process.env.NODE_ENV === 'production' && !SHARED_SECRET) {
+  throw new Error('REQUEST_SIGNING_SECRET environment variable is not defined in production. Please configure it for secure request signing.');
+}
+
+// Log warning in development if secret is not configured
+if (process.env.NODE_ENV !== 'production' && !SHARED_SECRET) {
+  logger.warn('REQUEST_SIGNING_SECRET not configured. Request signing will not work for sensitive endpoints in development.');
+}
 
 // Timestamp validation window (5 minutes)
 const TIMESTAMP_TOLERANCE = 5 * 60 * 1000;
@@ -44,6 +54,9 @@ const cleanExpiredNonces = (): void => {
  * @returns HMAC-SHA256 signature
  */
 export const generateSignature = (payload: string, timestamp: string, nonce: string): string => {
+  if (!SHARED_SECRET) {
+    throw new Error('Cannot generate signature: REQUEST_SIGNING_SECRET not configured');
+  }
   const data = `${payload}${timestamp}${nonce}`;
   return createHmac('sha256', SHARED_SECRET).update(data).digest('hex');
 };
@@ -149,6 +162,13 @@ const validateSignature = (req: Request): boolean => {
  * Applies signature validation to sensitive endpoints
  */
 export const requestSigningMiddleware = (req: Request, res: Response, next: NextFunction): void => {
+  // Skip request signing entirely if secret is not configured (non-production)
+  if (!SHARED_SECRET) {
+    logger.debug('Request signing skipped - REQUEST_SIGNING_SECRET not configured', { requestId: req.id, path: req.path });
+    next();
+    return;
+  }
+
   // Only apply to state-changing operations
   if (!['POST', 'PUT', 'DELETE', 'PATCH'].includes(req.method)) {
     next();

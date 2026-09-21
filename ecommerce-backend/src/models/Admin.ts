@@ -1,5 +1,6 @@
 import { IAdmin } from './User';
 import mongoose, { Document, Schema } from 'mongoose';
+import bcrypt from 'bcryptjs';
 
 // Create Admin schema (separate from User schema)
 const adminSchema = new Schema<IAdmin>({
@@ -19,7 +20,8 @@ const adminSchema = new Schema<IAdmin>({
     password: {
         type: String,
         required: [true, 'Please provide your password'],
-        minlength: [6, 'Password must be at least 6 characters long']
+        minlength: [6, 'Password must be at least 6 characters long'],
+        select: false
     },
     role: {
         type: String,
@@ -46,9 +48,22 @@ const adminSchema = new Schema<IAdmin>({
     timestamps: true
 });
 
+// Hash password before saving
+adminSchema.pre('save', async function (next) {
+  if (!this.isModified('password')) return next();
+
+  try {
+    const salt = await bcrypt.genSalt(12);
+    this.password = await bcrypt.hash(this.password, salt);
+    next();
+  } catch (error) {
+    next(error as Error);
+  }
+});
+
 // Add comparePassword method to adminSchema
 adminSchema.methods.comparePassword = async function (candidatePassword: string): Promise<boolean> {
-    return this.password === candidatePassword; // Simplified - in production, use bcrypt
+    return bcrypt.compare(candidatePassword, this.password);
 };
 
 // Create Admin model

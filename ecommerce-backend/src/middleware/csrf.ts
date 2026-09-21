@@ -88,8 +88,8 @@ export const csrfMiddleware = (req: Request, res: Response, next: NextFunction):
     rawCookieHeader: req.headers.cookie
   });
 
-  // Fallback: if cookie is missing but header is present, allow the request in development
-  // This handles cases where cookies aren't being set properly due to browser security
+  // In development, if cookie is missing but header is present, allow the request
+  // This is a development-only fallback to handle cookie issues in local development
   if (!csrfCookie && csrfToken && process.env.NODE_ENV !== 'production') {
     logger.warn('CSRF cookie missing but header present - allowing in development', {
       requestId: req.id,
@@ -158,20 +158,20 @@ export const generateCsrfToken = (req: Request, res: Response): string => {
   const crypto = require('crypto');
   const token = crypto.randomBytes(32).toString('hex');
   
-  // Set CSRF token in cookie with explicit domain and path
-  // Don't set domain in development to work with both localhost and 127.0.0.1
+  // Set CSRF token in cookie with environment-specific settings
+  const isProduction = process.env.NODE_ENV === 'production';
   const cookieOptions = {
     httpOnly: false, // Must be accessible to JavaScript for X-CSRF-Token header
-    secure: false, // Always false in development to work with localhost
-    sameSite: 'lax' as 'lax', // Use lax for cross-origin requests in development
+    secure: isProduction, // Only use secure in production
+    sameSite: isProduction ? 'strict' as 'strict' : 'lax' as 'lax', // Strict in production, lax in development
     maxAge: 24 * 60 * 60 * 1000, // 24 hours
     path: '/', // Explicitly set path to root
-    // Explicitly set domain to undefined to ensure browser handles it correctly
-    domain: undefined 
+    domain: undefined // Let browser handle domain automatically
   };
   
   logger.info('Setting CSRF cookie with options', {
     requestId: req.id,
+    isProduction,
     cookieOptions: {
       ...cookieOptions,
       httpOnly: cookieOptions.httpOnly,
