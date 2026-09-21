@@ -7,8 +7,9 @@ export const appConfig = {
     : process.env.NODE_ENV === 'development',
 
   // API base URL
-  apiBaseUrl: process.env.BACKEND_API_URL || 'http://127.0.0.1:5000/api',
-
+  apiBaseUrl: (process.env.NODE_ENV === 'production'
+    ? process.env.PROD_BACKEND_API_URL 
+    : process.env.DEV_BACKEND_API_URL) || 'http://127.0.0.1:5000/api',
   // Enable/disable console logging
   enableLogging: process.env.ENABLE_LOGGING === 'true',
 
@@ -19,5 +20,12 @@ export const appConfig = {
   requestSigningSecret: process.env.REQUEST_SIGNING_SECRET,
 };
 
-export const isMockMode = () => appConfig.useMockData;
-export const isApiMode = () => !appConfig.useMockData;
+
+
+
+export const isMockMode = () => {
+  // Use mock mode if API URL is localhost/127.0.0.1 or not explicitly set
+  const apiUrl = appConfig.apiBaseUrl;
+  return apiUrl.includes('localhost') || apiUrl.includes('127.0.0.1');
+};
+export const isApiMode = () => !isMockMode();
