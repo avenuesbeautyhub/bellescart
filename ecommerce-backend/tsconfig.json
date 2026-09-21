@@ -6,6 +6,7 @@
     "module": "commonjs",
     /* Emit */
     "outDir": "./dist",
+    "rootDir": "./src",
     /* Interop Constraints */
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
@@ -23,48 +24,46 @@
     "noImplicitThis": true,
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true,
-    "moduleResolution": "node",
     "skipLibCheck": true,
-    "baseUrl": "./",
     "paths": {
       "@/*": [
-        "src/*"
+        "./src/*"
       ],
       "@/config/*": [
-        "src/config/*"
+        "./src/config/*"
       ],
       "@/controllers/*": [
-        "src/controllers/*"
+        "./src/controllers/*"
       ],
       "@/models/*": [
-        "src/models/*"
+        "./src/models/*"
       ],
       "@/routes/*": [
-        "src/routes/*"
+        "./src/routes/*"
       ],
       "@/middleware/*": [
-        "src/middleware/*"
+        "./src/middleware/*"
       ],
       "@/utils/*": [
-        "src/utils/*"
+        "./src/utils/*"
       ],
       "@/services/*": [
-        "src/services/*"
+        "./src/services/*"
       ],
       "@/repositories/*": [
-        "src/repositories/*"
+        "./src/repositories/*"
       ],
       "@/entities/*": [
-        "src/entities/*"
+        "./src/entities/*"
       ],
       "@/interactors/*": [
-        "src/interactors/*"
+        "./src/interactors/*"
       ],
       "@/providers/*": [
-        "src/providers/*"
+        "./src/providers/*"
       ],
       "@/auth/*": [
-        "src/auth/*"
+        "./src/auth/*"
       ]
     }
   },
