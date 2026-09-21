@@ -42,17 +42,17 @@ export class PrivacyInteractor implements IPrivacyInteractor {
 
   async updatePreferences(userId: string, data: Partial<IPrivacyPreference>): Promise<IPrivacyPreference> {
     logger.info('Updating privacy preferences', { userId, data });
-    
+
     // Only allow updating specific fields
     const allowedFields: (keyof IPrivacyPreference)[] = ['marketingEmails'];
     const updateData: Partial<IPrivacyPreference> = {};
-    
+
     for (const field of allowedFields) {
       if (data[field] !== undefined) {
-        updateData[field] = data[field];
+        (updateData as any)[field] = data[field];
       }
     }
-    
+
     const preference = await this._privacyPreferenceRepository.updateByUserId(userId, updateData);
     if (!preference) {
       throw new Error('Failed to update privacy preferences');

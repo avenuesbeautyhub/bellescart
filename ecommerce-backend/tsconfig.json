@@ -3,14 +3,18 @@
     /* Language and Environment */
     "target": "es2017",
     "lib": ["es2017"],
+
     /* Modules */
     "module": "commonjs",
+
     /* Emit */
     "outDir": "./dist",
     "rootDir": "./src",
+
     /* Interop Constraints */
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": false,
+
     /* Type Checking */
     "strict": false,
     "noImplicitAny": false,
@@ -19,56 +23,34 @@
     "strictBindCallApply": false,
     "strictPropertyInitialization": false,
     "noImplicitThis": false,
-    "alwaysStrict": false,
+
     /* Completeness */
     "types": ["node"],
-    /* Additional options for better development experience */
+
+    /* Additional options */
     "resolveJsonModule": true,
     "declaration": false,
     "sourceMap": true,
     "removeComments": true,
     "skipLibCheck": true,
     "noEmit": false,
+    "noEmitOnError": false,
+
+    /* Path aliases */
     "paths": {
-      "@/*": [
-        "./src/*"
-      ],
-      "@/config/*": [
-        "./src/config/*"
-      ],
-      "@/controllers/*": [
-        "./src/controllers/*"
-      ],
-      "@/models/*": [
-        "./src/models/*"
-      ],
-      "@/routes/*": [
-        "./src/routes/*"
-      ],
-      "@/middleware/*": [
-        "./src/middleware/*"
-      ],
-      "@/utils/*": [
-        "./src/utils/*"
-      ],
-      "@/services/*": [
-        "./src/services/*"
-      ],
-      "@/repositories/*": [
-        "./src/repositories/*"
-      ],
-      "@/entities/*": [
-        "./src/entities/*"
-      ],
-      "@/interactors/*": [
-        "./src/interactors/*"
-      ],
-      "@/providers/*": [
-        "./src/providers/*"
-      ],
-      "@/auth/*": [
-        "./src/auth/*"
-      ]
+      "@/*": ["./src/*"],
+      "@/config/*": ["./src/config/*"],
+      "@/controllers/*": ["./src/controllers/*"],
+      "@/models/*": ["./src/models/*"],
+      "@/routes/*": ["./src/routes/*"],
+      "@/middleware/*": ["./src/middleware/*"],
+      "@/utils/*": ["./src/utils/*"],
+      "@/services/*": ["./src/services/*"],
+      "@/repositories/*": ["./src/repositories/*"],
+      "@/entities/*": ["./src/entities/*"],
+      "@/interactors/*": ["./src/interactors/*"],
+      "@/providers/*": ["./src/providers/*"],
+      "@/auth/*": ["./src/auth/*"]
     }
   },
   "include": [

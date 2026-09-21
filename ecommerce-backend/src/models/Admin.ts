@@ -1,5 +1,5 @@
 import { IAdmin } from './User';
-import mongoose, { Document, Schema } from 'mongoose';
+import mongoose, { Document, Schema, Model } from 'mongoose';
 import bcrypt from 'bcryptjs';
 
 // Create Admin schema (separate from User schema)
@@ -66,5 +66,7 @@ adminSchema.methods.comparePassword = async function (candidatePassword: string)
     return bcrypt.compare(candidatePassword, this.password);
 };
 
-// Create Admin model
-export const Admin = mongoose.models.Admin || mongoose.model<IAdmin>('Admin', adminSchema);
+// Create Admin model with proper typing
+type AdminModel = Model<IAdmin>;
+
+export const Admin = (mongoose.models.Admin as AdminModel) || mongoose.model<IAdmin>('Admin', adminSchema) as AdminModel;
