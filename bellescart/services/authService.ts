@@ -5,7 +5,7 @@ import { apiFetch, publicApiFetch } from './apiInterceptor';
 
 
 const API_BASE_URL = appConfig.apiBaseUrl;
-const MOCK_MODE = process.env.NEXT_PUBLIC_ENABLE_MOCK_DATA;
+const MOCK_MODE = process.env.ENABLE_MOCK_DATA;
 
 class AuthService {
   // Token storage methods - using same keys as auth context

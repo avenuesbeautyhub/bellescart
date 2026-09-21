@@ -201,7 +201,7 @@ The application uses HMAC-SHA256 request signing for sensitive operations:
 
 ### Configuration
 
-- **Environment Variables**: `NEXT_PUBLIC_SENTRY_DSN`, `SENTRY_ORG`, `SENTRY_PROJECT`
+- **Environment Variables**: `SENTRY_DSN`, `SENTRY_ORG`, `SENTRY_PROJECT`
 - **Sample Rates**: Configurable error and performance sampling
 - **Source Maps**: Configured for production builds
 - **Environment Separation**: Separate tracking for development and production
@@ -210,16 +210,16 @@ The application uses HMAC-SHA256 request signing for sensitive operations:
 
 | Variable | Purpose | Required |
 |----------|---------|----------|
-| `NEXT_PUBLIC_SENTRY_DSN` | Sentry Data Source Name for error tracking | Optional |
-| `NEXT_PUBLIC_SENTRY_RELEASE` | Release version for Sentry | Optional |
-| `NEXT_PUBLIC_APP_VERSION` | Application version | Optional |
+| `SENTRY_DSN` | Sentry Data Source Name for error tracking | Optional |
+| `SENTRY_RELEASE` | Release version for Sentry | Optional |
+| `APP_VERSION` | Application version | Optional |
 | `SENTRY_ORG` | Sentry organization slug | Optional |
 | `SENTRY_PROJECT` | Sentry project slug | Optional |
 | `SENTRY_AUTH_TOKEN` | Sentry auth token for source map uploads | Optional |
 | `BACKEND_API_URL` | Backend API base URL | Optional (defaults to http://127.0.0.1:5000/api) |
-| `NEXT_PUBLIC_ENABLE_MOCK_DATA` | Enable mock data mode | Optional |
-| `NEXT_PUBLIC_ENABLE_LOGGING` | Enable console logging | Optional |
-| `NEXT_PUBLIC_REQUEST_SIGNING_SECRET` | Request signing secret | Optional |
+| `ENABLE_MOCK_DATA` | Enable mock data mode | Optional |
+| `ENABLE_LOGGING` | Enable console logging | Optional |
+| `REQUEST_SIGNING_SECRET` | Request signing secret | Optional |
 
 ## Local Development
 

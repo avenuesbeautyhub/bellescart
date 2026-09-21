@@ -100,52 +100,6 @@ export const adminApiFetch = async (url: string, options: RequestInit = {}): Pro
     }
   }
 
-  // Add request signature for sensitive endpoints
-  const isSensitive = isSensitiveEndpoint(url);
-  const isStateChanging = ['POST', 'PUT', 'DELETE', 'PATCH'].includes(method);
-
-  console.log('Signature check:', {
-    url,
-    method,
-    isSensitive,
-    isStateChanging,
-    shouldSign: isSensitive && isStateChanging
-  });
-
-  if (isSensitive && isStateChanging) {
-    try {
-      let payload = '';
-      if (options.body) {
-        if (typeof options.body === 'string') {
-          payload = options.body;
-        } else {
-          payload = JSON.stringify(options.body);
-        }
-      }
-      // For DELETE requests, ensure empty string for consistency
-      if (method === 'DELETE' && !payload) {
-        payload = '';
-      }
-      const timestamp = getTimestamp();
-      const nonce = generateNonce();
-      const signature = generateSignature(payload, timestamp, nonce);
-      const headers = authOptions.headers as Record<string, string>;
-      headers['X-Signature'] = signature;
-      headers['X-Timestamp'] = timestamp;
-      headers['X-Nonce'] = nonce;
-
-      console.log('Request signature added:', {
-        url,
-        method,
-        payloadLength: payload.length,
-        timestamp,
-        nonce
-      });
-    } catch (error) {
-      console.warn('Request signing failed, proceeding without signature:', error);
-    }
-  }
-
   try {
     // Make initial request
     console.log('Admin API Request:', {
@@ -327,24 +281,6 @@ export const adminApi = {
     };
     if (csrf) {
       formDataHeaders['X-CSRF-Token'] = csrf;
-    }
-
-    // Add signature for sensitive endpoints with FormData
-    const isSensitive = isSensitiveEndpoint(url);
-    if (isSensitive) {
-      try {
-        // For FormData, we can't easily stringify the body, so use empty string as payload
-        const timestamp = getTimestamp();
-        const nonce = generateNonce();
-        const signature = generateSignature('', timestamp, nonce);
-        formDataHeaders['X-Signature'] = signature;
-        formDataHeaders['X-Timestamp'] = timestamp;
-        formDataHeaders['X-Nonce'] = nonce;
-
-        console.log('FormData signature added for:', url);
-      } catch (error) {
-        console.warn('Request signing failed for FormData, proceeding without signature:', error);
-      }
     }
 
     return adminApiFetch(url, {
