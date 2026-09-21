@@ -15,10 +15,24 @@ import {
   usePublicCategories,
 } from '@/hooks/user/usePublicProductQueries';
 import { useAuth } from '@/auth/user';
+import { getApiConfigInfo } from '@/config/appConfig';
 
 export default function Home() {
   const router = useRouter();
   const { isAuthenticated, loaded } = useAuth();
+
+  // Log API configuration on page load
+  useEffect(() => {
+    const apiConfig = getApiConfigInfo();
+    console.log('=== Page Load API Configuration ===');
+    console.log('NODE_ENV:', apiConfig.nodeEnv);
+    console.log('DEV Backend URL:', apiConfig.devApiUrl);
+    console.log('PROD Backend URL:', apiConfig.prodApiUrl);
+    console.log('Final API URL:', apiConfig.finalApiUrl);
+    console.log('Is Production:', apiConfig.isProduction);
+    console.log('Using Localhost:', apiConfig.isUsingLocalhost);
+    console.log('===================================');
+  }, []);
 
   // Stagger API calls to prevent rate limiting
   const {

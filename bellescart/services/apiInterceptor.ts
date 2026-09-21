@@ -975,6 +975,14 @@ export const publicApiFetch = async (url: string, options: RequestInit = {}): Pr
   // Add full backend URL for relative URLs
   const fullUrl = appConfig.apiBaseUrl + url;
 
+  // Log environment details for debugging
+  console.log('=== Public API Configuration ===');
+  console.log('NODE_ENV:', process.env.NODE_ENV);
+  console.log('API Base URL:', appConfig.apiBaseUrl);
+  console.log('Requested URL:', url);
+  console.log('Full URL:', fullUrl);
+  console.log('===============================');
+
   const publicOptions = {
     ...options,
     headers: {
@@ -1150,6 +1158,12 @@ export const publicApiFetch = async (url: string, options: RequestInit = {}): Pr
   } catch (error) {
     console.error('Public API fetch error:', error);
     console.error('Full URL that failed:', fullUrl);
+    console.error('=== Error Environment Details ===');
+    console.error('NODE_ENV:', process.env.NODE_ENV);
+    console.error('API Base URL:', appConfig.apiBaseUrl);
+    console.error('DEV_BACKEND_API_URL:', process.env.DEV_BACKEND_API_URL);
+    console.error('PROD_BACKEND_API_URL:', process.env.PROD_BACKEND_API_URL);
+    console.error('===============================');
     
     // Capture unexpected errors with Sentry
     if (error instanceof Error && 
@@ -1167,6 +1181,8 @@ export const publicApiFetch = async (url: string, options: RequestInit = {}): Pr
         extra: {
           url: fullUrl,
           method: publicOptions.method,
+          nodeEnv: process.env.NODE_ENV,
+          apiBaseUrl: appConfig.apiBaseUrl,
         },
       });
     }

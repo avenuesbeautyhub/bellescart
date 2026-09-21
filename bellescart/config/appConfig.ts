@@ -20,6 +20,30 @@ export const appConfig = {
   requestSigningSecret: process.env.REQUEST_SIGNING_SECRET,
 };
 
+// Log API configuration for debugging
+if (typeof window !== 'undefined') {
+  console.log('=== API Configuration ===');
+  console.log('NODE_ENV:', process.env.NODE_ENV);
+  console.log('DEV_BACKEND_API_URL:', process.env.DEV_BACKEND_API_URL);
+  console.log('PROD_BACKEND_API_URL:', process.env.PROD_BACKEND_API_URL);
+  console.log('Final API Base URL:', appConfig.apiBaseUrl);
+  console.log('Is Production:', process.env.NODE_ENV === 'production');
+  console.log('Using Production URL:', process.env.NODE_ENV === 'production' ? 'YES' : 'NO');
+  console.log('========================');
+}
+
+// Export helper function to check API configuration
+export const getApiConfigInfo = () => {
+  return {
+    nodeEnv: process.env.NODE_ENV,
+    devApiUrl: process.env.DEV_BACKEND_API_URL,
+    prodApiUrl: process.env.PROD_BACKEND_API_URL,
+    finalApiUrl: appConfig.apiBaseUrl,
+    isProduction: process.env.NODE_ENV === 'production',
+    isUsingLocalhost: appConfig.apiBaseUrl.includes('localhost') || appConfig.apiBaseUrl.includes('127.0.0.1'),
+  };
+};
+
 
 
 
