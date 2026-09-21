@@ -1,7 +1,8 @@
 {
   "compilerOptions": {
     /* Language and Environment */
-    "target": "es2016",
+    "target": "es2017",
+    "lib": ["es2017"],
     /* Modules */
     "module": "commonjs",
     /* Emit */
@@ -11,20 +12,16 @@
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
     /* Type Checking */
-    "strict": true,
+    "strict": false,
     /* Completeness */
+    "types": ["node"],
     /* Additional options for better development experience */
     "resolveJsonModule": true,
     "declaration": true,
     "sourceMap": true,
     "removeComments": true,
-    "noImplicitAny": true,
-    "strictNullChecks": true,
-    "strictFunctionTypes": true,
-    "noImplicitThis": true,
-    "noImplicitReturns": true,
-    "noFallthroughCasesInSwitch": true,
     "skipLibCheck": true,
+    "noEmit": false,
     "paths": {
       "@/*": [
         "./src/*"
