@@ -10,14 +10,21 @@
     "rootDir": "./src",
     /* Interop Constraints */
     "esModuleInterop": true,
-    "forceConsistentCasingInFileNames": true,
+    "forceConsistentCasingInFileNames": false,
     /* Type Checking */
     "strict": false,
+    "noImplicitAny": false,
+    "strictNullChecks": false,
+    "strictFunctionTypes": false,
+    "strictBindCallApply": false,
+    "strictPropertyInitialization": false,
+    "noImplicitThis": false,
+    "alwaysStrict": false,
     /* Completeness */
     "types": ["node"],
     /* Additional options for better development experience */
     "resolveJsonModule": true,
-    "declaration": true,
+    "declaration": false,
     "sourceMap": true,
     "removeComments": true,
     "skipLibCheck": true,
