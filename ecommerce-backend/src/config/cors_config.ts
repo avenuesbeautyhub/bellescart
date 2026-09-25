@@ -9,8 +9,14 @@ export const corsOptions: CorsOptions = {
     const allowedOrigins = process.env.NODE_ENV === 'production' 
       ? [
           // Production origins - explicit production domains only
+          'https://bellescart.vercel.app',
           'https://bellescart.com',
-          'https://www.bellescart.com'
+          'https://www.bellescart.com',
+          // Allow localhost for testing production backend locally
+          'http://localhost:3000',
+          'http://localhost:3001',
+          'http://127.0.0.1:3000',
+          'http://127.0.0.1:3001'
         ]
       : [
           // Development origins - explicit localhost origins only

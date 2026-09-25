@@ -1,7 +1,5 @@
-import { appConfig } from '@/config/appConfig';
 import { authService } from './authService';
 import { globalToast } from '@/utils/globalToast';
-import { generateSignature, generateNonce, getTimestamp, isSensitiveEndpoint } from '@/utils/requestSigning';
 import * as Sentry from '@sentry/nextjs';
 
 // Flag to prevent multiple simultaneous refresh attempts
@@ -113,9 +111,8 @@ const fetchCsrfToken = async (): Promise<string> => {
   isFetchingCsrfToken = true;
 
   try {
-    const csrfUrl = `${appConfig.apiBaseUrl}/csrf-token`;
+    const csrfUrl = `/api/proxy/csrf-token`;
     console.log('[CSRF DEBUG] Fetching CSRF token from:', csrfUrl);
-    console.log('[CSRF DEBUG] API base URL:', appConfig.apiBaseUrl);
     
     const response = await fetch(csrfUrl, {
       method: 'GET',
@@ -294,6 +291,10 @@ export const apiFetch = async (url: string, options: RequestInit = {}): Promise<
   const token = getAccessToken();
   const refreshToken = getRefreshToken();
 
+  // Use Next.js API proxy for all backend requests
+  // The proxy handles HMAC signing server-side
+  const proxyBaseUrl = '/api/proxy';
+
   // Handle different token scenarios
   if (!token && !refreshToken) {
     // Both tokens missing - log warning but continue with request in development
@@ -337,30 +338,10 @@ export const apiFetch = async (url: string, options: RequestInit = {}): Promise<
               }
             }
 
-            // Add request signature for sensitive endpoints
-            if (isSensitiveEndpoint(url) && ['POST', 'PUT', 'DELETE', 'PATCH'].includes(method)) {
-              try {
-                let payload = '';
-                if (options.body) {
-                  if (typeof options.body === 'string') {
-                    payload = options.body;
-                  } else {
-                    payload = JSON.stringify(options.body);
-                  }
-                }
-                const timestamp = getTimestamp();
-                const nonce = generateNonce();
-                const signature = generateSignature(payload, timestamp, nonce);
-                const headers = authOptions.headers as Record<string, string>;
-                headers['X-Signature'] = signature;
-                headers['X-Timestamp'] = timestamp;
-                headers['X-Nonce'] = nonce;
-              } catch (error) {
-                console.warn('Request signing failed, proceeding without signature:', error);
-              }
-            }
+            // Note: Request signing is now handled by the Next.js API proxy server-side
+            // We no longer add signatures client-side
 
-            const fullUrl = url.startsWith('http') ? url : appConfig.apiBaseUrl + url;
+            const fullUrl = url.startsWith('http') ? url : proxyBaseUrl + url;
             const response = await fetch(fullUrl, authOptions);
 
             if (response.ok) {
@@ -413,31 +394,11 @@ export const apiFetch = async (url: string, options: RequestInit = {}): Promise<
           }
         }
 
-        // Add request signature for sensitive endpoints
-        if (isSensitiveEndpoint(url) && ['POST', 'PUT', 'DELETE', 'PATCH'].includes(method)) {
-          try {
-            let payload = '';
-            if (options.body) {
-              if (typeof options.body === 'string') {
-                payload = options.body;
-              } else {
-                payload = JSON.stringify(options.body);
-              }
-            }
-            const timestamp = getTimestamp();
-            const nonce = generateNonce();
-            const signature = generateSignature(payload, timestamp, nonce);
-            const headers = authOptions.headers as Record<string, string>;
-            headers['X-Signature'] = signature;
-            headers['X-Timestamp'] = timestamp;
-            headers['X-Nonce'] = nonce;
-          } catch (error) {
-            console.warn('Request signing failed, proceeding without signature:', error);
-          }
-        }
+        // Note: Request signing is now handled by the Next.js API proxy server-side
+        // We no longer add signatures client-side
 
         // Make the request with the new token
-        const fullUrl = url.startsWith('http') ? url : appConfig.apiBaseUrl + url;
+        const fullUrl = url.startsWith('http') ? url : proxyBaseUrl + url;
         const proactiveKey = getRequestKey(fullUrl, authOptions);
         const proactivePromise = fetch(fullUrl, authOptions);
         pendingRequests.set(proactiveKey, proactivePromise);
@@ -513,46 +474,11 @@ export const apiFetch = async (url: string, options: RequestInit = {}): Promise<
     console.log('[CSRF DEBUG] Final request headers:', authOptions.headers);
   }
 
-  // Add request signature for sensitive endpoints
-  if (isSensitiveEndpoint(url) && ['POST', 'PUT', 'DELETE', 'PATCH'].includes(method)) {
-    try {
-      // Get the payload for signature generation
-      let payload = '';
-      if (options.body) {
-        // If body is already a string, use it directly
-        if (typeof options.body === 'string') {
-          payload = options.body;
-        } else {
-          // If body is an object, stringify it
-          payload = JSON.stringify(options.body);
-        }
-      }
-
-      const timestamp = getTimestamp();
-      const nonce = generateNonce();
-      const signature = generateSignature(payload, timestamp, nonce);
-
-      console.log('Generating request signature for:', url);
-      console.log('Signature details:', {
-        payload: payload.substring(0, 100) + '...',
-        timestamp,
-        nonce: nonce.substring(0, 20) + '...',
-        signature: signature.substring(0, 20) + '...'
-      });
-
-      const headers = authOptions.headers as Record<string, string>;
-      headers['X-Signature'] = signature;
-      headers['X-Timestamp'] = timestamp;
-      headers['X-Nonce'] = nonce;
-
-      console.log('Request signature added for sensitive endpoint:', url);
-    } catch (error) {
-      console.warn('Request signing failed, proceeding without signature:', error);
-    }
-  }
+  // Note: Request signing is now handled by the Next.js API proxy server-side
+  // We no longer add signatures client-side
 
   // Build the full URL before the try block so it's accessible in catch
-  const fullUrl = url.startsWith('http') ? url : appConfig.apiBaseUrl + url;
+  const fullUrl = url.startsWith('http') ? url : proxyBaseUrl + url;
 
   // Request deduplication - check if there's already a pending request (only for GET requests)
   const requestKey = getRequestKey(fullUrl, authOptions);
@@ -618,28 +544,8 @@ export const apiFetch = async (url: string, options: RequestInit = {}): Promise<
               'X-CSRF-Token': newCsrfToken,
             };
 
-            // Add request signature for sensitive endpoints
-            const method = options.method || 'GET';
-            if (isSensitiveEndpoint(url) && ['POST', 'PUT', 'DELETE', 'PATCH'].includes(method)) {
-              try {
-                let payload = '';
-                if (options.body) {
-                  if (typeof options.body === 'string') {
-                    payload = options.body;
-                  } else {
-                    payload = JSON.stringify(options.body);
-                  }
-                }
-                const timestamp = getTimestamp();
-                const nonce = generateNonce();
-                const signature = generateSignature(payload, timestamp, nonce);
-                retryHeaders['X-Signature'] = signature;
-                retryHeaders['X-Timestamp'] = timestamp;
-                retryHeaders['X-Nonce'] = nonce;
-              } catch (error) {
-                console.warn('Request signing failed in retry, proceeding without signature:', error);
-              }
-            }
+            // Note: Request signing is now handled by the Next.js API proxy server-side
+            // We no longer add signatures client-side
 
             console.log('[CSRF DEBUG] Retrying request with new CSRF token...');
             
@@ -725,24 +631,8 @@ export const apiFetch = async (url: string, options: RequestInit = {}): Promise<
                   retryHeaders['X-CSRF-Token'] = csrf;
                 }
 
-                // Add request signature for sensitive endpoints
-                const method = options.method || 'GET';
-                if (isSensitiveEndpoint(url) && ['POST', 'PUT', 'DELETE', 'PATCH'].includes(method)) {
-                  let payload = '';
-                  if (options.body) {
-                    if (typeof options.body === 'string') {
-                      payload = options.body;
-                    } else {
-                      payload = JSON.stringify(options.body);
-                    }
-                  }
-                  const timestamp = getTimestamp();
-                  const nonce = generateNonce();
-                  const signature = generateSignature(payload, timestamp, nonce);
-                  retryHeaders['X-Signature'] = signature;
-                  retryHeaders['X-Timestamp'] = timestamp;
-                  retryHeaders['X-Nonce'] = nonce;
-                }
+                // Note: Request signing is now handled by the Next.js API proxy server-side
+                // We no longer add signatures client-side
 
                 const tokenRetryKey = getRequestKey(fullUrl, { ...options, headers: retryHeaders });
                 const tokenRetryPromise = fetch(fullUrl, {
@@ -796,28 +686,8 @@ export const apiFetch = async (url: string, options: RequestInit = {}): Promise<
               retryHeaders['X-CSRF-Token'] = csrf;
             }
 
-            // Add request signature for sensitive endpoints
-            const method = options.method || 'GET';
-            if (isSensitiveEndpoint(url) && ['POST', 'PUT', 'DELETE', 'PATCH'].includes(method)) {
-              try {
-                let payload = '';
-                if (options.body) {
-                  if (typeof options.body === 'string') {
-                    payload = options.body;
-                  } else {
-                    payload = JSON.stringify(options.body);
-                  }
-                }
-                const timestamp = getTimestamp();
-                const nonce = generateNonce();
-                const signature = generateSignature(payload, timestamp, nonce);
-                retryHeaders['X-Signature'] = signature;
-                retryHeaders['X-Timestamp'] = timestamp;
-                retryHeaders['X-Nonce'] = nonce;
-              } catch (error) {
-                console.warn('Request signing failed in retry, proceeding without signature:', error);
-              }
-            }
+            // Note: Request signing is now handled by the Next.js API proxy server-side
+            // We no longer add signatures client-side
 
             const mainRetryKey = getRequestKey(fullUrl, { ...options, headers: retryHeaders });
             const mainRetryPromise = fetch(fullUrl, {
@@ -972,16 +842,10 @@ export const apiDelete = (url: string, options: RequestInit = {}) =>
 
 // Public API fetch function that doesn't require authentication
 export const publicApiFetch = async (url: string, options: RequestInit = {}): Promise<Response> => {
-  // Add full backend URL for relative URLs
-  const fullUrl = appConfig.apiBaseUrl + url;
-
-  // Log environment details for debugging
-  console.log('=== Public API Configuration ===');
-  console.log('NODE_ENV:', process.env.NODE_ENV);
-  console.log('API Base URL:', appConfig.apiBaseUrl);
-  console.log('Requested URL:', url);
-  console.log('Full URL:', fullUrl);
-  console.log('===============================');
+  // Use Next.js API proxy for all backend requests
+  // The proxy handles HMAC signing server-side
+  const proxyBaseUrl = '/api/proxy';
+  const fullUrl = proxyBaseUrl + url;
 
   const publicOptions = {
     ...options,
@@ -1027,35 +891,8 @@ export const publicApiFetch = async (url: string, options: RequestInit = {}): Pr
     }
   }
 
-  // Add request signature for sensitive endpoints (but skip auth endpoints)
-  if (isSensitiveEndpoint(url) && ['POST', 'PUT', 'DELETE', 'PATCH'].includes(method) && !url.includes('/auth/')) {
-    try {
-      // Get the payload for signature generation
-      let payload = '';
-      if (options.body) {
-        // If body is already a string, use it directly
-        if (typeof options.body === 'string') {
-          payload = options.body;
-        } else {
-          // If body is an object, stringify it
-          payload = JSON.stringify(options.body);
-        }
-      }
-
-      const timestamp = getTimestamp();
-      const nonce = generateNonce();
-      const signature = generateSignature(payload, timestamp, nonce);
-
-      const headers = publicOptions.headers as Record<string, string>;
-      headers['X-Signature'] = signature;
-      headers['X-Timestamp'] = timestamp;
-      headers['X-Nonce'] = nonce;
-
-      console.log('Request signature added for sensitive public API endpoint:', url);
-    } catch (error) {
-      console.warn('Request signing failed for public API, proceeding without signature:', error);
-    }
-  }
+  // Note: Request signing is now handled by the Next.js API proxy server-side
+  // We no longer add signatures client-side
 
   // Request deduplication for public API
   const publicRequestKey = getRequestKey(fullUrl, publicOptions);
@@ -1160,9 +997,7 @@ export const publicApiFetch = async (url: string, options: RequestInit = {}): Pr
     console.error('Full URL that failed:', fullUrl);
     console.error('=== Error Environment Details ===');
     console.error('NODE_ENV:', process.env.NODE_ENV);
-    console.error('API Base URL:', appConfig.apiBaseUrl);
-    console.error('DEV_BACKEND_API_URL:', process.env.DEV_BACKEND_API_URL);
-    console.error('PROD_BACKEND_API_URL:', process.env.PROD_BACKEND_API_URL);
+    console.error('Using Next.js API Proxy: YES');
     console.error('===============================');
     
     // Capture unexpected errors with Sentry
@@ -1182,7 +1017,7 @@ export const publicApiFetch = async (url: string, options: RequestInit = {}): Pr
           url: fullUrl,
           method: publicOptions.method,
           nodeEnv: process.env.NODE_ENV,
-          apiBaseUrl: appConfig.apiBaseUrl,
+          usingProxy: true,
         },
       });
     }

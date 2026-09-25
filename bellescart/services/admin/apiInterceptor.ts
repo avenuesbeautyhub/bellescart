@@ -1,11 +1,11 @@
 'use client';
 
-import { appConfig } from '@/config/appConfig';
 import { getAdminAuth as getAuthData, getAdminToken, clearAdminSession, isTokenValid } from '@/auth/admin';
-import { generateSignature, generateNonce, getTimestamp, isSensitiveEndpoint } from '@/utils/requestSigning';
 import * as Sentry from '@sentry/nextjs';
 
-const API_BASE_URL = appConfig.apiBaseUrl;
+// Use Next.js API proxy for all backend requests
+// The proxy handles HMAC signing server-side
+const PROXY_BASE_URL = '/api/proxy/admin';
 
 // Get CSRF token from cookie (shared function)
 const getCsrfTokenFromCookie = (): string | null => {
@@ -103,14 +103,14 @@ export const adminApiFetch = async (url: string, options: RequestInit = {}): Pro
   try {
     // Make initial request
     console.log('Admin API Request:', {
-      url: `${API_BASE_URL}${url}`,
+      url: `${PROXY_BASE_URL}${url}`,
       method: authOptions.method,
       headers: authOptions.headers,
       hasToken: !!token,
       isTokenValid: token ? isTokenValid(token) : false
     });
 
-    const response = await fetch(`${API_BASE_URL}${url}`, authOptions);
+    const response = await fetch(`${PROXY_BASE_URL}${url}`, authOptions);
 
     console.log('Admin API Response:', {
       status: response.status,
@@ -127,7 +127,7 @@ export const adminApiFetch = async (url: string, options: RequestInit = {}): Pro
     if (response.status === 401) {
       const errorData = await response.clone().json();
       console.error('Admin 401 Unauthorized error:', {
-        url: `${API_BASE_URL}${url}`,
+        url: `${PROXY_BASE_URL}${url}`,
         method: authOptions.method,
         errorData,
         hasToken: !!token,
@@ -154,7 +154,7 @@ export const adminApiFetch = async (url: string, options: RequestInit = {}): Pro
       console.error('Admin API Error:', {
         status: response.status,
         errorData,
-        url: `${API_BASE_URL}${url}`,
+        url: `${PROXY_BASE_URL}${url}`,
         method: authOptions.method
       });
 
@@ -179,7 +179,7 @@ export const adminApiFetch = async (url: string, options: RequestInit = {}): Pro
           errorType: 'network-error',
         },
         extra: {
-          url: `${API_BASE_URL}${url}`,
+          url: `${PROXY_BASE_URL}${url}`,
           method: authOptions.method,
         },
       });
@@ -189,7 +189,7 @@ export const adminApiFetch = async (url: string, options: RequestInit = {}): Pro
 
     // Log other errors with details
     console.error('Admin API request failed:', {
-      url: `${API_BASE_URL}${url}`,
+      url: `${PROXY_BASE_URL}${url}`,
       method: authOptions.method,
       error: error instanceof Error ? error.message : error,
       hasToken: !!token,
@@ -213,7 +213,7 @@ export const adminApiFetch = async (url: string, options: RequestInit = {}): Pro
           errorType: 'unexpected-admin-api-error',
         },
         extra: {
-          url: `${API_BASE_URL}${url}`,
+          url: `${PROXY_BASE_URL}${url}`,
           method: authOptions.method,
         },
       });
@@ -301,23 +301,8 @@ export const adminApi = {
       formDataHeaders['X-CSRF-Token'] = csrf;
     }
 
-    // Add signature for sensitive endpoints with FormData
-    const isSensitive = isSensitiveEndpoint(url);
-    if (isSensitive) {
-      try {
-        // For FormData, we can't easily stringify the body, so use empty string as payload
-        const timestamp = getTimestamp();
-        const nonce = generateNonce();
-        const signature = generateSignature('', timestamp, nonce);
-        formDataHeaders['X-Signature'] = signature;
-        formDataHeaders['X-Timestamp'] = timestamp;
-        formDataHeaders['X-Nonce'] = nonce;
-
-        console.log('FormData signature added for:', url);
-      } catch (error) {
-        console.warn('Request signing failed for FormData, proceeding without signature:', error);
-      }
-    }
+    // Note: Request signing is now handled by the Next.js API proxy server-side
+    // We no longer add signatures client-side
 
     return adminApiFetch(url, {
       ...options,
