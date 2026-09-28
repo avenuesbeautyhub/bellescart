@@ -1,6 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
+import { logger } from '@/utils/logger';
 
 type Theme = 'light' | 'dark' | 'auto';
 
@@ -16,18 +17,15 @@ export function ThemeProvider({ children, initialTheme }: { children: React.Reac
   const [theme, setThemeState] = useState<Theme>(() => {
     // For authenticated users: prioritize server preferences (initialTheme) over localStorage
     if (initialTheme !== null && initialTheme !== undefined) {
-      console.log('ThemeProvider: Initializing with server theme:', initialTheme);
       return initialTheme;
     }
     // For unauthenticated users or when initialTheme is null: use localStorage or default to light
     if (typeof window !== 'undefined') {
       const savedTheme = localStorage.getItem('bellescart_theme') as Theme;
       if (savedTheme && ['light', 'dark', 'auto'].includes(savedTheme)) {
-        console.log('ThemeProvider: Initializing with localStorage theme:', savedTheme);
         return savedTheme;
       }
     }
-    console.log('ThemeProvider: Initializing with default theme: light');
     return 'light'; // Changed from 'auto' to 'light' for better unauthenticated experience
   });
   
@@ -39,13 +37,11 @@ export function ThemeProvider({ children, initialTheme }: { children: React.Reac
   // Only update from initialTheme if we haven't applied it yet
   useEffect(() => {
     if (initialTheme !== null && initialTheme !== undefined && !hasAppliedInitialTheme.current) {
-      console.log('ThemeProvider: Applying initial theme from server:', initialTheme);
       setThemeState(initialTheme);
       localStorage.setItem('bellescart_theme', initialTheme);
       hasAppliedInitialTheme.current = true;
     } else if (initialTheme === null) {
       // User is not authenticated, clear localStorage and reset to default (light)
-      console.log('ThemeProvider: User not authenticated, resetting to default theme (light)');
       setThemeState('light');
       if (typeof window !== 'undefined') {
         localStorage.removeItem('bellescart_theme');
@@ -65,7 +61,6 @@ export function ThemeProvider({ children, initialTheme }: { children: React.Reac
         // Day time: 6 AM to 6 PM (6:00 - 18:00) → Light theme
         // Night time: 6 PM to 6 AM (18:00 - 6:00) → Dark theme
         resolvedTheme = (hour >= 6 && hour < 18) ? 'light' : 'dark';
-        console.log('Auto theme based on time:', hour, '→', resolvedTheme);
       } else {
         resolvedTheme = theme;
       }
@@ -83,8 +78,6 @@ export function ThemeProvider({ children, initialTheme }: { children: React.Reac
       // Add the resolved theme class
       html.classList.add(resolvedTheme);
       body.classList.add(resolvedTheme);
-
-      console.log('Theme applied to document:', resolvedTheme);
     };
 
     applyTheme();
@@ -105,7 +98,6 @@ export function ThemeProvider({ children, initialTheme }: { children: React.Reac
   }, [theme]);
 
   const setTheme = useCallback((newTheme: Theme) => {
-    console.log('Setting theme to:', newTheme);
     setThemeState(newTheme);
     // Save to localStorage for persistence
     if (typeof window !== 'undefined') {
@@ -128,10 +120,8 @@ export function ThemeProvider({ children, initialTheme }: { children: React.Reac
 
     // Listen for custom events (same-tab updates from server preferences)
     const handleCustomThemeChange = (e: CustomEvent) => {
-      console.log('Theme context received custom event:', e.detail);
       const newTheme = e.detail as Theme;
       if (['light', 'dark', 'auto'].includes(newTheme)) {
-        console.log('Setting theme from custom event:', newTheme);
         setThemeState(newTheme);
       }
     };

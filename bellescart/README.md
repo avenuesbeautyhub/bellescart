@@ -66,6 +66,9 @@ bellescart/
 │   ├── signup/              # Registration
 │   ├── verify-otp/          # OTP verification
 │   ├── belles-portel-25/    # Admin portal
+│   ├── api/                 # API routes
+│   │   └── proxy/           # Backend API proxy
+│   │       └── [...path]/   # Catch-all proxy route
 │   └── layout.tsx           # Root layout
 ├── components/              # Reusable React components
 │   ├── Navbar/              # Navigation component
@@ -128,6 +131,23 @@ bellescart/
 - Component-specific state
 
 ## API Architecture
+
+### API Proxy (`app/api/proxy/[...path]/route.ts`)
+
+The Next.js API proxy handles all backend communication:
+
+- **Request Forwarding**: Forwards all HTTP methods (GET, POST, PUT, PATCH, DELETE) to the backend
+- **Environment-Based Routing**: Uses `DEV_BACKEND_API_URL` or `PROD_BACKEND_API_URL` based on environment
+- **Server-Side Signing**: Automatically adds HMAC-SHA256 signatures for sensitive endpoints
+- **Header Forwarding**: Forwards authentication headers, CSRF tokens, and other relevant headers
+- **FormData Support**: Handles multipart/form-data requests (e.g., file uploads)
+- **Error Handling**: Comprehensive error logging and proper error responses
+- **Response Handling**: Preserves status codes, content-type, and other response headers
+
+**Sensitive Endpoint Detection**: The proxy automatically detects sensitive endpoints (orders, payments, wallet, admin) and adds required security headers:
+- `X-Signature`: HMAC-SHA256 signature
+- `X-Timestamp`: Request timestamp
+- `X-Nonce`: Unique nonce for replay protection
 
 ### Customer API Interceptor (`services/apiInterceptor.ts`)
 
@@ -216,10 +236,11 @@ The application uses HMAC-SHA256 request signing for sensitive operations:
 | `SENTRY_ORG` | Sentry organization slug | Optional |
 | `SENTRY_PROJECT` | Sentry project slug | Optional |
 | `SENTRY_AUTH_TOKEN` | Sentry auth token for source map uploads | Optional |
-| `BACKEND_API_URL` | Backend API base URL | Optional (defaults to http://127.0.0.1:5000/api) |
+| `DEV_BACKEND_API_URL` | Backend API base URL for development | Required (defaults to http://127.0.0.1:5000/api) |
+| `PROD_BACKEND_API_URL` | Backend API base URL for production | Optional |
 | `ENABLE_MOCK_DATA` | Enable mock data mode | Optional |
 | `ENABLE_LOGGING` | Enable console logging | Optional |
-| `REQUEST_SIGNING_SECRET` | Request signing secret | Optional |
+| `REQUEST_SIGNING_SECRET` | Request signing secret for HMAC signatures | Required |
 
 ## Local Development
 
@@ -248,9 +269,16 @@ The application will be available at `http://localhost:3000`
 ### Backend Connection
 
 The frontend connects to the backend via:
-- **API Proxy**: Next.js rewrites `/api/*` to `http://127.0.0.1:5000/api/*`
-- **Direct API Calls**: Fallback to direct API calls for certain operations
-- **CORS**: Configured to allow requests from localhost:3000
+- **API Proxy**: Next.js API route at `/api/proxy/[...path]` that forwards requests to the backend
+- **Server-Side Signing**: The proxy automatically adds HMAC-SHA256 signatures for sensitive endpoints
+- **Environment-Based URLs**: Uses `DEV_BACKEND_API_URL` for development and `PROD_BACKEND_API_URL` for production
+- **Header Forwarding**: Forwards all relevant headers (authentication, CSRF, etc.) to the backend
+- **Response Handling**: Properly handles JSON and text responses with status codes and headers
+
+**Proxy Configuration**:
+- Set `DEV_BACKEND_API_URL` in `.env.local` for development (e.g., `http://127.0.0.1:5000/api`)
+- Set `PROD_BACKEND_API_URL` in production environment variables
+- Set `REQUEST_SIGNING_SECRET` to match the backend's signing secret
 
 ## Build and Production
 
@@ -324,7 +352,7 @@ The production build includes:
 ```
 Next.js Frontend (port 3000)
     ↓
-API Interceptors (Customer/Admin)
+API Proxy (app/api/proxy/[...path])
     ↓
 Backend API (port 5000)
     ↓

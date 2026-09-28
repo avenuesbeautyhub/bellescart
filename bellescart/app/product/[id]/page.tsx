@@ -13,6 +13,7 @@ import ReviewSection from '@/components/reviews/ReviewSection';
 import { ProductImage } from '@/utils/types';
 import { useRequireUserAuth } from '@/auth/user';
 import { globalToast } from '@/utils/globalToast';
+import { logger } from '@/utils/logger';
 
 import { useProduct } from '@/hooks/user/useProductQueries';
 import {
@@ -246,7 +247,7 @@ export default function ProductPage({
         globalToast.cart.addSuccess();
       }
     } catch (error) {
-      console.error('Failed to add/update cart:', error);
+      logger.error('Failed to add/update cart:', error);
       globalToast.cart.addFailed();
     }
   };
@@ -279,7 +280,7 @@ export default function ProductPage({
         );
       }
     } catch (error) {
-      console.error('Failed to update wishlist:', error);
+      logger.error('Failed to update wishlist:', error);
       globalToast.general.error(
         'Error',
         'Failed to update wishlist'

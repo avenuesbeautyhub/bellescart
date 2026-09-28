@@ -1,45 +1,44 @@
+import { createHmac, randomBytes } from 'crypto';
+
 /**
- * Client-side request signing utilities
- *
- * NOTE: HMAC signing is now handled server-side by the Next.js API proxy.
- * The browser no longer has access to REQUEST_SIGNING_SECRET.
- *
- * These functions are kept for backward compatibility but are no-ops on the client.
- * The actual signing happens in /app/api/proxy/[...path]/route.ts
+ * Server-side request signing utility
+ * This runs only on the Next.js server, never in the browser
+ * Uses REQUEST_SIGNING_SECRET from server environment variables
  */
 
 /**
  * Generate HMAC-SHA256 signature for request signing
- * NOTE: This is a no-op on the client. Signing happens server-side.
  * @param payload - Request body as string
  * @param timestamp - Request timestamp as string
  * @param nonce - Request nonce as string
  * @returns HMAC-SHA256 signature
  */
 export const generateSignature = (payload: string, timestamp: string, nonce: string): string => {
-  // This is now handled server-side by the proxy
-  // Kept for backward compatibility but should not be called from client code
-  throw new Error('Request signing is now handled server-side. Use the API proxy instead.');
+  const secret = process.env.REQUEST_SIGNING_SECRET;
+  
+  if (!secret) {
+    throw new Error('REQUEST_SIGNING_SECRET not configured on server');
+  }
+  
+  const data = `${payload}${timestamp}${nonce}`;
+  const signature = createHmac('sha256', secret).update(data).digest('hex');
+  return signature;
 };
 
 /**
  * Generate unique nonce for request signing
- * NOTE: This is a no-op on the client. Signing happens server-side.
  * @returns Unique nonce string
  */
 export const generateNonce = (): string => {
-  // This is now handled server-side by the proxy
-  throw new Error('Request signing is now handled server-side. Use the API proxy instead.');
+  return randomBytes(16).toString('hex');
 };
 
 /**
  * Get current timestamp for request signing
- * NOTE: This is a no-op on the client. Signing happens server-side.
  * @returns Current timestamp as string
  */
 export const getTimestamp = (): string => {
-  // This is now handled server-side by the proxy
-  throw new Error('Request signing is now handled server-side. Use the API proxy instead.');
+  return Date.now().toString();
 };
 
 /**

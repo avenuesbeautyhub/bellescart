@@ -25,6 +25,10 @@ initSentry();
 
 const app = express();
 
+// Trust proxy for Render and other hosting platforms
+// This is required for express-rate-limit to work correctly behind proxies
+app.set('trust proxy', true);
+
 // Request ID middleware (must be first)
 app.use(requestIdMiddleware);
 

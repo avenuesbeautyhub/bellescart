@@ -2,6 +2,7 @@
 
 import { adminApi } from './apiInterceptor';
 import { PrivacyRequest } from '@/services/privacyService';
+import { logger } from '@/utils/logger';
 
 export interface PrivacyRequestsResponse {
   success: boolean;
@@ -41,7 +42,7 @@ class AdminPrivacyService {
       const result = await response.json();
       return result;
     } catch (error) {
-      console.error('Get privacy requests error:', error);
+      logger.error('Get privacy requests error:', error);
       throw error;
     }
   }
@@ -52,7 +53,7 @@ class AdminPrivacyService {
       const result = await response.json();
       return result;
     } catch (error) {
-      console.error('Get privacy request error:', error);
+      logger.error('Get privacy request error:', error);
       throw error;
     }
   }
@@ -63,7 +64,7 @@ class AdminPrivacyService {
       const result = await response.json();
       return result;
     } catch (error) {
-      console.error('Get privacy stats error:', error);
+      logger.error('Get privacy stats error:', error);
       throw error;
     }
   }

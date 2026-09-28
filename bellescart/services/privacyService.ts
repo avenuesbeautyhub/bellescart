@@ -1,5 +1,6 @@
 import { appConfig } from '@/config/appConfig';
 import { apiFetch } from './apiInterceptor';
+import { logger } from '@/utils/logger';
 
 const API_BASE_URL = appConfig.apiBaseUrl;
 
@@ -93,7 +94,7 @@ class PrivacyService {
       const result = await response.json();
       return result;
     } catch (error) {
-      console.error('Error getting privacy preferences:', error);
+      logger.error('Error getting privacy preferences:', error);
       return {
         success: false,
         error: 'Failed to get privacy preferences'
@@ -114,7 +115,7 @@ class PrivacyService {
       const result = await response.json();
       return result;
     } catch (error) {
-      console.error('Error updating privacy preferences:', error);
+      logger.error('Error updating privacy preferences:', error);
       return {
         success: false,
         error: 'Failed to update privacy preferences'
@@ -134,7 +135,7 @@ class PrivacyService {
       const result = await response.json();
       return result;
     } catch (error) {
-      console.error('Error requesting data export:', error);
+      logger.error('Error requesting data export:', error);
       return {
         success: false,
         error: 'Failed to request data export'
@@ -154,7 +155,7 @@ class PrivacyService {
       const result = await response.json();
       return result;
     } catch (error) {
-      console.error('Error getting user privacy requests:', error);
+      logger.error('Error getting user privacy requests:', error);
       return {
         success: false,
         error: 'Failed to get privacy requests'
@@ -174,7 +175,7 @@ class PrivacyService {
       const result = await response.json();
       return result;
     } catch (error) {
-      console.error('Error downloading export data:', error);
+      logger.error('Error downloading export data:', error);
       return {
         success: false,
         error: 'Failed to download export data'

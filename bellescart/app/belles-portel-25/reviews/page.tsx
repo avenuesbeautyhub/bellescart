@@ -8,6 +8,7 @@ import { globalToast } from '@/utils/globalToast';
 import { useAdminReviews, useUpdateReviewStatus, useDeleteAdminReview } from '@/hooks/admin/useAdminReviewQueries';
 import { AdminReview } from '@/services/admin/reviewService';
 import { useAdminAuth } from '@/auth/admin';
+import { logger } from '@/utils/logger';
 
 export default function AdminReviewsPage() {
   const { user, loaded, isAuthenticated } = useAdminAuth();
@@ -33,7 +34,7 @@ export default function AdminReviewsPage() {
   // Log any errors that occur during fetching
   useEffect(() => {
     if (error) {
-      console.error('Error fetching admin reviews:', error);
+      logger.error('Error fetching admin reviews:', error);
       globalToast.general.error('Error', 'Failed to load reviews. Please try again.');
     }
   }, [error]);
@@ -58,7 +59,7 @@ export default function AdminReviewsPage() {
       await updateStatusMutation.mutateAsync({ reviewId, status: newStatus });
       globalToast.general.success('Updated', `Review ${newStatus} successfully`);
     } catch (error) {
-      console.error('Failed to update review status:', error);
+      logger.error('Failed to update review status:', error);
       globalToast.general.error('Error', 'Failed to update review status');
     }
   };
@@ -72,7 +73,7 @@ export default function AdminReviewsPage() {
       await deleteReviewMutation.mutateAsync(reviewId);
       globalToast.general.success('Deleted', 'Review deleted successfully');
     } catch (error) {
-      console.error('Failed to delete review:', error);
+      logger.error('Failed to delete review:', error);
       globalToast.general.error('Error', 'Failed to delete review');
     }
   };

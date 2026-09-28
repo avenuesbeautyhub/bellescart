@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
 import { useRequireUserAuth } from '@/auth/user';
+import { logger } from '@/utils/logger';
 
 import Navbar from '@/components/Navbar/Navbar';
 import Footer from '@/components/Footer/Footer';
@@ -401,7 +402,7 @@ export default function CheckoutPage() {
           );
         }
       } catch (error: any) {
-        console.error(
+        logger.error(
           'Coupon application error:',
           error
         );
@@ -556,7 +557,7 @@ export default function CheckoutPage() {
 
         return false;
       } catch (error: any) {
-        console.error(
+        logger.error(
           'Stock validation error:',
           error
         );
@@ -715,14 +716,6 @@ export default function CheckoutPage() {
                         undefined,
                     };
 
-                  console.log(
-                    '📦 Creating order (admin-managed):',
-                    {
-                      processNimbus:
-                        orderRequest.processNimbus,
-                    }
-                  );
-
                   let orderResponse;
                   try {
                     orderResponse =
@@ -730,7 +723,7 @@ export default function CheckoutPage() {
                         orderRequest
                       );
                   } catch (orderError) {
-                    console.error('❌ Order creation failed after Razorpay payment:', orderError);
+                    logger.error('Order creation failed after Razorpay payment:', orderError);
 
                     globalToast.general.error(
                       'Order Creation Failed',
@@ -803,13 +796,9 @@ export default function CheckoutPage() {
                         }
                       );
 
-                      console.log(
-                        '✅ Razorpay payment record created with completed status',
-                        paymentRecordResponse
-                      );
                     } catch (err) {
-                      console.error(
-                        '❌ Failed to create Razorpay payment record:',
+                      logger.error(
+                        'Failed to create Razorpay payment record:',
                         err
                       );
                       globalToast.general.error(
@@ -861,10 +850,6 @@ export default function CheckoutPage() {
             modal: {
               ondismiss:
                 function () {
-                  console.log(
-                    'Payment modal closed by user'
-                  );
-
                   // Short duration toast for user cancellation (3 seconds)
                   globalToast.show({
                     type: 'info',
@@ -889,7 +874,7 @@ export default function CheckoutPage() {
             async function (
               response: any
             ) {
-              console.error(
+              logger.error(
                 'Payment failed:',
                 response
               );
@@ -912,29 +897,11 @@ export default function CheckoutPage() {
                   ?.payment_id
               ) {
                 try {
-                  console.log('📝 Creating failed payment record with data:', {
-                    bookingId: razorpayOrderId,
-                    razorpayPaymentId: response.error?.metadata?.payment_id,
-                    razorpayOrderId: response.error?.metadata?.order_id,
-                    amount: amount / 100,
-                    currency,
-                    status: 'failed',
-                    paymentMethod: 'razorpay',
-                    userId: currentUserData?.id || currentUserData?._id,
-                  });
-
                   const paymentRecordResponse = await paymentService.createPaymentRecord(
                     {
-                      bookingId:
-                        razorpayOrderId,
-                      razorpayPaymentId:
-                        response.error
-                          ?.metadata
-                          ?.payment_id,
-                      razorpayOrderId:
-                        response.error
-                          ?.metadata
-                          ?.order_id,
+                      bookingId: razorpayOrderId,
+                      razorpayPaymentId: response.error?.metadata?.payment_id,
+                      razorpayOrderId: response.error?.metadata?.order_id,
                       amount:
                         amount / 100,
                       currency,
@@ -954,16 +921,11 @@ export default function CheckoutPage() {
                     }
                   );
 
-                  console.log(
-                    '✅ Failed payment record created successfully:',
-                    paymentRecordResponse
-                  );
-
                   // Invalidate payment queries to refresh the payment history
                   invalidatePaymentQueries();
                 } catch (err) {
-                  console.error(
-                    '❌ Failed to create failed payment record:',
+                  logger.error(
+                    'Failed to create failed payment record:',
                     err
                   );
                   globalToast.general.error(
@@ -972,7 +934,7 @@ export default function CheckoutPage() {
                   );
                 }
               } else {
-                console.warn('⚠️ No payment_id in error metadata, cannot create payment record');
+                logger.warn('No payment_id in error metadata, cannot create payment record');
               }
 
               const errorDescription =
@@ -1112,9 +1074,8 @@ export default function CheckoutPage() {
                   description: 'Refund: Out of stock items',
                 }
               );
-              console.log('✅ Wallet refunded due to stock validation failure');
             } catch (refundError) {
-              console.error('❌ Failed to refund wallet:', refundError);
+              logger.error('Failed to refund wallet:', refundError);
             }
 
             globalToast.general.error(
@@ -1161,8 +1122,8 @@ export default function CheckoutPage() {
                 orderRequest
               );
           } catch (orderError) {
-            console.error('❌ Order creation failed:', orderError);
-            
+            logger.error('Order creation failed:', orderError);
+
             // Refund wallet if order creation fails
             try {
               await creditWalletMutation.mutateAsync(
@@ -1171,9 +1132,8 @@ export default function CheckoutPage() {
                   description: 'Refund: Order creation failed',
                 }
               );
-              console.log('✅ Wallet refunded due to order creation failure');
             } catch (refundError) {
-              console.error('❌ Failed to refund wallet:', refundError);
+              logger.error('Failed to refund wallet:', refundError);
             }
 
             globalToast.general.error(
@@ -1239,13 +1199,9 @@ export default function CheckoutPage() {
                 }
               );
 
-              console.log(
-                '✅ Wallet payment record created with completed status',
-                paymentRecordResponse
-              );
             } catch (err) {
-              console.error(
-                '❌ Failed to create wallet payment record:',
+              logger.error(
+                'Failed to create wallet payment record:',
                 err
               );
               globalToast.general.error(
@@ -1271,9 +1227,8 @@ export default function CheckoutPage() {
                   description: 'Refund: Order response failed',
                 }
               );
-              console.log('✅ Wallet refunded due to order response failure');
             } catch (refundError) {
-              console.error('❌ Failed to refund wallet:', refundError);
+              logger.error('Failed to refund wallet:', refundError);
             }
 
             globalToast.order.createFailed(
@@ -1295,7 +1250,7 @@ export default function CheckoutPage() {
         return;
       }
     } catch (error) {
-      console.error(
+      logger.error(
         'Error placing order:',
         error
       );
@@ -1309,9 +1264,8 @@ export default function CheckoutPage() {
               description: 'Refund: Unexpected error during checkout',
             }
           );
-          console.log('✅ Wallet refunded due to unexpected error');
         } catch (refundError) {
-          console.error('❌ Failed to refund wallet:', refundError);
+          logger.error('Failed to refund wallet:', refundError);
         }
 
         globalToast.general.error(

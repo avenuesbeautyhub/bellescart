@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 
 import { useRequireUserAuth, useAuthActions } from '@/auth/user';
 import { Address } from '@/types/auth';
+import { logger } from '@/utils/logger';
 
 import Navbar from '@/components/Navbar/Navbar';
 import Footer from '@/components/Footer/Footer';
@@ -486,7 +487,7 @@ export default function ProfilePage() {
         'Profile updated successfully'
       );
     } catch (error) {
-      console.error(
+      logger.error(
         'Profile update error:',
         error
       );
@@ -578,7 +579,7 @@ export default function ProfilePage() {
         'Address deleted successfully'
       );
     } catch (error) {
-      console.error(
+      logger.error(
         'Address deletion error:',
         error
       );
@@ -604,7 +605,7 @@ export default function ProfilePage() {
         'Default address updated'
       );
     } catch (error) {
-      console.error(
+      logger.error(
         'Set default address error:',
         error
       );
@@ -638,7 +639,7 @@ export default function ProfilePage() {
         'Profile picture updated'
       );
     } catch (error) {
-      console.error(
+      logger.error(
         'Profile picture upload error:',
         error
       );

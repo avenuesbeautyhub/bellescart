@@ -320,8 +320,8 @@ export default function Home() {
               <div className="relative">
                 <GuestProductGrid
                   products={featuredProducts}
-                  onAddToCart={() => console.log('Add to cart clicked')}
-                  onAddToWishlist={() => console.log('Add to wishlist clicked')}
+                  onAddToCart={() => {}}
+                  onAddToWishlist={() => {}}
                 />
               </div>
             </div>

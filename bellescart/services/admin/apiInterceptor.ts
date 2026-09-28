@@ -1,11 +1,12 @@
 'use client';
 
-import { appConfig } from '@/config/appConfig';
 import { getAdminAuth as getAuthData, getAdminToken, clearAdminSession, isTokenValid } from '@/auth/admin';
-import { generateSignature, generateNonce, getTimestamp, isSensitiveEndpoint } from '@/utils/requestSigning';
+import { logger } from '@/utils/logger';
 import * as Sentry from '@sentry/nextjs';
 
-const API_BASE_URL = appConfig.apiBaseUrl;
+// Use Next.js API proxy for all backend requests
+// The proxy handles HMAC signing server-side
+const PROXY_BASE_URL = '/api/proxy/admin';
 
 // Get CSRF token from cookie (shared function)
 const getCsrfTokenFromCookie = (): string | null => {
@@ -19,22 +20,21 @@ const getCsrfTokenFromCookie = (): string | null => {
 const globalToast = {
   auth: {
     tokenExpired: () => {
-      // You can implement toast notifications here
-      console.warn('Admin token expired');
+      logger.warn('Admin token expired');
     },
     loginRequired: () => {
-      console.warn('Admin login required');
+      logger.warn('Admin login required');
     },
     sessionExpired: () => {
-      console.warn('Admin session expired');
+      logger.warn('Admin session expired');
     }
   },
   error: {
     network: () => {
-      console.error('Network error occurred');
+      logger.error('Network error occurred');
     },
     server: (message: string) => {
-      console.error('Server error:', message);
+      logger.error('Server error', message);
     }
   }
 };
@@ -46,22 +46,19 @@ const isTokenExpired = (token: string): boolean => {
 
 // Admin API interceptor function
 export const adminApiFetch = async (url: string, options: RequestInit = {}): Promise<Response> => {
-  console.log('API Fetch URL:', url); // Debug log
+  logger.api('Admin API Fetch URL', url);
 
   // Get admin authentication data
   const token = getAdminToken();
 
-  console.log('Admin token check from interceptor:', {
+  logger.auth('Admin token check from interceptor', {
     hasToken: !!token,
-    tokenLength: token?.length,
-    tokenStart: token?.substring(0, 20) + '...',
     isValid: token ? isTokenValid(token) : false,
-    localStorageKeys: typeof window !== 'undefined' ? Object.keys(localStorage) : []
   });
 
   // Check if token exists and is valid
   if (token && isTokenExpired(token)) {
-    console.error('Admin token expired, clearing session');
+    logger.auth('Admin token expired, clearing session');
     globalToast.auth.tokenExpired();
     // For now, clear auth and let user re-login
     if (typeof window !== 'undefined' && window.location.pathname !== '/belles-portel-25') {
@@ -69,10 +66,10 @@ export const adminApiFetch = async (url: string, options: RequestInit = {}): Pro
     }
     // You could implement auto-refresh here similar to user interceptor
   }
-  
+
   // If no token after validation check, log this clearly
   if (!token) {
-    console.error('No admin token available - user may need to log in again');
+    logger.auth('No admin token available - user may need to log in again');
   }
 
   // Add authorization header if token exists
@@ -88,10 +85,9 @@ export const adminApiFetch = async (url: string, options: RequestInit = {}): Pro
   const method = options.method || 'GET';
   if (['POST', 'PUT', 'DELETE', 'PATCH'].includes(method)) {
     const cookieCsrf = getCsrfTokenFromCookie();
-    console.log('CSRF token check:', {
+    logger.csrf('CSRF token check', {
       method,
       hasCsrfToken: !!cookieCsrf,
-      csrfTokenLength: cookieCsrf?.length
     });
 
     if (cookieCsrf) {
@@ -102,17 +98,16 @@ export const adminApiFetch = async (url: string, options: RequestInit = {}): Pro
 
   try {
     // Make initial request
-    console.log('Admin API Request:', {
-      url: `${API_BASE_URL}${url}`,
+    logger.api('Admin API Request', {
+      url: `${PROXY_BASE_URL}${url}`,
       method: authOptions.method,
-      headers: authOptions.headers,
       hasToken: !!token,
       isTokenValid: token ? isTokenValid(token) : false
     });
 
-    const response = await fetch(`${API_BASE_URL}${url}`, authOptions);
+    const response = await fetch(`${PROXY_BASE_URL}${url}`, authOptions);
 
-    console.log('Admin API Response:', {
+    logger.api('Admin API Response', {
       status: response.status,
       ok: response.ok,
       statusText: response.statusText
@@ -126,22 +121,21 @@ export const adminApiFetch = async (url: string, options: RequestInit = {}): Pro
     // If we get a 401 (Unauthorized), clear auth and redirect
     if (response.status === 401) {
       const errorData = await response.clone().json();
-      console.error('Admin 401 Unauthorized error:', {
-        url: `${API_BASE_URL}${url}`,
+      logger.auth('Admin 401 Unauthorized error', {
+        url: `${PROXY_BASE_URL}${url}`,
         method: authOptions.method,
-        errorData,
         hasToken: !!token,
         tokenValid: token ? isTokenValid(token) : false
       });
 
       // Only clear session if we're not already on login page to prevent loops
       if (typeof window !== 'undefined' && window.location.pathname !== '/belles-portel-25') {
-        console.error('Clearing admin session due to 401 error');
+        logger.auth('Clearing admin session due to 401 error');
         clearAdminSession();
         globalToast.auth.sessionExpired();
 
         // Redirect to admin login page
-        console.error('Redirecting to login due to 401 error');
+        logger.auth('Redirecting to login due to 401 error');
         window.location.href = '/belles-portel-25';
       }
 
@@ -151,10 +145,9 @@ export const adminApiFetch = async (url: string, options: RequestInit = {}): Pro
     // Handle other HTTP errors
     if (response.status >= 400) {
       const errorData = await response.clone().json();
-      console.error('Admin API Error:', {
+      logger.error('Admin API Error', {
         status: response.status,
-        errorData,
-        url: `${API_BASE_URL}${url}`,
+        url: `${PROXY_BASE_URL}${url}`,
         method: authOptions.method
       });
 
@@ -169,7 +162,7 @@ export const adminApiFetch = async (url: string, options: RequestInit = {}): Pro
   } catch (error) {
     // Handle network errors
     if (error instanceof TypeError) {
-      console.error('Network error in admin API:', error);
+      logger.error('Network error in admin API', error);
       globalToast.error.network();
       
       // Capture network errors with Sentry
@@ -179,7 +172,7 @@ export const adminApiFetch = async (url: string, options: RequestInit = {}): Pro
           errorType: 'network-error',
         },
         extra: {
-          url: `${API_BASE_URL}${url}`,
+          url: `${PROXY_BASE_URL}${url}`,
           method: authOptions.method,
         },
       });
@@ -188,8 +181,8 @@ export const adminApiFetch = async (url: string, options: RequestInit = {}): Pro
     }
 
     // Log other errors with details
-    console.error('Admin API request failed:', {
-      url: `${API_BASE_URL}${url}`,
+    logger.error('Admin API request failed', {
+      url: `${PROXY_BASE_URL}${url}`,
       method: authOptions.method,
       error: error instanceof Error ? error.message : error,
       hasToken: !!token,
@@ -213,7 +206,7 @@ export const adminApiFetch = async (url: string, options: RequestInit = {}): Pro
           errorType: 'unexpected-admin-api-error',
         },
         extra: {
-          url: `${API_BASE_URL}${url}`,
+          url: `${PROXY_BASE_URL}${url}`,
           method: authOptions.method,
         },
       });
@@ -301,23 +294,8 @@ export const adminApi = {
       formDataHeaders['X-CSRF-Token'] = csrf;
     }
 
-    // Add signature for sensitive endpoints with FormData
-    const isSensitive = isSensitiveEndpoint(url);
-    if (isSensitive) {
-      try {
-        // For FormData, we can't easily stringify the body, so use empty string as payload
-        const timestamp = getTimestamp();
-        const nonce = generateNonce();
-        const signature = generateSignature('', timestamp, nonce);
-        formDataHeaders['X-Signature'] = signature;
-        formDataHeaders['X-Timestamp'] = timestamp;
-        formDataHeaders['X-Nonce'] = nonce;
-
-        console.log('FormData signature added for:', url);
-      } catch (error) {
-        console.warn('Request signing failed for FormData, proceeding without signature:', error);
-      }
-    }
+    // Note: Request signing is now handled by the Next.js API proxy server-side
+    // We no longer add signatures client-side
 
     return adminApiFetch(url, {
       ...options,

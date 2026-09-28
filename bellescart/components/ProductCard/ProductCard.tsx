@@ -11,6 +11,7 @@ import {
   useCart,
 } from '@/hooks/user/useCartQueries';
 import { globalToast } from '@/utils/globalToast';
+import { logger } from '@/utils/logger';
 
 interface ProductCardProps {
   product: Product;
@@ -87,7 +88,7 @@ export default function ProductCard({
 
       onAddToCart?.(product);
     } catch (error) {
-      console.error('Failed to add/update cart:', error);
+      logger.error('Failed to add/update cart:', error);
       globalToast.cart.addFailed();
     }
   };

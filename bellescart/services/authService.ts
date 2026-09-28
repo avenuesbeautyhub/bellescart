@@ -1,11 +1,16 @@
 import { SignupData, LoginData, OtpData, ResendOtpData, ApiResponse, LoginResponse, UserProfile } from '@/types/auth';
-import { appConfig, isMockMode } from '@/config/appConfig';
+import { isMockMode } from '@/config/appConfig';
 import { apiFetch, publicApiFetch } from './apiInterceptor';
+import { logger } from '@/utils/logger';
 
 
 
-const API_BASE_URL = appConfig.apiBaseUrl;
 const MOCK_MODE = process.env.ENABLE_MOCK_DATA;
+
+// Helper function to check if mock mode is enabled
+const shouldUseMock = () => {
+  return MOCK_MODE === 'true' || isMockMode();
+};
 
 class AuthService {
   // Token storage methods - using same keys as auth context
@@ -33,7 +38,7 @@ class AuthService {
   async signup(data: SignupData & { marketingConsent?: boolean; privacyPolicyConsent?: boolean }): Promise<ApiResponse> {
 
 
-    const response = await fetch(`${API_BASE_URL}/auth/register`, {
+    const response = await publicApiFetch('/auth/register', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -52,7 +57,7 @@ class AuthService {
   }
 
   async verifyOtp(data: OtpData): Promise<ApiResponse> {
-    const response = await fetch(`${API_BASE_URL}/auth/verify-otp`, {
+    const response = await publicApiFetch('/auth/verify-otp', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -74,7 +79,7 @@ class AuthService {
   }
 
   async resendOtp(data: ResendOtpData): Promise<ApiResponse> {
-    const response = await fetch(`${API_BASE_URL}/auth/resend-otp`, {
+    const response = await publicApiFetch('/auth/resend-otp', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -88,15 +93,13 @@ class AuthService {
   async login(data: LoginData): Promise<LoginResponse> {
 
 
-    const response = await fetch(`${API_BASE_URL}/auth/login`, {
+    const response = await publicApiFetch('/auth/login', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(data),
     });
-
-    console.log('login response', response);
 
     const result = await response.json();
 
@@ -113,11 +116,11 @@ class AuthService {
 
     const refreshToken = this.getRefreshToken();
     if (!refreshToken) {
-      console.error('No refresh token available in localStorage');
+      logger.error('No refresh token available in localStorage');
       throw new Error('No refresh token available');
     }
 
-    console.log('Attempting to refresh token with:', refreshToken.substring(0, 20) + '...');
+    logger.auth('Attempting to refresh token');
 
     const response = await publicApiFetch('/auth/refresh-token', {
       method: 'POST',
@@ -127,18 +130,18 @@ class AuthService {
       body: JSON.stringify({ refreshToken }),
     });
 
-    console.log('Refresh token API response status:', response.status);
+    logger.auth('Refresh token API response status', response.status);
 
     const result = await response.json();
 
-    console.log('Refresh token API response:', result);
+    logger.auth('Refresh token API response received');
 
     // Store new tokens if refresh is successful
     if (result.success && result.data?.token && result.data?.refreshToken) {
       this.setTokens(result.data.token, result.data.refreshToken);
-      console.log('Tokens refreshed successfully');
+      logger.auth('Tokens refreshed successfully');
     } else {
-      console.error('Token refresh failed:', result);
+      logger.auth('Token refresh failed');
     }
 
     return result;
@@ -164,11 +167,11 @@ class AuthService {
 
   async getCurrentUser(): Promise<ApiResponse<UserProfile>> {
     // Check if mock mode is enabled
-    if (MOCK_MODE === 'true' || appConfig.useMockData) {
+    if (shouldUseMock()) {
       return this.mockGetCurrentUser();
     }
 
-    const response = await apiFetch(`${API_BASE_URL}/auth/findme`, {
+    const response = await apiFetch('/auth/findme', {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
