@@ -1,9 +1,9 @@
 /**
  * Client-side request signing utilities
- * 
+ *
  * NOTE: HMAC signing is now handled server-side by the Next.js API proxy.
  * The browser no longer has access to REQUEST_SIGNING_SECRET.
- * 
+ *
  * These functions are kept for backward compatibility but are no-ops on the client.
  * The actual signing happens in /app/api/proxy/[...path]/route.ts
  */
@@ -19,7 +19,6 @@
 export const generateSignature = (payload: string, timestamp: string, nonce: string): string => {
   // This is now handled server-side by the proxy
   // Kept for backward compatibility but should not be called from client code
-  console.warn('generateSignature called on client - signing is now handled server-side by the proxy');
   throw new Error('Request signing is now handled server-side. Use the API proxy instead.');
 };
 
@@ -30,7 +29,6 @@ export const generateSignature = (payload: string, timestamp: string, nonce: str
  */
 export const generateNonce = (): string => {
   // This is now handled server-side by the proxy
-  console.warn('generateNonce called on client - signing is now handled server-side by the proxy');
   throw new Error('Request signing is now handled server-side. Use the API proxy instead.');
 };
 
@@ -41,7 +39,6 @@ export const generateNonce = (): string => {
  */
 export const getTimestamp = (): string => {
   // This is now handled server-side by the proxy
-  console.warn('getTimestamp called on client - signing is now handled server-side by the proxy');
   throw new Error('Request signing is now handled server-side. Use the API proxy instead.');
 };
 

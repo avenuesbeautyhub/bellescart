@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { reviewService, Review, ReviewSummary, ReviewEligibility } from '@/services/reviewService';
+import { logger } from '@/utils/logger';
 
 // Query keys
 export const reviewKeys = {
@@ -87,7 +88,7 @@ export const useCreateReview = () => {
       queryClient.invalidateQueries({ queryKey: reviewKeys.myReviews() });
     },
     onError: (error) => {
-      console.error('Failed to create review:', error);
+      logger.error('Failed to create review:', error);
     }
   });
 };
@@ -130,7 +131,7 @@ export const useDeleteReview = () => {
       queryClient.invalidateQueries({ queryKey: reviewKeys.myReviews() });
     },
     onError: (error) => {
-      console.error('Failed to delete review:', error);
+      logger.error('Failed to delete review:', error);
     }
   });
 };

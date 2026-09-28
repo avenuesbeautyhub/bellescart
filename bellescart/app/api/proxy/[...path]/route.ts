@@ -5,13 +5,6 @@ import { generateSignature, generateNonce, getTimestamp, isSensitiveEndpoint } f
 // Prioritize PROD_BACKEND_API_URL if set, otherwise use DEV
 const BACKEND_API_URL = process.env.PROD_BACKEND_API_URL || process.env.DEV_BACKEND_API_URL;
 
-console.log('[Proxy] Environment check:', {
-  NODE_ENV: process.env.NODE_ENV,
-  DEV_BACKEND_API_URL: process.env.DEV_BACKEND_API_URL,
-  PROD_BACKEND_API_URL: process.env.PROD_BACKEND_API_URL,
-  FINAL_BACKEND_API_URL: BACKEND_API_URL
-});
-
 if (!BACKEND_API_URL) {
   throw new Error('Backend API URL not configured. Set DEV_BACKEND_API_URL or PROD_BACKEND_API_URL.');
 }
@@ -70,8 +63,6 @@ async function handleProxyRequest(
   const backendUrl = `${BACKEND_API_URL}/${path}`;
   
   try {
-    console.log(`[Proxy] ${method} ${backendUrl}`);
-
     // Get request body
     let body: string | null = null;
     let contentType = request.headers.get('content-type') || '';
@@ -107,59 +98,25 @@ async function handleProxyRequest(
         headers['X-Signature'] = signature;
         headers['X-Timestamp'] = timestamp;
         headers['X-Nonce'] = nonce;
-
-        console.log(`[Proxy] Added signature for sensitive endpoint: /${path}`);
       } catch (error) {
-        console.error('[Proxy] Failed to generate signature:', error);
         // Continue without signature if signing fails
       }
     }
 
     // Make the request to backend
-    console.log('[Proxy] Fetching backend:', {
-      url: backendUrl,
-      method,
-      headers: Object.keys(headers),
-      hasBody: !!body
-    });
-
     const backendResponse = await fetch(backendUrl, {
       method,
       headers,
       body: body || undefined,
     });
 
-    console.log('[Proxy] Backend response:', {
-      status: backendResponse.status,
-      statusText: backendResponse.statusText,
-      ok: backendResponse.ok
-    });
-
-    // Log response body for debugging errors
-    if (!backendResponse.ok) {
-      const errorText = await backendResponse.text();
-      console.log('[Proxy] Backend error details:', {
-        status: backendResponse.status,
-        errorBody: errorText
-      });
-    }
-
     return await handleBackendResponse(backendResponse);
   } catch (error) {
-    console.error('[Proxy] Error forwarding request:', error);
-    console.error('[Proxy] Error details:', {
-      message: error instanceof Error ? error.message : 'Unknown error',
-      stack: error instanceof Error ? error.stack : undefined,
-      backendUrl,
-      path,
-      method
-    });
     return NextResponse.json(
-      { 
-        success: false, 
+      {
+        success: false,
         error: 'Proxy error',
         details: error instanceof Error ? error.message : 'Unknown error',
-        backendUrl 
       },
       { status: 500 }
     );

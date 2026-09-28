@@ -4,6 +4,7 @@ import { useEffect, useState, useRef } from 'react';
 import { User } from '@/utils/types';
 import { UserProfile } from '@/types/auth';
 import { authService } from '@/services/authService';
+import { logger } from '@/utils/logger';
 
 // Export React Query hooks
 export { useAuthWithQuery } from '@/hooks/user/useAuthWithQuery';
@@ -144,11 +145,11 @@ export const useAuth = () => {
               setUser(null);
             }
           } catch (error) {
-            console.error('Failed to fetch current user:', error);
+            logger.error('Failed to fetch current user:', error);
             // Don't set user to null on error during development
             // This prevents redirect to login on API errors
             if (process.env.NODE_ENV === 'development') {
-              console.warn('Development mode: Keeping auth state on API error');
+              logger.warn('Development mode: Keeping auth state on API error');
             } else {
               setUser(null);
             }
@@ -238,7 +239,7 @@ export const useAuthActions = () => {
 
       return response;
     } catch (error) {
-      console.error('Login error:', error);
+      logger.error('Login error:', error);
       throw error;
     }
   };
@@ -254,7 +255,7 @@ export const useAuthActions = () => {
       const response = await authService.signup(data);
       return response;
     } catch (error) {
-      console.error('Signup error:', error);
+      logger.error('Signup error:', error);
       throw error;
     }
   };
@@ -277,7 +278,7 @@ export const useAuthActions = () => {
 
       return response;
     } catch (error) {
-      console.error('OTP verification error:', error);
+      logger.error('OTP verification error:', error);
       throw error;
     }
   };
@@ -287,7 +288,7 @@ export const useAuthActions = () => {
       const response = await authService.resendOtp(data);
       return response;
     } catch (error) {
-      console.error('Resend OTP error:', error);
+      logger.error('Resend OTP error:', error);
       throw error;
     }
   };

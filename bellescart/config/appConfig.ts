@@ -13,15 +13,7 @@ export const appConfig = {
   enableLogging: process.env.ENABLE_LOGGING === 'true',
 };
 
-// Log API configuration for debugging
-if (typeof window !== 'undefined') {
-  console.log('=== API Configuration ===');
-  console.log('NODE_ENV:', process.env.NODE_ENV);
-  console.log('Using Next.js API Proxy: YES');
-  console.log('Proxy Base URL: /api/proxy');
-  console.log('Request signing: Handled server-side by proxy');
-  console.log('========================');
-}
+
 
 // Export helper function to check API configuration
 export const getApiConfigInfo = () => {

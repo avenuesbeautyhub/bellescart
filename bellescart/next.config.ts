@@ -54,6 +54,9 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: __dirname,
   },
+  compiler: {
+    removeConsole: process.env.NODE_ENV === 'production',
+  },
   webpack: (config, { isServer }) => {
     if (!isServer) {
       config.resolve.fallback = {

@@ -1,6 +1,7 @@
 import { SignupData, LoginData, OtpData, ResendOtpData, ApiResponse, LoginResponse, UserProfile } from '@/types/auth';
 import { isMockMode } from '@/config/appConfig';
 import { apiFetch, publicApiFetch } from './apiInterceptor';
+import { logger } from '@/utils/logger';
 
 
 
@@ -100,8 +101,6 @@ class AuthService {
       body: JSON.stringify(data),
     });
 
-    console.log('login response', response);
-
     const result = await response.json();
 
     // Store tokens if login is successful
@@ -117,11 +116,11 @@ class AuthService {
 
     const refreshToken = this.getRefreshToken();
     if (!refreshToken) {
-      console.error('No refresh token available in localStorage');
+      logger.error('No refresh token available in localStorage');
       throw new Error('No refresh token available');
     }
 
-    console.log('Attempting to refresh token with:', refreshToken.substring(0, 20) + '...');
+    logger.auth('Attempting to refresh token');
 
     const response = await publicApiFetch('/auth/refresh-token', {
       method: 'POST',
@@ -131,18 +130,18 @@ class AuthService {
       body: JSON.stringify({ refreshToken }),
     });
 
-    console.log('Refresh token API response status:', response.status);
+    logger.auth('Refresh token API response status', response.status);
 
     const result = await response.json();
 
-    console.log('Refresh token API response:', result);
+    logger.auth('Refresh token API response received');
 
     // Store new tokens if refresh is successful
     if (result.success && result.data?.token && result.data?.refreshToken) {
       this.setTokens(result.data.token, result.data.refreshToken);
-      console.log('Tokens refreshed successfully');
+      logger.auth('Tokens refreshed successfully');
     } else {
-      console.error('Token refresh failed:', result);
+      logger.auth('Token refresh failed');
     }
 
     return result;

@@ -3,13 +3,6 @@ import { NextRequest, NextResponse } from 'next/server';
 // Get backend API URL from environment
 const BACKEND_API_URL = process.env.PROD_BACKEND_API_URL || process.env.DEV_BACKEND_API_URL;
 
-console.log('[CSRF Token] Environment check:', {
-  NODE_ENV: process.env.NODE_ENV,
-  DEV_BACKEND_API_URL: process.env.DEV_BACKEND_API_URL,
-  PROD_BACKEND_API_URL: process.env.PROD_BACKEND_API_URL,
-  FINAL_BACKEND_API_URL: BACKEND_API_URL
-});
-
 if (!BACKEND_API_URL) {
   throw new Error('Backend API URL not configured. Set DEV_BACKEND_API_URL or PROD_BACKEND_API_URL.');
 }
@@ -18,8 +11,6 @@ export async function GET(request: NextRequest) {
   const backendUrl = `${BACKEND_API_URL}/csrf-token`;
   
   try {
-    console.log(`[CSRF Token] GET ${backendUrl}`);
-
     // Forward the request to backend
     const backendResponse = await fetch(backendUrl, {
       method: 'GET',
@@ -29,12 +20,6 @@ export async function GET(request: NextRequest) {
         'Origin': request.headers.get('origin') || '',
         'Referer': request.headers.get('referer') || '',
       },
-    });
-
-    console.log('[CSRF Token] Backend response:', {
-      status: backendResponse.status,
-      statusText: backendResponse.statusText,
-      ok: backendResponse.ok
     });
 
     const responseText = await backendResponse.text();
@@ -66,26 +51,14 @@ export async function GET(request: NextRequest) {
       }
     });
 
-    console.log('[CSRF Token] Forwarded response with headers:', {
-      contentType: nextResponse.headers.get('content-type'),
-      hasSetCookie: !!nextResponse.headers.get('set-cookie'),
-      setCookie: nextResponse.headers.get('set-cookie')
-    });
-
     return nextResponse;
   } catch (error) {
     console.error('[CSRF Token] Error forwarding request:', error);
-    console.error('[CSRF Token] Error details:', {
-      message: error instanceof Error ? error.message : 'Unknown error',
-      stack: error instanceof Error ? error.stack : undefined,
-      backendUrl
-    });
     return NextResponse.json(
-      { 
-        success: false, 
+      {
+        success: false,
         error: 'CSRF token error',
         details: error instanceof Error ? error.message : 'Unknown error',
-        backendUrl 
       },
       { status: 500 }
     );

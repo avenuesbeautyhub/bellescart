@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
+import { logger } from '@/utils/logger';
 
 // Get CSRF token from cookie
 const getCsrfTokenFromCookie = (): string | null => {
@@ -19,12 +20,12 @@ const fetchAdminCsrfToken = async (): Promise<void> => {
     });
 
     if (response.ok) {
-      console.log('Admin CSRF token initialized successfully');
+      logger.csrf('Admin CSRF token initialized successfully');
     } else {
-      console.error('Failed to fetch admin CSRF token');
+      logger.error('Failed to fetch admin CSRF token');
     }
   } catch (error) {
-    console.error('Error fetching admin CSRF token:', error);
+    logger.error('Error fetching admin CSRF token:', error);
   }
 };
 
@@ -37,7 +38,7 @@ export function AdminCsrfProvider({ children }: { children: React.ReactNode }) {
       if (!existingToken) {
         await fetchAdminCsrfToken();
       } else {
-        console.log('Admin CSRF token already exists in cookie');
+        logger.csrf('Admin CSRF token already exists in cookie');
       }
     };
 

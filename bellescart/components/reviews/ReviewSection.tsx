@@ -7,6 +7,7 @@ import ReviewForm from './ReviewForm';
 import Loader from '@/components/ui/Loader';
 import { globalToast } from '@/utils/globalToast';
 import { useAuth } from '@/auth/user';
+import { logger } from '@/utils/logger';
 
 interface ReviewSectionProps {
   productId: string;
@@ -92,7 +93,7 @@ const ReviewSection: React.FC<ReviewSectionProps> = ({ productId, isAuthenticate
         refetchEligibility()
       ]);
     } catch (error) {
-      console.error('Failed to delete review:', error);
+      logger.error('Failed to delete review:', error);
       globalToast.general.error('Error', 'Failed to delete review');
     }
   };
@@ -104,7 +105,6 @@ const ReviewSection: React.FC<ReviewSectionProps> = ({ productId, isAuthenticate
     images?: string[];
   }) => {
     try {
-      console.log('[REVIEW SUBMIT] Submitting review:', data);
       if (editingReview) {
         await updateReviewMutation.mutateAsync({
           reviewId: editingReview._id,
@@ -127,12 +127,7 @@ const ReviewSection: React.FC<ReviewSectionProps> = ({ productId, isAuthenticate
         refetchEligibility()
       ]);
     } catch (error: any) {
-      console.error('[REVIEW SUBMIT] Failed to submit review:', error);
-      console.error('[REVIEW SUBMIT] Error details:', {
-        message: error.message,
-        response: error.response,
-        data: error.data
-      });
+      logger.error('[REVIEW SUBMIT] Failed to submit review:', error);
 
       // Provide user-friendly error messages
       let errorMessage = 'Failed to submit review';
