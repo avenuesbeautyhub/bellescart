@@ -1,10 +1,9 @@
 import { ApiResponse, UserProfile, Address } from '@/types/auth';
-import { appConfig, isMockMode } from '@/config/appConfig';
+import { appConfig, clientConfig, isMockMode, getApiBaseUrl } from '@/config/appConfig';
 import { ProfileMockService } from './mock/profileMockService';
 import { apiGet, apiPut, apiPost, apiDelete, apiFetch } from './apiInterceptor';
 import { globalToast } from '@/utils/globalToast';
 
-const API_BASE_URL = appConfig.apiBaseUrl;
 const mockService = new ProfileMockService();
 
 class ProfileService {
@@ -14,7 +13,7 @@ class ProfileService {
     }
 
     try {
-      const response = await apiGet(`${API_BASE_URL}/profile`);
+      const response = await apiGet(`${getApiBaseUrl()}/profile`);
       return response.json();
     } catch (error) {
       globalToast.profile.loadError();
@@ -28,7 +27,7 @@ class ProfileService {
     }
 
     try {
-      const response = await apiPut(`${API_BASE_URL}/profile`, data);
+      const response = await apiPut(`${getApiBaseUrl()}/profile`, data);
       const result = await response.json();
 
       if (result.success) {
@@ -48,7 +47,7 @@ class ProfileService {
     }
 
     try {
-      const response = await apiPost(`${API_BASE_URL}/profile/addresses`, address);
+      const response = await apiPost(`${getApiBaseUrl()}/profile/addresses`, address);
       const result = await response.json();
 
       if (result.success) {
@@ -68,7 +67,7 @@ class ProfileService {
     }
 
     try {
-      const response = await apiPut(`${API_BASE_URL}/profile/addresses/${addressId}`, address);
+      const response = await apiPut(`${getApiBaseUrl()}/profile/addresses/${addressId}`, address);
       const result = await response.json();
 
       if (result.success) {
@@ -88,7 +87,7 @@ class ProfileService {
     }
 
     try {
-      const response = await apiDelete(`${API_BASE_URL}/profile/addresses/${addressId}`);
+      const response = await apiDelete(`${getApiBaseUrl()}/profile/addresses/${addressId}`);
       const result = await response.json();
 
       if (result.success) {
@@ -108,7 +107,7 @@ class ProfileService {
     }
 
     try {
-      const response = await apiPut(`${API_BASE_URL}/profile/addresses/${addressId}/default`);
+      const response = await apiPut(`${getApiBaseUrl()}/profile/addresses/${addressId}/default`);
       const result = await response.json();
 
       if (result.success) {
@@ -142,7 +141,7 @@ class ProfileService {
 
       const csrfToken = getCsrfTokenFromCookie();
 
-      const response = await fetch(`${API_BASE_URL}/profile/profile-picture`, {
+      const response = await fetch(`${getApiBaseUrl()}/profile/profile-picture`, {
         method: 'POST',
         headers: {
           ...(token && { 'Authorization': `Bearer ${token}` }),

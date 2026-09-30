@@ -1,14 +1,12 @@
 import { ApiResponse, UserPreferences } from '@/types/auth';
-import { appConfig, isMockMode } from '@/config/appConfig';
+import { isMockMode, getApiBaseUrl } from '@/config/appConfig';
 import { apiGet, apiPut, apiPost, apiDelete } from './apiInterceptor';
 import { globalToast } from '@/utils/globalToast';
-
-const API_BASE_URL = appConfig.apiBaseUrl;
 
 class UserPreferencesService {
   async getPreferences(): Promise<ApiResponse<UserPreferences>> {
     try {
-      const response = await apiGet(`${API_BASE_URL}/preferences`);
+      const response = await apiGet(`${getApiBaseUrl()}/preferences`);
 
       // Clone the response before reading to prevent "body stream already read" errors
       const clonedResponse = response.clone();
@@ -25,7 +23,7 @@ class UserPreferencesService {
   async updatePreferences(data: Partial<UserPreferences>): Promise<ApiResponse<UserPreferences>> {
     try {
       console.log('Sending update preferences request:', data);
-      const response = await apiPut(`${API_BASE_URL}/preferences`, data);
+      const response = await apiPut(`${getApiBaseUrl()}/preferences`, data);
 
       console.log('Response status:', response.status);
       console.log('Response headers:', Object.fromEntries(response.headers.entries()));
@@ -46,7 +44,7 @@ class UserPreferencesService {
 
   async resetPreferences(): Promise<ApiResponse<UserPreferences>> {
     try {
-      const response = await apiPost(`${API_BASE_URL}/preferences/reset`, {});
+      const response = await apiPost(`${getApiBaseUrl()}/preferences/reset`, {});
 
       // Clone the response before reading to prevent "body stream already read" errors
       const clonedResponse = response.clone();
@@ -66,7 +64,7 @@ class UserPreferencesService {
 
   async deletePreferences(): Promise<ApiResponse<void>> {
     try {
-      const response = await apiDelete(`${API_BASE_URL}/preferences`);
+      const response = await apiDelete(`${getApiBaseUrl()}/preferences`);
 
       // Clone the response before reading to prevent "body stream already read" errors
       const clonedResponse = response.clone();
