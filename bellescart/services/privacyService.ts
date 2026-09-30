@@ -1,8 +1,6 @@
-import { appConfig } from '@/config/appConfig';
 import { apiFetch } from './apiInterceptor';
 import { logger } from '@/utils/logger';
-
-const API_BASE_URL = appConfig.apiBaseUrl;
+import { getApiBaseUrl } from '@/config/appConfig';
 
 export interface PrivacyPreferences {
   _id: string;
@@ -84,7 +82,7 @@ export interface DataExport {
 class PrivacyService {
   async getPreferences(): Promise<{ success: boolean; data?: PrivacyPreferences; error?: string }> {
     try {
-      const response = await apiFetch(`${API_BASE_URL}/privacy/preferences`, {
+      const response = await apiFetch(`${getApiBaseUrl()}/privacy/preferences`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -104,7 +102,7 @@ class PrivacyService {
 
   async updatePreferences(data: { marketingEmails: boolean }): Promise<{ success: boolean; data?: PrivacyPreferences; error?: string }> {
     try {
-      const response = await apiFetch(`${API_BASE_URL}/privacy/preferences`, {
+      const response = await apiFetch(`${getApiBaseUrl()}/privacy/preferences`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -125,7 +123,7 @@ class PrivacyService {
 
   async requestDataExport(): Promise<{ success: boolean; data?: PrivacyRequest; error?: string }> {
     try {
-      const response = await apiFetch(`${API_BASE_URL}/privacy/export`, {
+      const response = await apiFetch(`${getApiBaseUrl()}/privacy/export`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -145,7 +143,7 @@ class PrivacyService {
 
   async getUserRequests(): Promise<{ success: boolean; data?: PrivacyRequest[]; error?: string }> {
     try {
-      const response = await apiFetch(`${API_BASE_URL}/privacy/requests`, {
+      const response = await apiFetch(`${getApiBaseUrl()}/privacy/requests`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -165,7 +163,7 @@ class PrivacyService {
 
   async downloadExport(requestId: string): Promise<{ success: boolean; data?: DataExport; error?: string }> {
     try {
-      const response = await apiFetch(`${API_BASE_URL}/privacy/export/${requestId}`, {
+      const response = await apiFetch(`${getApiBaseUrl()}/privacy/export/${requestId}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',

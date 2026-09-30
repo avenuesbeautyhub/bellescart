@@ -60,8 +60,20 @@ async function handleProxyRequest(
 ): Promise<NextResponse> {
   // Construct the backend URL outside try block for error logging
   const path = pathSegments.join('/');
-  const backendUrl = `${BACKEND_API_URL}/${path}`;
   
+  // Preserve query parameters from the original request using Next.js URL object
+  const searchParams = request.nextUrl.searchParams.toString();
+  const queryString = searchParams ? `?${searchParams}` : '';
+  const backendUrl = `${BACKEND_API_URL}/${path}${queryString}`;
+  
+  console.log('Proxy request details:');
+  console.log('  Original URL:', request.url);
+  console.log('  Path segments:', pathSegments);
+  console.log('  Constructed path:', path);
+  console.log('  Search params:', searchParams);
+  console.log('  Query string:', queryString);
+  console.log('  Backend URL:', backendUrl);
+  console.log('  BACKEND_API_URL:', BACKEND_API_URL);
   try {
     // Get request body
     let body: string | null = null;

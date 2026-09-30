@@ -1,3 +1,4 @@
+// Server-side configuration (only used on server)
 export const appConfig = {
   // Toggle between mock data and real API calls
   // Use ENABLE_MOCK_DATA to explicitly control, otherwise check NODE_ENV
@@ -7,10 +8,22 @@ export const appConfig = {
 
   // API base URL - prioritize PROD_BACKEND_API_URL if set, otherwise use DEV
   // This allows using production backend even in dev mode
+  // NOTE: This is only used on server-side. Client-side uses empty string.
   apiBaseUrl: process.env.PROD_BACKEND_API_URL || process.env.DEV_BACKEND_API_URL || 'http://127.0.0.1:5000/api',
-  
+
   // Enable/disable console logging
   enableLogging: process.env.ENABLE_LOGGING === 'true',
+};
+
+// Helper function to get the appropriate API base URL
+// This ensures client-side never accesses server-side environment variables
+export const getApiBaseUrl = (): string => {
+  // Client-side: always return empty string (apiInterceptor adds /api/proxy)
+  if (typeof window !== 'undefined') {
+    return '';
+  }
+  // Server-side: use the configured backend URL
+  return appConfig.apiBaseUrl;
 };
 
 
