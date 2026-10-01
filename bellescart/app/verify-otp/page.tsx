@@ -206,10 +206,12 @@ function VerifyOtpContent() {
     setError('');
 
     try {
-      await verifyOtp.mutateAsync({
+      const result = await verifyOtp.mutateAsync({
         email,
         otp: otpString,
       });
+
+      console.log('OTP verification result:', result);
 
       toast.showToast(
         toastMessages.auth.otpVerified()
@@ -217,9 +219,11 @@ function VerifyOtpContent() {
 
       router.replace('/dashboard');
     } catch (err) {
+      console.error('OTP verification error:', err);
       setError(
         'Invalid OTP. Please try again.'
       );
+      toast.showToast(toastMessages.auth.otpError());
     }
   };
 
@@ -266,7 +270,7 @@ function VerifyOtpContent() {
       } else {
         toast.showToast(
           toastMessages.auth.signupError(
-            response.error ||
+            response.message || response.error ||
               'Failed to resend OTP'
           )
         );

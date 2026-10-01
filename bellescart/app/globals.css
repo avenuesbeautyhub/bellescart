@@ -32,11 +32,12 @@ body.dark {
 }
 
 /* Tailwind CSS v4 @theme rule - recognized by Tailwind but may show as unknown to some linters */
-@theme inline {
+@theme inline { /* eslint-disable-line css/at-rule-no-unknown */ /* stylelint-disable-line at-rule-no-unknown */
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --breakpoint-3xl: 1920px;
 }
 
 body {
@@ -291,4 +292,11 @@ html {
   line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+}
+
+/* Scale down UI for very large screens (1920px+) to prevent oversized elements */
+@media (min-width: 1920px) {
+  html {
+    font-size: 14px; /* Scale down base font from 16px to 14px */
+  }
 }

@@ -478,7 +478,7 @@ export default function ProductPage({
                   </Link>
                 )}
 
-                <h1 className="mt-3 max-w-2xl text-[31px] font-semibold leading-[1.1] tracking-[-0.04em] text-gray-950 sm:text-4xl lg:text-[48px]">
+                <h1 className="mt-3 max-w-2xl text-[31px] font-semibold leading-[1.1] tracking-[-0.04em] text-gray-950 sm:text-4xl lg:text-[48px] 3xl:text-[42px]">
                   {product.name}
                 </h1>
 
@@ -520,7 +520,7 @@ export default function ProductPage({
                 </div>
 
                 {product.description && (
-                  <p className="mt-6 max-w-xl text-[14px] leading-7 text-gray-500 sm:text-[15px]">
+                  <p className="mt-6 max-w-xl text-[14px] leading-7 text-gray-500 sm:text-[15px] 3xl:text-[13px]">
                     {product.description}
                   </p>
                 )}
@@ -530,24 +530,24 @@ export default function ProductPage({
                 {/* Price */}
                 <div>
                   <div className="flex flex-wrap items-end gap-3">
-                    <span className="text-[33px] font-semibold tracking-[-0.04em] text-gray-950 sm:text-[39px]">
+                    <span className="text-[33px] font-semibold tracking-[-0.04em] text-gray-950 sm:text-[39px] 3xl:text-[36px]">
                       ₹{product.price}
                     </span>
 
                     {originalPrice && (
-                      <span className="pb-1 text-base text-gray-400 line-through">
+                      <span className="pb-1 text-base text-gray-400 line-through 3xl:text-sm">
                         ₹{originalPrice}
                       </span>
                     )}
 
                     {discountPercent > 0 && (
-                      <span className="mb-1 rounded-full bg-[#f6e9ed] px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-[#a45b70]">
+                      <span className="mb-1 rounded-full bg-[#f6e9ed] px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-[#a45b70] 3xl:text-[9px]">
                         Save {discountPercent}%
                       </span>
                     )}
                   </div>
 
-                  <p className="mt-1.5 text-[11px] text-gray-400">
+                  <p className="mt-1.5 text-[11px] text-gray-400 3xl:text-[10px]">
                     Inclusive of applicable taxes
                   </p>
                 </div>
@@ -578,14 +578,14 @@ export default function ProductPage({
                 </div>
 
                 {/* Purchase */}
-                <div className="mt-7 rounded-[25px] bg-white p-4 shadow-[0_16px_50px_rgba(35,20,28,0.055)] ring-1 ring-black/[0.055] sm:p-5">
+                <div className="mt-7 rounded-[25px] bg-white p-4 shadow-[0_16px_50px_rgba(35,20,28,0.055)] ring-1 ring-black/[0.055] sm:p-5 3xl:p-3.5">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-gray-400">
+                      <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-gray-400 3xl:text-[9px]">
                         Quantity
                       </p>
                       {isInCart && (
-                        <p className="mt-1 text-[11px] text-emerald-600">
+                        <p className="mt-1 text-[11px] text-emerald-600 3xl:text-[10px]">
                           {cartQuantity} currently in cart
                         </p>
                       )}
@@ -594,15 +594,15 @@ export default function ProductPage({
                     {isInCart && (
                       <Link
                         href="/cart"
-                        className="text-xs font-semibold text-[#a45b70] hover:underline"
+                        className="text-xs font-semibold text-[#a45b70] hover:underline 3xl:text-[11px]"
                       >
                         View cart
                       </Link>
                     )}
                   </div>
 
-                  <div className="mt-4 grid grid-cols-[auto_minmax(0,1fr)_48px] gap-3">
-                    <div className="flex h-12 items-center rounded-full bg-[#faf8f6] ring-1 ring-black/[0.07]">
+                  <div className="mt-4 grid grid-cols-[auto_minmax(0,1fr)_48px] gap-3 3xl:gap-2.5">
+                    <div className="flex h-12 items-center rounded-full bg-[#faf8f6] ring-1 ring-black/[0.07] 3xl:h-11">
                       <button
                         type="button"
                         onClick={decreaseQuantity}
@@ -611,13 +611,13 @@ export default function ProductPage({
                           isOutOfStock ||
                           isCartUpdating
                         }
-                        className="flex h-full w-10 items-center justify-center text-lg text-gray-500 transition hover:text-gray-950 disabled:opacity-25"
+                        className="flex h-full w-10 items-center justify-center text-lg text-gray-500 transition hover:text-gray-950 disabled:opacity-25 3xl:w-9 3xl:text-base"
                         aria-label="Decrease quantity"
                       >
                         −
                       </button>
 
-                      <span className="flex h-full w-9 items-center justify-center border-x border-gray-200 text-sm font-semibold text-gray-950">
+                      <span className="flex h-full w-9 items-center justify-center border-x border-gray-200 text-sm font-semibold text-gray-950 3xl:w-8 3xl:text-[13px]">
                         {quantity}
                       </span>
 
@@ -629,7 +629,7 @@ export default function ProductPage({
                           isOutOfStock ||
                           isCartUpdating
                         }
-                        className="flex h-full w-10 items-center justify-center text-lg text-gray-500 transition hover:text-gray-950 disabled:opacity-25"
+                        className="flex h-full w-10 items-center justify-center text-lg text-gray-500 transition hover:text-gray-950 disabled:opacity-25 3xl:w-9 3xl:text-base"
                         aria-label="Increase quantity"
                       >
                         +
@@ -643,7 +643,7 @@ export default function ProductPage({
                           : 'primary'
                       }
                       size="lg"
-                      className="h-12 w-full rounded-full text-sm font-semibold"
+                      className="h-12 w-full rounded-full text-sm font-semibold 3xl:h-11 3xl:text-[13px]"
                       onClick={handleAddToCart}
                       disabled={
                         isOutOfStock ||
@@ -716,12 +716,12 @@ export default function ProductPage({
                       type="button"
                       onClick={handleAddToWishlist}
                       aria-label={isInWishlist ? "Remove from wishlist" : "Add to wishlist"}
-                      className={`flex h-12 w-12 items-center justify-center rounded-full border border-gray-200 bg-white transition hover:border-[#e8cbd4] hover:bg-[#fcf5f7] ${
+                      className={`flex h-12 w-12 items-center justify-center rounded-full border border-gray-200 bg-white transition hover:border-[#e8cbd4] hover:bg-[#fcf5f7] 3xl:h-11 3xl:w-11 ${
                         isInWishlist ? 'text-[#a45b70]' : 'text-gray-500 hover:text-[#a45b70]'
                       }`}
                     >
                       <svg
-                        className="h-5 w-5"
+                        className="h-5 w-5 3xl:h-4.5 3xl:w-4.5"
                         fill={isInWishlist ? 'currentColor' : 'none'}
                         stroke="currentColor"
                         viewBox="0 0 24 24"
@@ -746,11 +746,11 @@ export default function ProductPage({
                 </div>
 
                 {/* Benefits */}
-                <div className="mt-5 grid grid-cols-3 divide-x divide-gray-200 rounded-[22px] bg-white ring-1 ring-black/[0.055]">
+                <div className="mt-5 grid grid-cols-3 divide-x divide-gray-200 rounded-[22px] bg-white ring-1 ring-black/[0.055] 3xl:rounded-[20px]">
                   <Benefit
                     icon={
                       <svg
-                        className="h-4 w-4"
+                        className="h-4 w-4 3xl:h-3.5 3xl:w-3.5"
                         fill="none"
                         stroke="currentColor"
                         viewBox="0 0 24 24"
@@ -770,7 +770,7 @@ export default function ProductPage({
                   <Benefit
                     icon={
                       <svg
-                        className="h-4 w-4"
+                        className="h-4 w-4 3xl:h-3.5 3xl:w-3.5"
                         fill="none"
                         stroke="currentColor"
                         viewBox="0 0 24 24"
@@ -790,7 +790,7 @@ export default function ProductPage({
                   <Benefit
                     icon={
                       <svg
-                        className="h-4 w-4"
+                        className="h-4 w-4 3xl:h-3.5 3xl:w-3.5"
                         fill="none"
                         stroke="currentColor"
                         viewBox="0 0 24 24"
@@ -933,16 +933,16 @@ function Benefit({
   subtitle: string;
 }) {
   return (
-    <div className="px-2 py-4 text-center sm:px-4 sm:py-5">
-      <div className="mx-auto flex h-8 w-8 items-center justify-center rounded-full bg-[#faf8f6] text-gray-700">
+    <div className="px-2 py-4 text-center sm:px-4 sm:py-5 3xl:px-3 3xl:py-3.5">
+      <div className="mx-auto flex h-8 w-8 items-center justify-center rounded-full bg-[#faf8f6] text-gray-700 3xl:h-7 3xl:w-7">
         {icon}
       </div>
 
-      <p className="mt-2.5 text-[9px] font-bold text-gray-900 sm:text-[10px]">
+      <p className="mt-2.5 text-[9px] font-bold text-gray-900 sm:text-[10px] 3xl:text-[8px]">
         {title}
       </p>
 
-      <p className="mt-0.5 hidden text-[9px] text-gray-400 sm:block">
+      <p className="mt-0.5 hidden text-[9px] text-gray-400 sm:block 3xl:text-[8px]">
         {subtitle}
       </p>
     </div>
@@ -958,10 +958,10 @@ function Detail({
 }) {
   return (
     <div>
-      <p className="text-[9px] font-bold uppercase tracking-[0.16em] text-gray-400">
+      <p className="text-[9px] font-bold uppercase tracking-[0.16em] text-gray-400 3xl:text-[8px]">
         {label}
       </p>
-      <p className="mt-1 text-xs font-semibold text-gray-800">
+      <p className="mt-1 text-xs font-semibold text-gray-800 3xl:text-[11px]">
         {value}
       </p>
     </div>

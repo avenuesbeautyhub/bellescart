@@ -226,6 +226,7 @@ export default function ProductCard({
                 text-gray-600
                 shadow-sm
                 backdrop-blur-md
+                3xl:px-2.5 3xl:py-1 3xl:text-[8px]
               "
             >
               Sold out
@@ -243,6 +244,7 @@ export default function ProductCard({
                 tracking-[0.13em]
                 text-white
                 shadow-sm
+                3xl:px-2.5 3xl:py-1 3xl:text-[8px]
               "
             >
               −{discountPercent}%
@@ -277,6 +279,7 @@ export default function ProductCard({
             disabled:cursor-not-allowed
             disabled:opacity-50
             sm:h-10 sm:w-10
+            3xl:h-8 3xl:w-8
             ${
               isInWishlist
                 ? 'text-[#b45370]'
@@ -285,7 +288,7 @@ export default function ProductCard({
           `}
         >
           <svg
-            className="h-[17px] w-[17px] sm:h-[18px] sm:w-[18px]"
+            className="h-[17px] w-[17px] sm:h-[18px] sm:w-[18px] 3xl:h-[15px] 3xl:w-[15px]"
             fill={isInWishlist ? 'currentColor' : 'none'}
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -316,9 +319,10 @@ export default function ProductCard({
                 text-gray-700
                 shadow-sm
                 backdrop-blur-md
+                3xl:px-2 3xl:py-0.75 3xl:text-[8px]
               "
             >
-              <span className="mr-1.5 h-1.5 w-1.5 rounded-full bg-orange-500" />
+              <span className="mr-1.5 h-1.5 w-1.5 rounded-full bg-orange-500 3xl:h-1 3xl:w-1" />
               {stock} left
             </span>
           </div>
@@ -350,12 +354,13 @@ export default function ProductCard({
             group-hover:translate-y-0
             group-hover:opacity-100
             sm:flex
+            3xl:px-3 3xl:py-2 3xl:text-[10px]
           "
         >
           View details
 
           <svg
-            className="ml-2 h-3.5 w-3.5"
+            className="ml-2 h-3.5 w-3.5 3xl:h-3 3xl:w-3"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -388,6 +393,7 @@ export default function ProductCard({
               transition-colors
               hover:text-[#8d4058]
               sm:text-[10px]
+              3xl:text-[8px]
             "
           >
             {product.category.name}
@@ -411,6 +417,7 @@ export default function ProductCard({
               transition-colors
               group-hover:text-[#a45b70]
               sm:text-[14px]
+              3xl:text-[12px] 3xl:min-h-[36px]
             "
           >
             {product.name}
@@ -425,7 +432,7 @@ export default function ProductCard({
                 key={i}
                 className={`h-3 w-3 ${
                   i < displayRating ? 'text-[#c69a52]' : 'text-gray-200'
-                }`}
+                } 3xl:h-2.5 3xl:w-2.5`}
                 fill="currentColor"
                 viewBox="0 0 20 20"
               >
@@ -434,7 +441,7 @@ export default function ProductCard({
             ))}
           </div>
 
-          <span className="text-[10px] text-gray-400">
+          <span className="text-[10px] text-gray-400 3xl:text-[9px]">
             {displayReviewCount}
           </span>
         </div>
@@ -452,20 +459,21 @@ export default function ProductCard({
                   tracking-[-0.02em]
                   text-gray-950
                   sm:text-[17px]
+                  3xl:text-[14px]
                 "
               >
                 ₹{product.price}
               </span>
 
               {product.originalPrice && (
-                <span className="text-[10px] text-gray-400 line-through sm:text-xs">
+                <span className="text-[10px] text-gray-400 line-through sm:text-xs 3xl:text-[9px]">
                   ₹{product.originalPrice}
                 </span>
               )}
             </div>
 
             {discountPercent > 0 && (
-              <span className="mt-0.5 block text-[9px] font-medium text-[#a45b70]">
+              <span className="mt-0.5 block text-[9px] font-medium text-[#a45b70] 3xl:text-[8px]">
                 You save {discountPercent}%
               </span>
             )}
@@ -503,6 +511,7 @@ export default function ProductCard({
               sm:h-10
               sm:px-4
               sm:text-[11px]
+              3xl:h-9 3xl:px-3 3xl:text-[9px]
 
               ${
                 isOutOfStock
@@ -517,7 +526,7 @@ export default function ProductCard({
           >
             {isCartMutationPending ? (
               <svg
-                className="h-4 w-4 animate-spin"
+                className="h-4 w-4 animate-spin 3xl:h-3.5 3xl:w-3.5"
                 fill="none"
                 viewBox="0 0 24 24"
               >
@@ -542,7 +551,7 @@ export default function ProductCard({
             ) : isInCart ? (
               <>
                 <svg
-                  className="mr-1.5 h-3.5 w-3.5"
+                  className="mr-1.5 h-3.5 w-3.5 3xl:h-3 3xl:w-3"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -561,7 +570,7 @@ export default function ProductCard({
             ) : (
               <>
                 <svg
-                  className="mr-1.5 h-3.5 w-3.5"
+                  className="mr-1.5 h-3.5 w-3.5 3xl:h-3 3xl:w-3"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -583,10 +592,10 @@ export default function ProductCard({
 
         {/* Cart status */}
         {isInCart && !isOutOfStock && (
-          <div className="mt-2 flex items-center gap-1.5 text-[9px] font-medium text-emerald-600">
-            <span className="flex h-3.5 w-3.5 items-center justify-center rounded-full bg-emerald-50">
+          <div className="mt-2 flex items-center gap-1.5 text-[9px] font-medium text-emerald-600 3xl:text-[8px]">
+            <span className="flex h-3.5 w-3.5 items-center justify-center rounded-full bg-emerald-50 3xl:h-3 3xl:w-3">
               <svg
-                className="h-2 w-2"
+                className="h-2 w-2 3xl:h-1.5 3xl:w-1.5"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"

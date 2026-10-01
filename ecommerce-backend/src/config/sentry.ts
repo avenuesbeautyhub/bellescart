@@ -105,8 +105,9 @@ export const initSentry = () => {
       // Set release version
       release: process.env.SENTRY_RELEASE || process.env.APP_VERSION,
       
-      // Debug mode in development
-      debug: process.env.NODE_ENV === 'development',
+      // // Debug mode in development
+      debug: false,
+      // debug: process.env.NODE_ENV === 'development',
       
       // Ignore specific error types
       ignoreErrors: [

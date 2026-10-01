@@ -6,10 +6,11 @@ export const appConfig = {
     ? process.env.ENABLE_MOCK_DATA === 'true'
     : process.env.NODE_ENV === 'development',
 
-  // API base URL - prioritize PROD_BACKEND_API_URL if set, otherwise use DEV
-  // This allows using production backend even in dev mode
+  // API base URL - based on NODE_ENV
   // NOTE: This is only used on server-side. Client-side uses empty string.
-  apiBaseUrl: process.env.PROD_BACKEND_API_URL || process.env.DEV_BACKEND_API_URL || 'http://127.0.0.1:5000/api',
+  apiBaseUrl: process.env.NODE_ENV === 'production'
+    ? process.env.PROD_BACKEND_API_URL!
+    : process.env.DEV_BACKEND_API_URL!,
 
   // Enable/disable console logging
   enableLogging: process.env.ENABLE_LOGGING === 'true',

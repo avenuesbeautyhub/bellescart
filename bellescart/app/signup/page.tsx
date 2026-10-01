@@ -98,7 +98,6 @@ export default function SignupPage() {
           marketingConsent: formData.marketingConsent,
           privacyPolicyConsent: formData.agreeToTerms,
         });
-
         if (response.success) {
           toast.showToast(
             toastMessages.auth.signupSuccess()
@@ -116,8 +115,14 @@ export default function SignupPage() {
             );
           }, 1500);
         } else {
+          const errorMessage = response.message ||
+                               response.error ||
+                               response.data?.message ||
+                               response.data?.error ||
+                               'Failed to create account. Please try again.';
+
           toast.showToast(
-            toastMessages.auth.signupError(response.error)
+            toastMessages.auth.signupError(errorMessage)
           );
         }
       } catch (err) {
