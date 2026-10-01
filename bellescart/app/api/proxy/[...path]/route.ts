@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { generateSignature, generateNonce, getTimestamp, isSensitiveEndpoint } from '@/lib/server/requestSigning';
 
-// Get backend API URL from environment
-// Prioritize PROD_BACKEND_API_URL if set, otherwise use DEV
-const BACKEND_API_URL = process.env.PROD_BACKEND_API_URL || process.env.DEV_BACKEND_API_URL;
+// Get backend API URL from environment based on NODE_ENV
+const BACKEND_API_URL = process.env.NODE_ENV === 'production'
+  ? process.env.PROD_BACKEND_API_URL!
+  : process.env.DEV_BACKEND_API_URL!;
 
 if (!BACKEND_API_URL) {
-  throw new Error('Backend API URL not configured. Set DEV_BACKEND_API_URL or PROD_BACKEND_API_URL.');
+  const envVar = process.env.NODE_ENV === 'production' ? 'PROD_BACKEND_API_URL' : 'DEV_BACKEND_API_URL';
+  throw new Error(`Backend API URL not configured. Set ${envVar} in your environment.`);
 }
 
 /**
@@ -86,10 +88,24 @@ async function handleProxyRequest(
         // For FormData, we'll pass it through without signing
         // The backend middleware skips signing for FormData anyway
         const formData = await request.formData();
+        console.log('FormData fetch to:', backendUrl);
+        console.log('FormData entries:');
+        for (const [key, value] of formData.entries()) {
+          console.log(`  ${key}:`, value instanceof File ? `File(${value.name}, ${value.size} bytes, ${value.type})` : value);
+        }
+
+        const headers = getForwardedHeaders(request, true);
+        // Remove content-length header to let fetch calculate it correctly for FormData
+        delete headers['content-length'];
+        console.log('Forwarded headers:', headers);
+
+        // Node.js fetch requires duplex: 'half' for streaming bodies
         const formDataResponse = await fetch(backendUrl, {
           method,
-          headers: getForwardedHeaders(request),
-          body: formData,
+          headers,
+          body: formData as any,
+          // @ts-ignore - duplex is required for Node.js fetch with streaming bodies
+          duplex: 'half',
         });
         return await handleBackendResponse(formDataResponse);
       }
@@ -124,6 +140,12 @@ async function handleProxyRequest(
 
     return await handleBackendResponse(backendResponse);
   } catch (error) {
+    console.error('Proxy request failed:', error);
+    if (error instanceof Error) {
+      console.error('Error name:', error.name);
+      console.error('Error message:', error.message);
+      console.error('Error stack:', error.stack);
+    }
     return NextResponse.json(
       {
         success: false,
@@ -135,12 +157,13 @@ async function handleProxyRequest(
   }
 }
 
-function getForwardedHeaders(request: NextRequest): Record<string, string> {
+function getForwardedHeaders(request: NextRequest, skipContentType = false): Record<string, string> {
   const headers: Record<string, string> = {};
 
-  // Forward all headers except host
+  // Forward all headers except host and optionally content-type
   request.headers.forEach((value, key) => {
-    if (key.toLowerCase() !== 'host') {
+    const keyLower = key.toLowerCase();
+    if (keyLower !== 'host' && !(skipContentType && keyLower === 'content-type')) {
       headers[key] = value;
     }
   });
@@ -152,10 +175,15 @@ async function handleBackendResponse(response: Response): Promise<NextResponse> 
   const contentType = response.headers.get('content-type') || '';
   let body: any;
 
+  console.log('Backend response status:', response.status);
+  console.log('Backend response content-type:', contentType);
+
   if (contentType.includes('application/json')) {
     body = await response.json();
+    console.log('Backend response body:', body);
   } else {
     body = await response.text();
+    console.log('Backend response text:', body);
   }
 
   const nextResponse = NextResponse.json(body, {

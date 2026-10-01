@@ -105,25 +105,34 @@ export function useLogout() {
 
 export function useVerifyOtp() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: async (data: { email: string; otp: string }) => {
+      console.log('useVerifyOtp called with:', data);
       const response = await authService.verifyOtp(data);
+      console.log('useVerifyOtp response:', response);
+
       if (response.success && response.data?.user && response.data?.token) {
         saveUserSession(response.data.user, response.data.token, response.data.refreshToken);
-        
+
         // Trigger auth state change event to update UI
         if (typeof window !== 'undefined') {
           window.dispatchEvent(new Event('auth-state-changed'));
         }
-        
+
         return response.data.user;
       }
+
+      console.error('OTP verification failed - response:', response);
       throw new Error('OTP verification failed');
     },
     onSuccess: (user) => {
+      console.log('useVerifyOtp onSuccess:', user);
       queryClient.setQueryData(['currentUser'], user);
       queryClient.invalidateQueries({ queryKey: ['currentUser'] });
+    },
+    onError: (error) => {
+      console.error('useVerifyOtp onError:', error);
     },
   });
 }

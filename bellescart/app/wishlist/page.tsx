@@ -122,9 +122,9 @@ export default function WishlistPage() {
             <div className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
               <div className="flex items-start gap-4">
                 {/* Heart Icon */}
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-pink-50">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-pink-50 3xl:h-10 3xl:w-10">
                   <svg
-                    className="h-6 w-6 text-pink-600"
+                    className="h-6 w-6 text-pink-600 3xl:h-5 3xl:w-5"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -139,15 +139,15 @@ export default function WishlistPage() {
                 </div>
 
                 <div>
-                  <p className="mb-1 text-xs font-semibold uppercase tracking-[0.16em] text-pink-600">
+                  <p className="mb-1 text-xs font-semibold uppercase tracking-[0.16em] text-pink-600 3xl:text-[10px]">
                     Saved for later
                   </p>
 
-                  <h1 className="text-2xl font-bold tracking-tight text-gray-950 sm:text-3xl">
+                  <h1 className="text-2xl font-bold tracking-tight text-gray-950 sm:text-3xl 3xl:text-[26px]">
                     My Wishlist
                   </h1>
 
-                  <p className="mt-1 text-sm text-gray-500">
+                  <p className="mt-1 text-sm text-gray-500 3xl:text-[13px]">
                     {wishlistItems.length}{' '}
                     {wishlistItems.length === 1 ? 'item' : 'items'} saved
                   </p>
@@ -156,10 +156,10 @@ export default function WishlistPage() {
 
               {wishlistItems.length > 0 && (
                 <Link href="/products" className="w-full sm:w-auto">
-                  <Button className="w-full bg-gray-950 px-5 py-2.5 text-sm font-semibold hover:bg-gray-800 sm:w-auto">
+                  <Button className="w-full bg-gray-950 px-5 py-2.5 text-sm font-semibold hover:bg-gray-800 sm:w-auto 3xl:px-4 3xl:py-2 3xl:text-[13px]">
                     Continue Shopping
                     <svg
-                      className="ml-2 h-4 w-4"
+                      className="ml-2 h-4 w-4 3xl:h-3.5 3xl:w-3.5"
                       fill="none"
                       stroke="currentColor"
                       viewBox="0 0 24 24"
@@ -249,14 +249,14 @@ export default function WishlistPage() {
               </div>
 
               {/* Wishlist Grid */}
-              <div className="grid grid-cols-2 gap-x-3 gap-y-7 sm:gap-x-5 sm:gap-y-9 lg:grid-cols-3 xl:grid-cols-4">
+              <div className="grid grid-cols-2 gap-x-3 gap-y-7 sm:gap-x-5 sm:gap-y-9 lg:grid-cols-3 xl:grid-cols-4 3xl:grid-cols-5 3xl:gap-x-4 3xl:gap-y-8">
                 {wishlistItems.map((item) => (
                   <article
                     key={item._id}
                     className="group min-w-0"
                   >
                     {/* Image */}
-                    <div className="relative overflow-hidden rounded-2xl bg-white ring-1 ring-black/[0.05]">
+                    <div className="relative overflow-hidden rounded-2xl bg-white ring-1 ring-black/[0.05] 3xl:rounded-xl">
                       <Link href={`/product/${item._id}`}>
                         <div className="relative aspect-[0.92] overflow-hidden bg-gray-100">
                           {item.images && item.images.length > 0 && item.images[0]?.url ? (
@@ -270,7 +270,7 @@ export default function WishlistPage() {
                           ) : (
                             <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-pink-50 to-purple-50">
                               <svg
-                                className="h-12 w-12 text-pink-300"
+                                className="h-12 w-12 text-pink-300 3xl:h-10 3xl:w-10"
                                 fill="none"
                                 stroke="currentColor"
                                 viewBox="0 0 24 24"
@@ -289,7 +289,7 @@ export default function WishlistPage() {
 
                       {/* Discount */}
                       {item.discount && (
-                        <div className="absolute left-3 top-3 rounded-full bg-gray-950 px-2.5 py-1 text-[10px] font-bold tracking-wide text-white shadow-sm sm:text-xs">
+                        <div className="absolute left-3 top-3 rounded-full bg-gray-950 px-2.5 py-1 text-[10px] font-bold tracking-wide text-white shadow-sm sm:text-xs 3xl:px-2 3xl:py-0.75 3xl:text-[9px]">
                           {item.discount}% OFF
                         </div>
                       )}
@@ -302,13 +302,13 @@ export default function WishlistPage() {
                         }
                         disabled={isRemoving === item._id}
                         aria-label={`Remove ${item.name} from wishlist`}
-                        className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-white/95 text-gray-700 shadow-sm backdrop-blur transition-all duration-200 hover:bg-red-50 hover:text-red-500 disabled:cursor-not-allowed disabled:opacity-60"
+                        className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-white/95 text-gray-700 shadow-sm backdrop-blur transition-all duration-200 hover:bg-red-50 hover:text-red-500 disabled:cursor-not-allowed disabled:opacity-60 3xl:h-8 3xl:w-8"
                       >
                         {isRemoving === item._id ? (
-                          <div className="h-4 w-4 animate-spin rounded-full border-2 border-pink-500 border-t-transparent" />
+                          <div className="h-4 w-4 animate-spin rounded-full border-2 border-pink-500 border-t-transparent 3xl:h-3.5 3xl:w-3.5" />
                         ) : (
                           <svg
-                            className="h-4 w-4"
+                            className="h-4 w-4 3xl:h-3.5 3xl:w-3.5"
                             fill="none"
                             stroke="currentColor"
                             viewBox="0 0 24 24"
@@ -325,38 +325,38 @@ export default function WishlistPage() {
                     </div>
 
                     {/* Product Info */}
-                    <div className="pt-3">
+                    <div className="pt-3 3xl:pt-2.5">
                       <Link href={`/product/${item._id}`}>
-                        <h3 className="line-clamp-2 min-h-[2.75rem] text-sm font-medium leading-5 text-gray-900 transition-colors group-hover:text-pink-600 sm:text-[15px]">
+                        <h3 className="line-clamp-2 min-h-[2.75rem] text-sm font-medium leading-5 text-gray-900 transition-colors group-hover:text-pink-600 sm:text-[15px] 3xl:text-[13px] 3xl:min-h-[2.5rem]">
                           {item.name}
                         </h3>
                       </Link>
 
                       {/* Rating */}
-                      <div className="mt-2 flex items-center gap-1.5">
+                      <div className="mt-2 flex items-center gap-1.5 3xl:mt-1.5">
                         <div className="flex items-center gap-0.5">
                           <svg
-                            className="h-3.5 w-3.5 text-yellow-400"
+                            className="h-3.5 w-3.5 text-yellow-400 3xl:h-3 3xl:w-3"
                             fill="currentColor"
                             viewBox="0 0 20 20"
                           >
                             <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
                           </svg>
 
-                          <span className="text-xs font-medium text-gray-600">
+                          <span className="text-xs font-medium text-gray-600 3xl:text-[11px]">
                             {item.rating || 4.5}
                           </span>
                         </div>
                       </div>
 
                       {/* Price */}
-                      <div className="mt-2 flex items-baseline gap-2">
-                        <span className="text-base font-bold text-gray-950 sm:text-lg">
+                      <div className="mt-2 flex items-baseline gap-2 3xl:mt-1.5">
+                        <span className="text-base font-bold text-gray-950 sm:text-lg 3xl:text-[15px]">
                           ${item.price?.toFixed(2)}
                         </span>
 
                         {item.originalPrice && (
-                          <span className="text-xs text-gray-400 line-through sm:text-sm">
+                          <span className="text-xs text-gray-400 line-through sm:text-sm 3xl:text-[11px]">
                             ${item.originalPrice.toFixed(2)}
                           </span>
                         )}
@@ -365,9 +365,9 @@ export default function WishlistPage() {
                       {/* View Product */}
                       <Link
                         href={`/product/${item._id}`}
-                        className="mt-3 block"
+                        className="mt-3 block 3xl:mt-2.5"
                       >
-                        <Button className="w-full bg-gray-950 py-2 text-xs font-semibold hover:bg-gray-800 sm:text-sm">
+                        <Button className="w-full bg-gray-950 py-2 text-xs font-semibold hover:bg-gray-800 sm:text-sm 3xl:py-1.75 3xl:text-[11px]">
                           View Product
                         </Button>
                       </Link>

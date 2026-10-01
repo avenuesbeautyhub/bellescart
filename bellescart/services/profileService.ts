@@ -141,7 +141,7 @@ class ProfileService {
 
       const csrfToken = getCsrfTokenFromCookie();
 
-      const response = await fetch(`${getApiBaseUrl()}/profile/profile-picture`, {
+      const response = await fetch(`/api/proxy/profile/profile-picture`, {
         method: 'POST',
         headers: {
           ...(token && { 'Authorization': `Bearer ${token}` }),
@@ -151,7 +151,9 @@ class ProfileService {
         body: formData,
       });
 
+      console.log('Profile picture upload response status:', response.status);
       const result = await response.json();
+      console.log('Profile picture upload response data:', result);
 
       if (result.success) {
         globalToast.profile.updateSuccess();

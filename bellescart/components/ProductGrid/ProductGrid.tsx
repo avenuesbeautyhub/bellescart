@@ -77,6 +77,9 @@ export default function ProductGrid({
         xl:grid-cols-4
         xl:gap-x-7
         2xl:grid-cols-5
+        3xl:grid-cols-6
+        3xl:gap-x-5
+        3xl:gap-y-10
       `
           : `
         grid

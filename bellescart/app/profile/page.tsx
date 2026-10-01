@@ -628,16 +628,20 @@ export default function ProfilePage() {
       return;
     }
 
-    try {
-      await uploadProfilePictureMutation.mutateAsync(
+     try {
+     const response= await uploadProfilePictureMutation.mutateAsync(
         file
       );
-
+      
       setProfilePic(URL.createObjectURL(file));
+      if(response.success){
 
-      globalToast.general.success(
-        'Profile picture updated'
-      );
+        globalToast.general.success(
+          'Profile picture updated'
+        );
+      }
+
+     
     } catch (error) {
       logger.error(
         'Profile picture upload error:',

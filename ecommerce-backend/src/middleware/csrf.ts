@@ -64,6 +64,13 @@ export const csrfMiddleware = (req: Request, res: Response, next: NextFunction):
     return;
   }
 
+  // Skip CSRF validation for profile endpoints (user settings)
+  if (req.path.startsWith('/profile')) {
+    logger.debug('CSRF skipped for profile path', { requestId: req.id, path: req.path });
+    next();
+    return;
+  }
+
   // Note: wallet and payment endpoints require CSRF protection for security
   // They are NOT skipped - must include valid CSRF token
 

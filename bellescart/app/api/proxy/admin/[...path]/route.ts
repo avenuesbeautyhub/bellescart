@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { generateSignature, generateNonce, getTimestamp, isSensitiveEndpoint } from '@/lib/server/requestSigning';
 
-// Get backend API URL from environment
-// Prioritize PROD_BACKEND_API_URL if set, otherwise use DEV
-const BACKEND_API_URL = process.env.PROD_BACKEND_API_URL || process.env.DEV_BACKEND_API_URL;
+// Get backend API URL from environment based on NODE_ENV
+const BACKEND_API_URL = process.env.NODE_ENV === 'production'
+  ? process.env.PROD_BACKEND_API_URL!
+  : process.env.DEV_BACKEND_API_URL!;
 
 if (!BACKEND_API_URL) {
-  throw new Error('Backend API URL not configured. Set DEV_BACKEND_API_URL or PROD_BACKEND_API_URL.');
+  const envVar = process.env.NODE_ENV === 'production' ? 'PROD_BACKEND_API_URL' : 'DEV_BACKEND_API_URL';
+  throw new Error(`Backend API URL not configured. Set ${envVar} in your environment.`);
 }
 
 /**

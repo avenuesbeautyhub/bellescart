@@ -11,6 +11,8 @@ export const apiRateLimiter = rateLimit({
   },
   standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
   legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+  skipFailedRequests: true, // Don't count failed requests against the limit
+  validate: process.env.NODE_ENV === 'production', // Skip security validations in development
   skip: (req: Request) => {
     // Skip rate limiting for health check endpoint
     return req.path === '/health';
@@ -26,7 +28,9 @@ export const authRateLimiter = rateLimit({
     error: 'Too many authentication attempts, please try again after 10 minutes'
   },
   standardHeaders: true,
-  legacyHeaders: false
+  legacyHeaders: false,
+  skipFailedRequests: true,
+  validate: process.env.NODE_ENV === 'production'
 });
 
 // Rate limiter for order creation (to prevent spam orders)
@@ -38,7 +42,9 @@ export const orderRateLimiter = rateLimit({
     error: 'Too many order creation attempts, please try again after 1 hour'
   },
   standardHeaders: true,
-  legacyHeaders: false
+  legacyHeaders: false,
+  skipFailedRequests: true,
+  validate: process.env.NODE_ENV === 'production'
 });
 
 // Rate limiter for payment processing
@@ -50,7 +56,9 @@ export const paymentRateLimiter = rateLimit({
     error: 'Too many payment attempts, please try again after 15 minutes'
   },
   standardHeaders: true,
-  legacyHeaders: false
+  legacyHeaders: false,
+  skipFailedRequests: true,
+  validate: process.env.NODE_ENV === 'production'
 });
 
 // Rate limiter for shipping calculations
@@ -62,7 +70,9 @@ export const shippingRateLimiter = rateLimit({
     error: 'Too many shipping calculation requests, please try again after 1 minute'
   },
   standardHeaders: true,
-  legacyHeaders: false
+  legacyHeaders: false,
+  skipFailedRequests: true,
+  validate: process.env.NODE_ENV === 'production'
 });
 
 // Rate limiter for public endpoints (products, categories)
@@ -74,7 +84,9 @@ export const publicRateLimiter = rateLimit({
     error: 'Too many requests, please try again after 15 minutes'
   },
   standardHeaders: true,
-  legacyHeaders: false
+  legacyHeaders: false,
+  skipFailedRequests: true,
+  validate: process.env.NODE_ENV === 'production'
 });
 
 // Rate limiter for admin endpoints (authenticated admin users)
@@ -86,7 +98,9 @@ export const adminRateLimiter = rateLimit({
     error: 'Too many admin requests, please try again after 15 minutes'
   },
   standardHeaders: true,
-  legacyHeaders: false
+  legacyHeaders: false,
+  skipFailedRequests: true,
+  validate: process.env.NODE_ENV === 'production'
 });
 
 // Rate limiter for privacy endpoints (sensitive operations)
@@ -98,5 +112,7 @@ export const privacyRateLimiter = rateLimit({
     error: 'Too many privacy requests, please try again after 1 hour'
   },
   standardHeaders: true,
-  legacyHeaders: false
+  legacyHeaders: false,
+  skipFailedRequests: true,
+  validate: process.env.NODE_ENV === 'production'
 });

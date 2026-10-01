@@ -57,6 +57,8 @@ class AuthService {
   }
 
   async verifyOtp(data: OtpData): Promise<ApiResponse> {
+    logger.auth('Verifying OTP for email:', data.email);
+
     const response = await publicApiFetch('/auth/verify-otp', {
       method: 'POST',
       headers: {
@@ -68,11 +70,18 @@ class AuthService {
       }),
     });
 
+    logger.auth('OTP verification response status:', response.status);
+
     const result = await response.json();
+
+    logger.auth('OTP verification response data:', result);
 
     // Store tokens if OTP verification is successful
     if (result.success && result.data?.token && result.data?.refreshToken) {
       this.setTokens(result.data.token, result.data.refreshToken);
+      logger.auth('Tokens stored successfully after OTP verification');
+    } else {
+      logger.auth('OTP verification failed or no tokens in response');
     }
 
     return result;

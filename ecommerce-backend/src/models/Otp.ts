@@ -28,7 +28,7 @@ const OtpSchema: Schema = new Schema({
   expiresAt: {
     type: Date,
     required: true,
-    default: () => new Date(Date.now() + 1 * 60 * 1000) // 1 minute from now
+    default: () => new Date(Date.now() + 1.5 * 60 * 1000) // 1 minute from now
   },
   isUsed: {
     type: Boolean,
