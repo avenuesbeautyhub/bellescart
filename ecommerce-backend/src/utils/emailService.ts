@@ -43,6 +43,7 @@ const createTransporter = () => {
     host: process.env.EMAIL_HOST,
     port: parseInt(process.env.EMAIL_PORT || "587"),
     secure: false,
+    family: 4, // Force IPv4 to prevent IPv6 connection errors
     auth: {
       user: process.env.EMAIL_USER,
       pass: process.env.EMAIL_PASS,
